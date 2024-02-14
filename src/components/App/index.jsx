@@ -1,15 +1,15 @@
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom"
 import Layout from "../shared/Layout"
-import Dashboard from "../Dashboard"
-import Pets from "../Pets"
-import Vacinas from "../Vacinas"
+import Dashboard from "../pages/Dashboard"
+import Pets from "../pages/Pets"
+import Vacinas from "../pages/Vacinas"
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index={true} element={<Dashboard />} />
+          <Route index element={<Dashboard />} />
           <Route path="pets" element={<Pets />} />
           <Route path="vacinas" element={<Vacinas />} />
         </Route>
