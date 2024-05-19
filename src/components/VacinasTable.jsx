@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, {useEffect, useState } from "react";
 import { MdOutlineOpenInNew } from "react-icons/md";
 import VacinaCard from "./VacinaInfo";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from '../config/firebase'
 
 const accordionItems = [
   {
@@ -52,10 +54,29 @@ const employees = [
 export default function VacinasTable() {
   const [selectedVaccine, setSelectedVaccine] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+
+  //States
+  const [veterinarios, setVeterinarios] = useState(null);
+  const [selectedVeterinario, setselectedVeterinario] = useState(null);
+
+  //Função de pegar os pets esperando validação
+  const getPetsValidation = async () => {
+    
+const querySnapshot = await getDocs(collection(db, "Veterinarios", "9X3JJmWdoERLyrV2qMQo", "Tutores"));
+querySnapshot.forEach((doc) => {
+  // doc.data() is never undefined for query doc snapshots
+  console.log(doc.id, " => ", doc.data());
+});
+setVeterinarios(veterinarios)
+  }
+  
+  useEffect(() => {
+    getPetsValidation()
+  },[]);
   const ModalContent = () => {
     return (
-      <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-gray-800 bg-opacity-50">
-        <div className="bg-white p-8 w-9/12 max-h-4/6 rounded-3xl shadow-lg overflow-y-auto">
+      <div className="fixed inset-0 overflow-auto justify-center pt-10 pb-10 bg-gray-800 bg-opacity-50">
+        <div className="bg-white p-8 w-9/12 max-h-4/6 rounded-3xl shadow-lg">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center space-x-4">
               <div>
@@ -92,7 +113,7 @@ export default function VacinasTable() {
             <h1 className="font-bold text-xl">Vacinas:</h1>
             <h1 className="font-bold text-xl">Informações:</h1>
           </div>
-          <div className="px-8">
+          <div className="">
             <VacinaCard title={"Kayque"} content={"Olá mundi"} />
           </div>
 
@@ -117,10 +138,10 @@ export default function VacinasTable() {
         <thead>
           <tr>
             <th></th>
-            <th className="text-sm">First Name</th>
-            <th className="text-sm">Last Name</th>
+            <th className="text-sm">Nome do Pet</th>
+            <th className="text-sm">Vacina</th>
             <th className="text-sm">Email</th>
-            <th className="text-sm">Salary</th>
+            <th className="text-sm">Data</th>
             <th></th>
           </tr>
         </thead>
