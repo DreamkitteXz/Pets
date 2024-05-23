@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:pet_app/models/vacinas.dart';
+import 'package:pet_app/mvc_implementation/models/vacinas.dart';
 import 'package:pet_app/screens/vacina/vacinas_detalhes.dart';
 
 import '../create_account/design/icon_button.dart';

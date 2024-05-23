@@ -1,23 +1,13 @@
+//=================================================================================================
+// Descrição: Código para gerenciamento e atribuiçao de identificação de usuario e elementos únicos.
+// Autor: Kayque Amado
+// Data: 09/03/2024
+//=================================================================================================
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
-String petID = '';
-String vacID = '';
-String verID = '';
-
-String gerarPetID() {
-  return petID = const Uuid().v4().trim();
-}
-
-String gerarVacID() {
-  return vacID = const Uuid().v1().trim();
-}
-
-String gerarVerID() {
-  return verID = const Uuid().v1().trim();
-}
-
+// ADD User details - used in Login
 Future addUserdatalhes(
     String nome,
     String email,
@@ -49,6 +39,7 @@ Future addUserdatalhes(
   });
 }
 
+// EDIT User details - used in Profile
 Future editUserdatalhes(
     String nome,
     String cpf,
@@ -76,6 +67,7 @@ Future editUserdatalhes(
   });
 }
 
+//  Create Pet - used in Homescreen
 Future cadastroPet(
     String idPet,
     String name,

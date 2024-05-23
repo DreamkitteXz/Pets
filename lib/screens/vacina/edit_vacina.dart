@@ -6,7 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:pet_app/models/vacinas.dart';
+import 'package:pet_app/mvc_implementation/models/vacinas.dart';
 
 import '../create_account/design/icon_button.dart';
 import '../create_account/design/theme.dart';

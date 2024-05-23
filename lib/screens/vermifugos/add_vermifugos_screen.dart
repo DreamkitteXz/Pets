@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pet_app/mvc_implementation/controllers/id_controller.dart';
+import 'package:pet_app/teste_ate_padronizar/teste.dart';
 
 import '../../components/id.dart';
 import '../create_account/design/icon_button.dart';
@@ -62,156 +64,7 @@ class _AddVermifugoScreenState extends State<AddVermifugoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return
-        /*Form(
-      key: _formKey,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("Adicione um Vermifugo"),
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: ListView(
-            children: [
-              // =======================================================
-              // TextFormField Nome da Vermifugo
-              TextFormField(
-                controller: vermifugoController,
-                decoration: const InputDecoration(labelText: "Vermifugo"),
-                validator: (String? value) {
-                  if (value != null && value.isEmpty) {
-                    return 'Insira o Vermifugo';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              // =======================================================
-              // TextFormField Primeira dose
-              TextFormField(
-                readOnly: true,
-                controller: primeiraDoseController,
-                validator: (value) {
-                  if (value != null && value.isEmpty) {
-                    return 'Insira a data da primeira dose';
-                  }
-                  return null;
-                },
-                onTap: () async {
-                  DateTime? pickedDate = await _showDataPicker();
-                  if (pickedDate != null) {
-                    setState(() {
-                      _selectedDate = pickedDate;
-                      primeiraDoseController.text =
-                          formatDateToString(pickedDate);
-                    });
-                  }
-                },
-                decoration: const InputDecoration(labelText: "Primeira Dose"),
-              ),
-              const SizedBox(height: 16),
-
-              // =======================================================
-              //checkbox dose de reforço?
-
-              Row(
-                children: [
-                  Checkbox(
-                    value: _mostrarReforco,
-                    onChanged: (bool? newValue) {
-                      setState(() {
-                        _mostrarReforco = newValue!;
-                      });
-                    },
-                  ),
-                  const Text('Dose de Reforço'),
-                ],
-              ),
-
-              // =======================================================
-              // TextFormField Próxima aplicação
-
-              _mostrarReforco
-                  ? TextFormField(
-                      readOnly: true,
-                      controller: segundaDoseController,
-                      validator: (value) {
-                        if (value != null && value.isEmpty) {
-                          return 'Insira a data da dose de reforço';
-                        }
-                        return null;
-                      },
-                      onTap: () async {
-                        DateTime? pickedDate = await _showDataPickerhoje();
-                        if (pickedDate != null) {
-                          setState(() {
-                            _selectedDate = pickedDate;
-                            segundaDoseController.text =
-                                formatDateToString(pickedDate);
-                          });
-                        }
-                      },
-                      decoration:
-                          const InputDecoration(labelText: "Dose de Reforoço"),
-                    )
-                  : const SizedBox(),
-              const SizedBox(height: 16),
-
-              // =================================================================
-              // TextFormField Peso
-              TextFormField(
-                controller: pesoController,
-                decoration: const InputDecoration(labelText: "Peso"),
-                validator: (String? value) {
-                  if (value != null && value.isEmpty) {
-                    return 'Insira o peso';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              // =================================================================
-              // TextButton Cancelar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Text("Cancelar"),
-                  ),
-                  const SizedBox(width: 16),
-                  // ===================================================
-                  // ElevatedButton Salvar
-                  ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        cadastroVermifugos(
-                          vermifugoController.text.trim(),
-                          gerarVerID(),
-                          primeiraDoseController.text.trim(),
-                          segundaDoseController.text.trim(),
-                          kiloGramaController.text.trim(),
-                          pesoController.text.trim(),
-                        );
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: const Text("Salvar"),
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
-      ),
-    );
-    
-  }
-*/
-
-        Form(
+    return Form(
       key: _formKey,
       child: Scaffold(
         appBar: AppBar(
@@ -498,11 +351,11 @@ class _AddVermifugoScreenState extends State<AddVermifugoScreen> {
                 Padding(
                   padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                   child: FFButtonWidget(
-                    onPressed: () {
+                    onPressed: () async {
                       if (_formKey.currentState!.validate()) {
                         cadastroVermifugos(
                           vermifugoController.text.trim(),
-                          gerarVerID(),
+                          gerarVersID(),
                           primeiraDoseController.text.trim(),
                           segundaDoseController.text.trim(),
                           kiloGramaController.text.trim(),

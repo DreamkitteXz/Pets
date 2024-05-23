@@ -1,3 +1,9 @@
+//==============================================================================
+// Descrição: Classe com atributos dos Vermifugos para melhor manipulação deles.
+// Autor: Kayque Amado
+// Data: 09/03/2024
+//==============================================================================
+
 class Vermifugos {
   String id;
   String vermifugo;

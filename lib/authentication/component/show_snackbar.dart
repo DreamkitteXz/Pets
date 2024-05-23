@@ -1,3 +1,8 @@
+//==========================================
+// Descrição: Componente de snackbar
+// Autor: Kayque Amado
+// Data: 09/03/2024
+//==========================================
 import 'package:flutter/material.dart';
 
 showSnackBar({

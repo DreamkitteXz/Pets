@@ -6,6 +6,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:pet_app/communication/firebase_api.dart';
+import 'package:pet_app/models/Pet.dart';
+import 'package:pet_app/models/vacinas_pendentes.dart';
+import 'package:pet_app/mvc_implementation/controllers/id_controller.dart';
 
 import '../../components/id.dart';
 import '../create_account/design/icon_button.dart';
@@ -37,6 +41,9 @@ class _AddVacinaWidgetState extends State<AddVacinaWidget> {
   final _enderecoController = TextEditingController();
 
   DateTime? _selectedDate;
+  String userId = FirebaseAuth.instance.currentUser!.uid;
+  String? vacId;
+  Future<List<Pet>>? pet;
 
   // ================================================================
   // Função de cadastro Vacina Firebase
@@ -56,10 +63,11 @@ class _AddVacinaWidgetState extends State<AddVacinaWidget> {
       String observacoes,
       String cnpj,
       String clinica,
-      String endereco) async {
+      String endereco,
+      String isValidado) async {
     await FirebaseFirestore.instance
         .collection("Users")
-        .doc(FirebaseAuth.instance.currentUser!.uid)
+        .doc(userId)
         .collection("Pets")
         .doc(widget.petId)
         .collection("Vacinas")
@@ -79,8 +87,10 @@ class _AddVacinaWidgetState extends State<AddVacinaWidget> {
       "Observações": observacoes,
       "CNPJ": cnpj,
       "Clínica": clinica,
-      "Endereço": endereco
+      "Endereço": endereco,
+      "isValidado": isValidado
     });
+    vacId = id;
   }
 
   //=================================================================
@@ -295,7 +305,7 @@ class _AddVacinaWidgetState extends State<AddVacinaWidget> {
                         ),
                         style: FlutterFlowTheme.of(context).bodyLarge,
                         onTap: () async {
-                          DateTime? pickedDate = await _showDataPickerhoje();
+                          DateTime? pickedDate = await _showDataPicker();
                           if (pickedDate != null) {
                             setState(() {
                               _selectedDate = pickedDate;
@@ -1021,8 +1031,10 @@ class _AddVacinaWidgetState extends State<AddVacinaWidget> {
                       padding:
                           const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                       child: FFButtonWidget(
-                        onPressed: () {
+                        onPressed: () async {
                           print(imageURL);
+                          //getUserData();
+                          //getPetData(widget.petId);
                           if (_formKey.currentState!.validate()) {
                             if (imageURL.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -1030,24 +1042,31 @@ class _AddVacinaWidgetState extends State<AddVacinaWidget> {
                                     content: Text('Faça o upload da imagem')),
                               );
                             } else {
-                              cadastroVacinas(
-                                  nameController.text.trim(),
-                                  gerarVacID(),
-                                  dataAplicadaController.text.trim(),
-                                  proximaAplicacaoController.text.trim(),
-                                  pesoController.text.trim(),
-                                  loteController.text.trim(),
-                                  farmaceuticaController.text.trim(),
-                                  dataValidadeController.text.trim(),
-                                  nomeVetController.text.trim(),
-                                  crmvController.text.trim(),
-                                  imageURL,
-                                  observacoesController.text.trim(),
-                                  _cnpjController.text.trim(),
-                                  _clinicaController.text.trim(),
-                                  _enderecoController.text.trim());
-
-                              Navigator.pop(context);
+                              // Use o mesmo valor de vacId que você gerou anteriormente
+                              try {
+                                cadastroVacinas(
+                                    nameController.text.trim(),
+                                    gerarVacsID(),
+                                    dataAplicadaController.text.trim(),
+                                    proximaAplicacaoController.text.trim(),
+                                    pesoController.text.trim(),
+                                    loteController.text.trim(),
+                                    farmaceuticaController.text.trim(),
+                                    dataValidadeController.text.trim(),
+                                    nomeVetController.text.trim(),
+                                    crmvController.text.trim(),
+                                    imageURL,
+                                    observacoesController.text.trim(),
+                                    _cnpjController.text.trim(),
+                                    _clinicaController.text.trim(),
+                                    _enderecoController.text.trim(),
+                                    'false'); // Começa com validado em false
+                                adicionarDadosVacinaPendente(
+                                    widget.petId, vacId);
+                                //Navigator.pop(context);
+                              } catch (e) {
+                                print('Erro: $e');
+                              }
                             }
                           }
                         },
@@ -1099,15 +1118,4 @@ class _AddVacinaWidgetState extends State<AddVacinaWidget> {
     return picked;
   }
   //===============================================================
-
-  Future<DateTime?> _showDataPickerhoje() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(DateTime.now().year + 1),
-    );
-
-    return picked;
-  }
 }

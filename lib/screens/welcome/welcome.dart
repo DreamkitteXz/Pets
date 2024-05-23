@@ -99,7 +99,9 @@ class _WelcomePageWidgetState extends State<WelcomePageWidget>
                       'lib/assets/welcome_pet.png',
                     ).image,
                   ),
-                  borderRadius: BorderRadius.circular(31),
+                  borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24)),
                   shape: BoxShape.rectangle,
                   border: Border.all(
                     color: FlutterFlowTheme.of(context).alternate,

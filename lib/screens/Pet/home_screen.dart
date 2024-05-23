@@ -62,7 +62,7 @@ class _CadastroPetState extends State<CadastroPet> {
           children: [
             Container(
               width: double.infinity,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
@@ -76,7 +76,8 @@ class _CadastroPetState extends State<CadastroPet> {
                 mainAxisSize: MainAxisSize.max,
                 children: [
                   Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(16, 42, 16, 24),
+                    padding:
+                        const EdgeInsetsDirectional.fromSTEB(16, 42, 16, 24),
                     child: Row(
                       mainAxisSize: MainAxisSize.max,
                       mainAxisAlignment: MainAxisAlignment.start,
@@ -87,8 +88,8 @@ class _CadastroPetState extends State<CadastroPet> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Padding(
-                                padding:
-                                    EdgeInsetsDirectional.fromSTEB(12, 0, 0, 0),
+                                padding: const EdgeInsetsDirectional.fromSTEB(
+                                    12, 0, 0, 0),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.max,
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -100,7 +101,7 @@ class _CadastroPetState extends State<CadastroPet> {
                                           .headlineMedium
                                           .override(
                                             fontFamily: 'Outfit',
-                                            color: Color(0xFF15161E),
+                                            color: const Color(0xFF15161E),
                                             fontSize: 24,
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -111,7 +112,7 @@ class _CadastroPetState extends State<CadastroPet> {
                                           .bodySmall
                                           .override(
                                             fontFamily: 'Outfit',
-                                            color: Color(0xFF14181B),
+                                            color: const Color(0xFF14181B),
                                             fontSize: 14,
                                             fontWeight: FontWeight.normal,
                                           ),
@@ -130,8 +131,8 @@ class _CadastroPetState extends State<CadastroPet> {
                                   width: 42,
                                   height: 42,
                                   decoration: BoxDecoration(
-                                    color: Color(0xFFDADADA),
-                                    boxShadow: [
+                                    color: const Color(0xFFDADADA),
+                                    boxShadow: const [
                                       BoxShadow(
                                         blurRadius: 4,
                                         color: Color(0x33000000),
@@ -167,7 +168,7 @@ class _CadastroPetState extends State<CadastroPet> {
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('Users')
-                      .doc(FirebaseAuth.instance.currentUser!.uid)
+                      .doc(FirebaseAuth.instance.currentUser?.uid)
                       .collection('Pets')
                       .snapshots(),
                   builder: (BuildContext context,
@@ -345,7 +346,7 @@ class _CadastroPetState extends State<CadastroPet> {
                                                   child: Padding(
                                                     padding:
                                                         const EdgeInsetsDirectional
-                                                                .fromSTEB(
+                                                            .fromSTEB(
                                                             0, 4, 8, 0),
                                                     child: Text(
                                                       model.raca,
@@ -362,7 +363,7 @@ class _CadastroPetState extends State<CadastroPet> {
                                                   child: Padding(
                                                     padding:
                                                         const EdgeInsetsDirectional
-                                                                .fromSTEB(
+                                                            .fromSTEB(
                                                             0, 4, 8, 0),
                                                     child: Text(
                                                       model.sexo,
@@ -379,13 +380,13 @@ class _CadastroPetState extends State<CadastroPet> {
                                             ),
                                           ),
                                         ),
-                                        Column(
+                                        const Column(
                                           mainAxisSize: MainAxisSize.max,
                                           mainAxisAlignment:
                                               MainAxisAlignment.spaceEvenly,
                                           crossAxisAlignment:
                                               CrossAxisAlignment.end,
-                                          children: const [
+                                          children: [
                                             Padding(
                                               padding: EdgeInsetsDirectional
                                                   .fromSTEB(0, 4, 0, 0),

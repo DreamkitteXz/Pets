@@ -1,3 +1,9 @@
+//========================================================================
+// Descrição: Classe com atributos dos Pets para melhor manipulação deles.
+// Autor: Kayque Amado
+// Data: 09/03/2024
+//========================================================================
+
 class Pet {
   String id;
   String name;

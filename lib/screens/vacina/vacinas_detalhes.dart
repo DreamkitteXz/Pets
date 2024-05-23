@@ -7,7 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pet_app/models/vacinas.dart';
+import 'package:pet_app/mvc_implementation/models/vacinas.dart';
 import 'package:pet_app/screens/create_account/design/animations.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 

@@ -11,6 +11,8 @@ import 'design/theme.dart';
 import 'design/widgets.dart';
 
 class RegistroPage extends StatefulWidget {
+  const RegistroPage({super.key});
+
   @override
   State<RegistroPage> createState() => _RegistroPageState();
 }
@@ -74,6 +76,7 @@ class _RegistroPageState extends State<RegistroPage> {
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case "email-already-in-use":
+          // ignore: use_build_context_synchronously
           return showSnackBar(
               context: context, texto: "Email já esta em uso.", isError: true);
       }
@@ -827,7 +830,7 @@ class _RegistroPageState extends State<RegistroPage> {
                         padding:
                             const EdgeInsetsDirectional.fromSTEB(0, 8, 0, 16),
                         child: FFButtonWidget(
-                          onPressed: () {
+                          onPressed: () async {
                             if (_formKey.currentState!.validate()) {
                               signIn();
                               Navigator.push(

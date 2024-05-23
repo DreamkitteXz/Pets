@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:pet_app/authentication/logout.dart';
 import 'package:pet_app/components/id.dart';
+import 'package:pet_app/screens/create_account/regitro_page.dart';
+import 'package:pet_app/screens/welcome/welcome.dart';
 
 import '../Pet/home_screen.dart';
 import 'design/icon_button.dart';
@@ -712,9 +715,45 @@ class _EditDatailsState extends State<EditDatails> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                      )
+                      ),
 
                       //===========================================================================================
+                      //===========================================================================================
+                      //Botão de Log-Out
+
+                      Padding(
+                        padding:
+                            const EdgeInsetsDirectional.fromSTEB(0, 8, 0, 16),
+                        child: FFButtonWidget(
+                          onPressed: () {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const WelcomePageWidget(),
+                                ));
+                            deslogar();
+                          },
+                          text: 'Log-Out',
+                          options: FFButtonOptions(
+                            width: 370,
+                            height: 44,
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                                0, 0, 0, 0),
+                            iconPadding: const EdgeInsetsDirectional.fromSTEB(
+                                0, 0, 0, 0),
+                            color: FlutterFlowTheme.of(context).primary,
+                            textStyle: FlutterFlowTheme.of(context)
+                                .titleSmall
+                                .override(
+                                  fontFamily: 'Readex Pro',
+                                  color: Colors.white,
+                                ),
+                            elevation: 3,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      )
                     ],
                   ),
                 ),

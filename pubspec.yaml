@@ -68,10 +68,13 @@ dependencies:
   open_file: ^3.3.2
   path_provider: ^2.1.1
   syncfusion_flutter_pdf: ^23.1.36
+  flutter_svg: ^2.0.9
+  carousel_slider: ^4.2.1
+  smooth_page_indicator: ^1.1.0
 
 flutter_native_splash:
-  color: "4E4D9C"
-  image: "assets/app/icon_png.png"
+  color: "#041A23"
+  image: "assets/app/pets_logo.png"
   android: true
   ios: true
 
@@ -122,6 +125,23 @@ flutter:
     - lib/assets/animation_lkreu8c0_small.gif
     - assets/app/icon_png.png
     - lib/assets/OpenSans-Regular.ttf
+    - assets/app/pets_logo.svg
+    - assets/app/pets_logo.png
+    - lib/mvc_implementation/screens/assets/cat1.svg
+    - lib/mvc_implementation/screens/assets/cat2.svg
+    - lib/mvc_implementation/screens/assets/dog1.svg
+    - lib/mvc_implementation/screens/assets/password_icon.svg
+    - lib/mvc_implementation/screens/assets/bubbles_snack_bar.svg
+    - lib/mvc_implementation/screens/assets/close_snack_bar.svg
+    - lib/mvc_implementation/screens/assets/fail_snack_bar.svg
+    - lib/mvc_implementation/screens/assets/pata.png
+    - lib/mvc_implementation/screens/assets/color.png
+    - lib/mvc_implementation/screens/assets/raca.png
+    - lib/mvc_implementation/screens/assets/tipo.png
+    - lib/mvc_implementation/screens/assets/sexo.png
+    - lib/mvc_implementation/screens/assets/docs.svg
+    - lib/mvc_implementation/screens/assets/validado.svg
+    - lib/mvc_implementation/screens/assets/aguardando.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
@@ -145,6 +165,9 @@ flutter:
   #       - asset: fonts/TrajanPro.ttf
   #       - asset: fonts/TrajanPro_Bold.ttf
   #         weight: 700
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/inter.ttf
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages

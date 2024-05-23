@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pet_app/mvc_implementation/controllers/id_controller.dart';
 
 import '../../components/id.dart';
 import '../create_account/design/icon_button.dart';
@@ -533,7 +534,7 @@ class _AddPetWidgetState extends State<AddPetWidget> {
                             print(_tipoController.text);
                             if (_formKey.currentState!.validate()) {
                               cadastroPet(
-                                  gerarPetID(),
+                                  gerarPetsID(),
                                   _nameController.text.trim(),
                                   _tipoController.text.trim(),
                                   _racaController.text.trim(),

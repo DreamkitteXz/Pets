@@ -1,3 +1,9 @@
+//==========================================================================
+// Descrição: Classe com atributos das Vacinas para melhor manipulação delas.
+// Autor: Kayque Amado
+// Data: 09/03/2024
+//==========================================================================
+
 class Vacinas {
   String id;
   String vacina;
@@ -13,8 +19,12 @@ class Vacinas {
   String observacoes;
   String? cnpj;
   String? clinica;
-  String? endereco;
-
+  String? rua;
+  String? bairro;
+  String? numero;
+  String? cidade;
+  String isValidadoVet;
+  String isValidadoTutor;
   Vacinas(
       {required this.id,
       required this.vacina,
@@ -28,9 +38,14 @@ class Vacinas {
       required this.nomeVet,
       required this.crmv,
       required this.observacoes,
+      required this.isValidadoVet,
+      required this.isValidadoTutor,
       this.cnpj,
       this.clinica,
-      this.endereco});
+      this.rua,
+      this.bairro,
+      this.numero,
+      this.cidade});
 
   Vacinas.fromMap(Map<String, dynamic> map)
       : id = map["Id"] ?? '',
@@ -47,7 +62,12 @@ class Vacinas {
         observacoes = map["Observações"] ?? '',
         cnpj = map["CNPJ"] ?? '',
         clinica = map["Clínica"] ?? '',
-        endereco = map["Endereço"] ?? '';
+        rua = map["Rua"] ?? '',
+        bairro = map["Bairro"] ?? '',
+        numero = map["Numero"] ?? '',
+        cidade = map["Cidade"] ?? '',
+        isValidadoVet = map["isValidadoVet"] ?? '',
+        isValidadoTutor = map["isValidadoTutor"] ?? '';
 
   Map<String, dynamic> toMap() {
     return {
@@ -65,7 +85,12 @@ class Vacinas {
       "Observações": observacoes,
       "CNPJ": cnpj,
       "Clínica": clinica,
-      "Endereço": endereco
+      "Rua": rua,
+      "Bairro": bairro,
+      "Numero": numero,
+      "Cidade": cidade,
+      "isValidadoVet": isValidadoVet,
+      "isValidadoTutor": isValidadoTutor,
     };
   }
 }
