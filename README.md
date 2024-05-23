@@ -1,6 +1,6 @@
-# Nome do Projeto
+# Pets
 
-Breve descrição ou slogan do seu projeto.
+Um sistema de controle de vacinação que servirá como carteira de vacinação do se Pet
 
 ## Índice
 
@@ -20,14 +20,15 @@ Breve visão geral do projeto, explicando seu propósito e suas principais funci
 
 Lista das principais tecnologias, ferramentas e linguagens de programação usadas no projeto.
 
-- Tecnologia 1
-- Tecnologia 2
-- ...
+- React JS
+- Flutter
+- Firebase
+- Git
 
 ## Instalação
 
 Instruções sobre como instalar o projeto localmente ou como obter uma cópia do código-fonte.
 
 ```bash
-git clone https://github.com/seu-usuario/seu-projeto.git
-cd seu-projeto
+git clone https://github.com/DreamkitteXz/Pets
+cd Pets
