@@ -1,17 +1,17 @@
-import React, {useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { MdOutlineOpenInNew } from "react-icons/md";
 import VacinaCard from "./VacinaInfo";
 import { collection, getDocs } from "firebase/firestore";
-import { db } from '../config/firebase'
+import { db } from "../config/firebase";
 
 const accordionItems = [
   {
-    title: 'Section 1',
-    content: 'Content for section 1...',
+    title: "Section 1",
+    content: "Content for section 1...",
   },
   {
-    title: 'Section 2',
-    content: 'Content for section 2...',
+    title: "Section 2",
+    content: "Content for section 2...",
   },
   // Add more sections as needed
 ];
@@ -19,36 +19,36 @@ const accordionItems = [
 const employees = [
   {
     id: 1,
-    firstName: 'Susan',
-    lastName: 'Jordon',
-    email: 'susan@example.com',
-    salary: '95000',
-    date: '2019-04-11',
+    firstName: "Susan",
+    lastName: "Jordon",
+    email: "susan@example.com",
+    salary: "95000",
+    date: "2019-04-11",
   },
   {
     id: 2,
-    firstName: 'Adrienne',
-    lastName: 'Doak',
-    email: 'adrienne@example.com',
-    salary: '80000',
-    date: '2019-04-17',
+    firstName: "Adrienne",
+    lastName: "Doak",
+    email: "adrienne@example.com",
+    salary: "80000",
+    date: "2019-04-17",
   },
   {
     id: 3,
-    firstName: 'Rolf',
-    lastName: 'Hegdal',
-    email: 'rolf@example.com',
-    salary: '79000',
-    date: '2019-05-01',
+    firstName: "Rolf",
+    lastName: "Hegdal",
+    email: "rolf@example.com",
+    salary: "79000",
+    date: "2019-05-01",
   },
   {
     id: 4,
-    firstName: 'Kent',
-    lastName: 'Rosner',
-    email: 'kent@example.com',
-    salary: '56000',
-    date: '2019-05-03',
-  }
+    firstName: "Kent",
+    lastName: "Rosner",
+    email: "kent@example.com",
+    salary: "56000",
+    date: "2019-05-03",
+  },
 ];
 
 export default function VacinasTable() {
@@ -61,22 +61,23 @@ export default function VacinasTable() {
 
   //Função de pegar os pets esperando validação
   const getPetsValidation = async () => {
-    
-const querySnapshot = await getDocs(collection(db, "Veterinarios", "9X3JJmWdoERLyrV2qMQo", "Tutores"));
-querySnapshot.forEach((doc) => {
-  // doc.data() is never undefined for query doc snapshots
-  console.log(doc.id, " => ", doc.data());
-});
-setVeterinarios(veterinarios)
-  }
-  
+    const querySnapshot = await getDocs(
+      collection(db, "Veterinarios", "9X3JJmWdoERLyrV2qMQo", "Tutores"),
+    );
+    querySnapshot.forEach((doc) => {
+      // doc.data() is never undefined for query doc snapshots
+      console.log(doc.id, " => ", doc.data());
+    });
+    setVeterinarios(veterinarios);
+  };
+
   useEffect(() => {
-    getPetsValidation()
-  },[]);
+    getPetsValidation();
+  }, []);
   const ModalContent = () => {
     return (
-      <div className="fixed inset-0 overflow-auto justify-center pt-10 pb-10 bg-gray-800 bg-opacity-50">
-        <div className="bg-white p-8 w-9/12 max-h-4/6 rounded-3xl shadow-lg">
+      <div className="flex overflow-auto items-center justify-center fixed inset-0 z-50 bg-black bg-opacity-50">
+        <div className="bg-white rounded-lg max-w-3xl p-6 md:max-h-[98vh] relative overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center space-x-4">
               <div>
@@ -91,7 +92,10 @@ setVeterinarios(veterinarios)
               </div>
             </div>
             <div>
-              <button onClick={closeModal} className="text-gray-600 hover:text-gray-800">
+              <button
+                onClick={closeModal}
+                className="text-gray-600 hover:text-gray-800"
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
@@ -116,7 +120,6 @@ setVeterinarios(veterinarios)
           <div className="">
             <VacinaCard title={"Kayque"} content={"Olá mundi"} />
           </div>
-
         </div>
       </div>
     );
@@ -148,13 +151,19 @@ setVeterinarios(veterinarios)
         <tbody>
           {employees ? (
             employees.map((employee, i) => (
-              <tr key={employee.id} className="cursor-pointer" onClick={() => openModal(employee)}>
+              <tr
+                key={employee.id}
+                className="cursor-pointer"
+                onClick={() => openModal(employee)}
+              >
                 <td>img</td>
                 <td>{employee.firstName}</td>
                 <td>{employee.lastName}</td>
                 <td>{employee.email}</td>
                 <td>{employee.salary}</td>
-                <td><MdOutlineOpenInNew /></td>
+                <td>
+                  <MdOutlineOpenInNew />
+                </td>
               </tr>
             ))
           ) : (
@@ -167,7 +176,7 @@ setVeterinarios(veterinarios)
 
       {/* Modal */}
       {/* Modal */}
-      {isModalVisible && (<ModalContent />)}
+      {isModalVisible && <ModalContent />}
     </div>
   );
 }
