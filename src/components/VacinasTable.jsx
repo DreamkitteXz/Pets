@@ -137,14 +137,13 @@ export default function VacinasTable() {
 
   return (
     <div className="wt-3 pb-8 px-12 pt-8">
-      <table className="w-full">
-        <thead>
+      <table className="table-fixed w-full h-full">
+        <thead className="bg-white border-b-1 border-t-0">
           <tr>
-            <th></th>
-            <th className="text-sm">Nome do Pet</th>
-            <th className="text-sm">Vacina</th>
-            <th className="text-sm">Email</th>
-            <th className="text-sm">Data</th>
+            <th className="text-gray-500 text-sm">Nome do Pet</th>
+            <th className="text-gray-500 text-sm">Vacina</th>
+            <th className="text-gray-500 text-sm">Email</th>
+            <th className="text-gray-500 text-sm">Data</th>
             <th></th>
           </tr>
         </thead>
@@ -156,12 +155,22 @@ export default function VacinasTable() {
                 className="cursor-pointer"
                 onClick={() => openModal(employee)}
               >
-                <td>img</td>
-                <td>{employee.firstName}</td>
-                <td>{employee.lastName}</td>
-                <td>{employee.email}</td>
-                <td>{employee.salary}</td>
-                <td>
+                <td className="text-slate-600">
+                  <div className="flex flex-wrap items-center">
+                    <div className="bg-gray-500 rounded rounded-full h-10 w-10 mr-2">
+                      <img
+                        className="rounded rounded-full"
+                        src="https://i.pinimg.com/564x/72/f2/56/72f25653ad18c0ec71331a9f9f60d02a.jpg"
+                        alt="Imagem do Usuário"
+                      />
+                    </div>
+                    {employee.firstName}
+                  </div>
+                </td>
+                <td className="text-slate-600">{employee.lastName}</td>
+                <td className="text-slate-600">{employee.email}</td>
+                <td className="text-slate-600">{employee.salary}</td>
+                <td className="text-slate-600">
                   <MdOutlineOpenInNew />
                 </td>
               </tr>

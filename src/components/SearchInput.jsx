@@ -3,9 +3,9 @@ import { IoMdSearch } from "react-icons/io";
 
 function SearchInput() {
   return (
-    <div className="relative flex items-center">
+    <div className="relative flex items-center ml-5 mr-5">
       <input
-        className="bg-gray-200 p-1 pr-8 w-[100px] placeholder-black rounded rounded-md"
+        className="bg-gray-200 p-2 pr-8 w-[100px] placeholder-black rounded rounded-full"
         type="text"
         placeholder="Search"
         style={{ color: "black" }}

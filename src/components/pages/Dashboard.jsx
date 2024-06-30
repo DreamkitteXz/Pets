@@ -1,10 +1,37 @@
 // Dashboard.js
 import React, { useState } from "react";
-import SearchInput from "../SearchInput";
 import DashboardCards from "../DashboardCards";
+import Avatar from "../Avatar";
+import Table from "../Table";
+import HeaderSubtitle from "../HeaderSubtitle";
 
 function Dashboard() {
   const [selectedTitle, setSelectedTitle] = useState("Tutores");
+
+  const columns = [
+    {
+      key: "name",
+      header: "Nome",
+      render: (value, row) => (
+        <div className="flex items-center">
+          <Avatar image={row.avatar} />
+          {value}
+        </div>
+      ),
+    },
+    { key: "pets", header: "Pets" },
+    { key: "address", header: "Endereço" },
+    { key: "phone", header: "Telefone" },
+  ];
+
+  const data = Array.from({ length: 5 }).map((_, index) => ({
+    id: index,
+    name: "Kayque Silva Fernandes Amado",
+    pets: "1",
+    address: "Rua Cassiano Pinto, 183",
+    phone: "(219) 555-0114",
+    avatar: "https://avatars.githubusercontent.com/u/93887857?v=4",
+  }));
 
   return (
     <div className="flex flex-col">
@@ -28,49 +55,12 @@ function Dashboard() {
         />
       </div>
       <div className="mt-2 mb-5 border border-b-4"></div>
-      <div className="flex flex-wrap items-center">
-        <h1 style={{ fontSize: "22px" }}>
-          <b>
-            {selectedTitle} #TODO: Quando mudar o titulo, as tabelas devem
-            exibir tutores, vacina ou pet?
-          </b>
-        </h1>
-        <div className="ml-auto">
-          <SearchInput />
-        </div>
-      </div>
-      <div className="mt-5 flex flex-1 max-h-[30vh] overflow-auto">
-        <table className="table-fixed w-full h-full">
-          <thead className="bg-white border-b-1 border-t-0">
-            <tr>
-              <th className="text-gray-500">Nome</th>
-              <th className="text-gray-500">Pets</th>
-              <th className="text-gray-500">Endereço</th>
-              <th className="text-gray-500">Telefone</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 20 }).map((_, index) => (
-              <tr>
-                <td className="text-slate-600">
-                  <div className="flex flex-wrap items-center">
-                    <div className="bg-gray-500 rounded rounded-full h-10 w-10 mr-2">
-                      <img
-                        className="rounded rounded-full"
-                        src="https://avatars.githubusercontent.com/u/93887857?v=4"
-                        alt="Imagem do Usuário"
-                      />
-                    </div>
-                    Kayque Silva Fernandes Amado
-                  </div>
-                </td>
-                <td className="text-slate-600">1</td>
-                <td className="text-slate-600">Rua Cassiano Pinto, 183</td>
-                <td className="text-slate-600">(219) 555-0114</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <HeaderSubtitle>
+        {selectedTitle} #TODO: Quando mudar o titulo, as tabelas devem exibir
+        tutores, vacina ou pet?
+      </HeaderSubtitle>
+      <div className="mt-5 flex flex-1 p-8 max-h-[80vh] overflow-auto">
+        <Table columns={columns} data={data} rowKey="id" />
       </div>
     </div>
   );
