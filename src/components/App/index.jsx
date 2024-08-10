@@ -3,6 +3,7 @@ import Layout from "../shared/Layout"
 import Dashboard from "../pages/Dashboard"
 import Pets from "../pages/Pets"
 import Vacinas from "../pages/Vacinas"
+import Login from "../pages/login"
 
 function App() {
   return (
@@ -13,7 +14,7 @@ function App() {
           <Route path="pets" element={<Pets />} />
           <Route path="vacinas" element={<Vacinas />} />
         </Route>
-        <Route path="login" element={<div>this is login page</div>} />
+        <Route path="login" element={<Login/>} />
       </Routes>
     </Router>
 

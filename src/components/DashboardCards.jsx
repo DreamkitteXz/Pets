@@ -1,10 +1,10 @@
 // DaashboardCards.js
 import React from "react";
 
-function DashboardCards({ title, info, onClick }) {
+function DashboardCards({ title, info, onClick, icon }) {
   return (
     <div
-      className="flex flex-col bg-gray-200 hover:bg-gray-300 cursor-pointer m-10 w-[300px] h-[200px] p-4 rounded rounded-md"
+      className="flex flex-col bg-gray-200 hover:bg-gray-300 cursor-pointer m-5 w-[300px] h-[150px] p-3 rounded rounded-md"
       onClick={onClick}
     >
       <h1 className="text-left">
@@ -15,7 +15,12 @@ function DashboardCards({ title, info, onClick }) {
           <b>{info}</b>
         </h2>
       </span>
-    </div>
+      <img
+            className="rounded rounded-full"
+            src={icon}
+            alt="TODO: Icon"
+            />
+      </div>
   );
 }
 

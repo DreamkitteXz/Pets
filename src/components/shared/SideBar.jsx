@@ -3,13 +3,15 @@ import { DASHBOARD_SIDEBAR_BOTTOM_LINKS, DASHBOARD_SIDEBAR_LINKS } from "../../l
 import { Link, useLocation } from "react-router-dom";
 import classNames from "classnames";
 import { IoIosLogOut } from "react-icons/io";
+import { readData } from "../../api/firebase";
 
 const linkClasses = 'flex items-center gap-2 font-light px-3 py-3 hover:bg-neutral-700 hover:no-underline active:bg-neutral-600 rounded-sm text-base'
 
 export default function SideBar() {
-  return <div className="bg-neutral-900 w-60 p-3 flex flex-col text-white">
+  return <div className="bg-[#212121] w-60 p-3 flex flex-col text-white">
     <div className="flex itens-center gap-2 px-1 py-3">
       <span className="text-neutral-100 text-2xl">Logo.</span>
+      <button onClick={readData}>Ola</button>
     </div>
     <div className=" flex-1 py-6 ">
       {DASHBOARD_SIDEBAR_LINKS.map((item) => (
