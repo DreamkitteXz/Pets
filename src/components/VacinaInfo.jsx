@@ -11,10 +11,10 @@ export default function VacinaCard({ title, content }) {
   };
 
   return (
-    <div className="flex items-start justify-between">
-      <div className="flex-vertical w-full h-full mr-3">
+    <div className="flex items-start">
+      <div className="flex-vertical h-full mr-3">
         <div className="bg-[#E6E6E6] rounded-xl shadow-md mb-4 mr-6 w-full items-start">
-          <div className="p-4 cursor-pointer" onClick={handleToggle}>
+          <div className="p-4 w-[500px] cursor-pointer" onClick={handleToggle}>
             {/*  TOP  */}
             <div className="flex justify-between items-center p-2">
               <div className="flex flex-row">
@@ -46,7 +46,7 @@ export default function VacinaCard({ title, content }) {
           {isOpen && (
             <div className="p-4 border-t">
               {/* CONTENT */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center mb-4">
                 <div className="flex flex-row">
                   <h2 className="text-lg font-bold px-4">Dados da Vacina</h2>
                   <h2 className="text-sm text-[#656565] font-bold px-4 py-1">
