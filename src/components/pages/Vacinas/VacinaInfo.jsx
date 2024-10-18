@@ -1,7 +1,7 @@
 // AccordionCard.js
 import React, { useState } from "react";
 import { IoIosArrowDown, IoIosArrowUp } from "react-icons/io";
-import VacinaLogo from "../assets/images/vacina.svg";
+import VacinaLogo from "../../../assets/images/vacina.svg";
 
 export default function VacinaCard({ title, content }) {
   const [isOpen, setIsOpen] = useState(false);

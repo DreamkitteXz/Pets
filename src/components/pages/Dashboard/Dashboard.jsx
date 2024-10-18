@@ -1,9 +1,9 @@
 // Dashboard.js
 import React, { useState } from "react";
-import DashboardCards from "../DashboardCards";
-import Avatar from "../Avatar";
-import Table from "../Table";
-import HeaderSubtitle from "../HeaderSubtitle";
+import DashboardCards from "../Dashboard/components/DashboardCards";
+import Avatar from "../../shared/Header/components/Avatar";
+import Table from "../../tables/Table";
+import HeaderSubtitle from "../../shared/Header/components/HeaderSubtitle";
 
 function Dashboard() {
   const [selectedTitle, setSelectedTitle] = useState("Tutores");

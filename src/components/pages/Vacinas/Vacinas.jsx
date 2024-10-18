@@ -1,7 +1,7 @@
 import React from "react";
-import VacinasTable from "../VacinasTable";
-import SearchInput from "../SearchInput";
-import AddButton from "../AddButton";
+import VacinasTable from "../Vacinas/VacinasTable";
+import SearchInput from "../../tables/SearchInput";
+import AddButton from "../../tables/AddButton";
 
 export default function Vacinas() {
   return (

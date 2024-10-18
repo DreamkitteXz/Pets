@@ -1,9 +1,10 @@
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom"
-import Layout from "../shared/Layout"
-import Dashboard from "../pages/Dashboard"
-import Pets from "../pages/Pets"
-import Vacinas from "../pages/Vacinas"
-import Login from "../pages/login"
+import Layout from "../shared/Layout/Layout"
+import Dashboard from "../pages/Dashboard/Dashboard"
+import Pets from "../pages/Pets/Pets"
+import Vacinas from "../pages/Vacinas/Vacinas"
+import Login from "../pages/Auth/Login/Login"
+import Register from "../pages/Auth/SignUp"
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="vacinas" element={<Vacinas />} />
         </Route>
         <Route path="login" element={<Login/>} />
+        <Route path="register" element={<Register/>} />
       </Routes>
     </Router>
 

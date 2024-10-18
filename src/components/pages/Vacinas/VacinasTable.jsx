@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { MdOutlineOpenInNew } from "react-icons/md";
 import VacinaCard from "./VacinaInfo";
-import { readData } from "../api/firebase";
+import { readData } from "../../../api/firebase";
 export default function VacinasTable() {
   const [selectedVaccine, setSelectedVaccine] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);

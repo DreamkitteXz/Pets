@@ -1,12 +1,12 @@
 import React from "react";
 
 //internal components
-import HeaderTitle from "../HeaderSubtitle";
-import Avatar from "../Avatar";
-import Table from "../Table";
-import ValidStatusCard from "../ValidStatusCard";
-import WaitingStatusCard from "../WaitingStatusCard";
-import DeniedStatusCard from "../DeniedStatusCard";
+import HeaderTitle from "../../shared/Header/components/HeaderSubtitle";
+import Avatar from "../../shared/Header/components/Avatar";
+import Table from "../../tables/Table";
+import ValidStatusCard from "../../cards/ValidStatusCard";
+import WaitingStatusCard from "../../cards/WaitingStatusCard";
+import DeniedStatusCard from "../../cards/DeniedStatusCard";
 
 //icons
 import { FaSort } from "react-icons/fa";
