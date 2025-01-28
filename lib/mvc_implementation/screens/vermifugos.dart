@@ -1,18 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:pet_app/mvc_implementation/models/pets.dart';
-import 'package:pet_app/mvc_implementation/models/vacinas.dart';
 import 'package:pet_app/mvc_implementation/models/vermifugos.dart';
-import 'package:pet_app/mvc_implementation/screens/add_vac.dart';
 import 'package:pet_app/mvc_implementation/screens/add_vermifugo.dart';
-import 'package:pet_app/mvc_implementation/screens/vacina.dart';
+import 'package:pet_app/mvc_implementation/screens/vermifugo.dart';
 
 class VermifugosPage extends StatelessWidget {
   final Pets pet;
 
-  const VermifugosPage({required this.pet});
+  const VermifugosPage({super.key, required this.pet});
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +53,6 @@ class VermifugosPage extends StatelessWidget {
               (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
-              ;
             }
 
             List<Vermifugo> listVac = snapshot.data!.docs.map((document) {
@@ -80,6 +76,7 @@ class VermifugosPage extends StatelessWidget {
                               return deleteVermifugo(context);
                             });
                       }
+                      return null;
                     },
                     key: ValueKey<Vermifugo>(model),
                     direction: DismissDirection.endToStart,
@@ -111,8 +108,10 @@ class VermifugosPage extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                AddVermifugoPage(petId: pet.id),
+                            builder: (context) => VermifugoPage(
+                              vermifugo: model,
+                              petId: pet.id,
+                            ),
                           ),
                         );
                         print(FirebaseAuth.instance.currentUser);
@@ -125,7 +124,6 @@ class VermifugosPage extends StatelessWidget {
         ),
       ),
     );
-    ;
   }
 
   void remove(Vermifugo model) {
@@ -286,7 +284,16 @@ class FloatingActionVermifugo extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(10.0),
       child: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddVermifugoPage(
+                petId: petId,
+              ),
+            ),
+          );
+        },
         backgroundColor: const Color(0xFF212121),
         elevation: 8,
         child: const Icon(

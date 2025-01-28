@@ -1,16 +1,21 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pet_app/mvc_implementation/models/pets.dart';
 import 'package:pet_app/mvc_implementation/models/vacinas.dart';
 import 'package:pet_app/mvc_implementation/screens/add_vac.dart';
 import 'package:pet_app/mvc_implementation/screens/vacina.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 class VacinasPage extends StatelessWidget {
   final Pets pet;
 
-  const VacinasPage({required this.pet});
+  const VacinasPage({super.key, required this.pet});
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +37,9 @@ class VacinasPage extends StatelessWidget {
                 right: 22.0,
               ),
               child: GestureDetector(
-                onTap: () async {},
+                onTap: () async {
+                  await _createPDF(context, pet.id);
+                },
                 child: SvgPicture.asset(
                   'lib/mvc_implementation/screens/assets/docs.svg',
                   width: 25,
@@ -68,8 +75,9 @@ class VacinasPage extends StatelessWidget {
           builder:
               (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
             if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-              ;
+              return Image.network(
+                  "https://iconscout.com/lottie-animations/cute-cat");
+              //Center(child: CircularProgressIndicator())
             }
 
             List<Vacinas> listVac = snapshot.data!.docs.map((document) {
@@ -93,6 +101,7 @@ class VacinasPage extends StatelessWidget {
                               return deleteVac(context);
                             });
                       }
+                      return null;
                     },
                     key: ValueKey<Vacinas>(model),
                     direction: DismissDirection.endToStart,
@@ -110,16 +119,7 @@ class VacinasPage extends StatelessWidget {
                       remove(model);
                     },
                     child: GestureDetector(
-                      onLongPress:
-                          () {} /*Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  EditVacinaScreen(petId: petId, vacina: model),
-                            ),
-                          )*/
-
-                      ,
+                      onLongPress: () {},
                       onTap: () {
                         Navigator.push(
                           context,
@@ -138,7 +138,6 @@ class VacinasPage extends StatelessWidget {
         ),
       ),
     );
-    ;
   }
 
   void remove(Vacinas model) {
@@ -231,7 +230,8 @@ class CardVacinas extends StatelessWidget {
                       ),
                       Flexible(
                         child: Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(0, 4, 8, 0),
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                                0, 4, 8, 0),
                             child: Row(
                               children: [
                                 Text(
@@ -282,7 +282,7 @@ class CardVacinas extends StatelessWidget {
                       child: Icon(
                         Icons.chevron_right_rounded,
                         color: Color(0xFF57636C),
-                        size: 32,
+                        size: 24,
                       ),
                     ),
                   ],
@@ -296,54 +296,113 @@ class CardVacinas extends StatelessWidget {
   }
 }
 
-AlertDialog deleteVac(BuildContext context) {
-  return AlertDialog(
-    title: const Text('Excluir'),
-    content: const Text('Tem ceterteza que quer deletar esta Vacina?'),
-    actions: <Widget>[
-      ElevatedButton(
-          style: const ButtonStyle(
-              backgroundColor:
-                  MaterialStatePropertyAll<Color>(Color(0xFF212121))),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Sim')),
-      ElevatedButton(
-          style: const ButtonStyle(
-              backgroundColor:
-                  MaterialStatePropertyAll<Color>(Color(0xFF212121))),
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text(' Não'))
-    ],
-  );
-}
-
 class FloatingActionVac extends StatelessWidget {
-  String petId;
-  FloatingActionVac({super.key, required this.petId});
+  final String petId;
+
+  const FloatingActionVac({
+    Key? key,
+    required this.petId,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(10.0),
-      child: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AddVacPage(
-                petId: petId,
-              ),
-            ),
-          );
-        },
-        backgroundColor: const Color(0xFF212121),
-        elevation: 8,
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-          size: 32,
-        ),
+    return FloatingActionButton(
+      onPressed: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddVacPage(petId: petId),
+          ),
+        );
+        await _createPDF(context, petId);
+      },
+      backgroundColor: const Color(0xFF4B39EF),
+      elevation: 8,
+      child: const Icon(
+        Icons.add_rounded,
+        color: Colors.white,
+        size: 28,
       ),
     );
   }
+}
+
+Future<void> _createPDF(BuildContext context, String petId) async {
+  final PdfDocument document = PdfDocument();
+  final PdfPage page = document.pages.add();
+  final PdfGraphics graphics = page.graphics;
+  final PdfFont font = PdfStandardFont(PdfFontFamily.helvetica, 12);
+
+  try {
+    final QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(FirebaseAuth.instance.currentUser!.uid)
+        .collection('Pets')
+        .doc(petId)
+        .collection("Vacinas")
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      graphics.drawString(
+        'Vacinas do Pet',
+        PdfStandardFont(PdfFontFamily.helvetica, 18, style: PdfFontStyle.bold),
+        bounds: const Rect.fromLTWH(0, 0, 500, 30),
+      );
+
+      double offsetY = 40;
+      for (var doc in snapshot.docs) {
+        final Vacinas vacina =
+            Vacinas.fromMap(doc.data() as Map<String, dynamic>);
+
+        final String text =
+            'Vacina: ${vacina.vacina}, Data Aplicada: ${vacina.dataAplicada}, Validado: ${vacina.isValidadoVet == 'true' && vacina.isValidadoTutor == 'true' ? 'Sim' : 'Não'}';
+
+        graphics.drawString(text, font,
+            bounds: Rect.fromLTWH(0, offsetY, 500, 20));
+        offsetY += 20;
+      }
+    } else {
+      graphics.drawString(
+        'Nenhuma vacina encontrada para este pet.',
+        font,
+        bounds: const Rect.fromLTWH(0, 0, 500, 20),
+      );
+    }
+
+    List<int> bytes = await document.save();
+    document.dispose();
+
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/vacinas_pet.pdf');
+    await file.writeAsBytes(bytes);
+
+    OpenFile.open(file.path);
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Erro ao gerar PDF: $e'),
+      ),
+    );
+  }
+}
+
+Widget deleteVac(BuildContext context) {
+  return AlertDialog(
+    title: const Text('Confirmar Exclusão'),
+    content: const Text('Tem certeza que deseja excluir esta vacina?'),
+    actions: <Widget>[
+      TextButton(
+        child: const Text('Cancelar'),
+        onPressed: () {
+          Navigator.of(context).pop(false);
+        },
+      ),
+      TextButton(
+        child: const Text('Excluir'),
+        onPressed: () {
+          Navigator.of(context).pop(true);
+        },
+      ),
+    ],
+  );
 }

@@ -1,14 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:pet_app/mvc_implementation/controllers/id_controller.dart';
-import 'package:pet_app/mvc_implementation/screens/components/logo.dart';
 import 'package:pet_app/mvc_implementation/screens/components/subtitle.dart';
 import 'package:pet_app/mvc_implementation/screens/components/text_input_auth.dart';
 import 'package:pet_app/mvc_implementation/screens/components/titles.dart';
-import 'package:pet_app/mvc_implementation/screens/login.dart';
-import 'package:pet_app/screens/create_account/design/icon_button.dart';
-import 'package:pet_app/screens/create_account/design/theme.dart';
-import 'package:pet_app/screens/create_account/design/widgets.dart';
 
 import '../../components/id.dart';
 
@@ -54,7 +48,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
               backgroundColor: Colors.white,
               automaticallyImplyLeading: false,
               leading: GestureDetector(
-                child: Icon(
+                child: const Icon(
                   Icons.arrow_back_rounded,
                   color: Color(0xFF212121),
                   size: 30,
@@ -63,7 +57,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                   Navigator.pop(context);
                 },
               ),
-              actions: [],
+              actions: const [],
               centerTitle: true,
               elevation: 0,
             ),
@@ -88,23 +82,32 @@ class _AddPetScreenState extends State<AddPetScreen> {
                       fontSize: 16.0,
                     ),
                     const SizedBox(height: 40),
-                    TextInput(inputTitle: 'Nome', controller: _nameController),
+                    TextInput(
+                        inputTitle: 'Nome',
+                        controller: _nameController,
+                        textInputType: TextInputType.name),
                     const SizedBox(height: 10),
                     dropFormOptions('Tipo', 'Selecione o Tipo', dropValue1,
                         dropOptions1, _tipoController),
                     const SizedBox(height: 10),
-                    TextInput(inputTitle: 'Raça', controller: _racaController),
+                    TextInput(
+                        inputTitle: 'Raça',
+                        controller: _racaController,
+                        textInputType: TextInputType.name),
                     const SizedBox(height: 10),
-                    TextInput(inputTitle: 'Cor', controller: _corController),
+                    TextInput(
+                        inputTitle: 'Cor',
+                        controller: _corController,
+                        textInputType: TextInputType.name),
                     dropFormOptions('Sexo', 'Selecione o Sexo', dropValue2,
                         dropOptions2, _sexoController),
                     const SizedBox(height: 10),
                     TextInput(
-                      inputTitle: 'Data de Nascimento',
-                      controller: _dataNascController,
-                      dataPicker: true,
-                      hint: 'DD/MM/AAAA',
-                    ),
+                        inputTitle: 'Data de Nascimento',
+                        controller: _dataNascController,
+                        dataPicker: true,
+                        hint: 'DD/MM/AAAA',
+                        textInputType: TextInputType.name),
                     dropFormOptions(
                         'Inteiro ou Castrado?',
                         'Inteiro ou Castrado?',
@@ -112,7 +115,10 @@ class _AddPetScreenState extends State<AddPetScreen> {
                         dropOptions3,
                         _isInteiroController),
                     const SizedBox(height: 10),
-                    TextInput(inputTitle: 'Chip', controller: _chipController),
+                    TextInput(
+                        inputTitle: 'Chip',
+                        controller: _chipController,
+                        textInputType: TextInputType.name),
                     const SizedBox(height: 30),
                     AddButton(
                         tipoController: _tipoController,
@@ -140,7 +146,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
       String hint,
       ValueNotifier<String> dropValue,
       List<String> dropOptions,
-      TextEditingController _controller) {
+      TextEditingController controller) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,7 +168,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
         const SizedBox(height: 10),
         Padding(
           padding: const EdgeInsets.only(left: 30.0, right: 30.0),
-          child: dropDownOptions(hint, dropValue, dropOptions, _controller),
+          child: dropDownOptions(hint, dropValue, dropOptions, controller),
         ),
       ],
     );
@@ -172,7 +178,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
       String hint,
       ValueNotifier<String> dropValue,
       List<String> dropOptions,
-      TextEditingController _controller) {
+      TextEditingController controller) {
     return ValueListenableBuilder(
         valueListenable: dropValue,
         builder: (BuildContext context, String value, _) {
@@ -185,7 +191,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 .toList(),
             onChanged: (escolha) {
               dropValue.value = escolha.toString();
-              _controller.text = escolha.toString();
+              controller.text = escolha.toString();
             },
             decoration: InputDecoration(
               hintStyle: const TextStyle(
@@ -222,11 +228,11 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 borderRadius: BorderRadius.circular(9),
               ),
             ),
-            style: FlutterFlowTheme.of(context).bodyLarge,
             validator: (value1) {
               if (value1 != null && value1.isEmpty) {
                 return 'Insira o Tipo';
               }
+              return null;
             },
           );
         });
@@ -277,7 +283,7 @@ class AddButton extends StatelessWidget {
               width: MediaQuery.of(context).size.width,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  primary: const Color(0xFF041A23),
+                  backgroundColor: const Color(0xFF041A23),
                   elevation: 4,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
@@ -287,12 +293,12 @@ class AddButton extends StatelessWidget {
                     width: 2,
                   ),
                 ),
-                child: Text(
+                child: const Text(
                   'Adicionar',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 24,
+                    fontSize: 18,
                   ),
                 ),
                 onPressed: () async {

@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:pet_app/components/data_picker.dart';
 
 class TextInput extends StatefulWidget {
   final String inputTitle;
   final TextEditingController controller;
+  final TextInputType textInputType;
   final bool isPassword;
   bool dataPicker;
   String? hint;
 
   TextInput(
       {Key? key,
+      required this.textInputType,
       required this.inputTitle,
       required this.controller,
       this.isPassword = false,
@@ -55,6 +56,7 @@ class TextInputState extends State<TextInput> {
           child: TextFormField(
             controller: widget.controller,
             obscureText: _obscureText,
+            keyboardType: widget.textInputType,
             decoration: InputDecoration(
               hintText: widget.hint,
               enabledBorder: OutlineInputBorder(
@@ -83,21 +85,21 @@ class TextInputState extends State<TextInput> {
                     )
                   : widget.dataPicker
                       ? Padding(
-                          padding: EdgeInsets.only(right: 8.0),
+                          padding: const EdgeInsets.only(right: 8.0),
                           child: IconButton(
                             icon: const Icon(
                               Icons.date_range_rounded,
                               color: Color(0xFF212121),
                             ),
                             onPressed: () async {
-                              DateTime? _selectedDate;
+                              DateTime? selectedDate;
                               if (widget.dataPicker) {
                                 DateTime? pickedDate =
                                     await _showDataPickernasc(
-                                        _selectedDate, context);
+                                        selectedDate, context);
                                 if (pickedDate != null) {
                                   setState(() {
-                                    _selectedDate = pickedDate;
+                                    selectedDate = pickedDate;
                                     widget.controller.text =
                                         formatDateToString(pickedDate);
                                   });
@@ -130,13 +132,13 @@ class TextInputState extends State<TextInput> {
               ),
             ),
             onTap: () async {
-              DateTime? _selectedDate;
+              DateTime? selectedDate;
               if (widget.dataPicker) {
                 DateTime? pickedDate =
-                    await _showDataPickernasc(_selectedDate, context);
+                    await _showDataPickernasc(selectedDate, context);
                 if (pickedDate != null) {
                   setState(() {
-                    _selectedDate = pickedDate;
+                    selectedDate = pickedDate;
                     widget.controller.text = formatDateToString(pickedDate);
                   });
                 }
@@ -146,6 +148,7 @@ class TextInputState extends State<TextInput> {
               if (value != null && value.isEmpty) {
                 return 'Insira $article ${widget.inputTitle}';
               }
+              return null;
             },
           ),
         ),
@@ -197,10 +200,10 @@ String formatDateToString(DateTime? date) {
 }
 
 Future<DateTime?> _showDataPickernasc(
-    DateTime? _selectedDate, BuildContext context) async {
+    DateTime? selectedDate, BuildContext context) async {
   final DateTime? picked = await showDatePicker(
     context: context,
-    initialDate: _selectedDate ?? DateTime.now(),
+    initialDate: selectedDate ?? DateTime.now(),
     firstDate: DateTime(DateTime.now().year - 20),
     lastDate: DateTime.now(),
   );

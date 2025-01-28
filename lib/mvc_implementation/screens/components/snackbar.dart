@@ -7,6 +7,16 @@ class CustomSnackBar extends StatefulWidget {
   String? errorText;
   String? successfulText;
 
+  void showCustomSnackBar(String message, BuildContext context) {
+    final snackBar = SnackBar(
+      content: CustomSnackBar(errorText: message),
+      backgroundColor: Colors.transparent,
+      behavior: SnackBarBehavior.floating,
+      elevation: 0,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
+
   @override
   State<CustomSnackBar> createState() => _CustomSnackBarState();
 }
@@ -105,7 +115,7 @@ class SnackBarError extends StatelessWidget {
 }
 
 class SuccessfulSnackBar extends StatelessWidget {
-  SuccessfulSnackBar({
+  const SuccessfulSnackBar({
     super.key,
     required this.widget,
   });
@@ -169,14 +179,14 @@ class SuccessfulSnackBar extends StatelessWidget {
             child: Stack(alignment: Alignment.center, children: [
               SvgPicture.asset(
                 "lib/mvc_implementation/screens/assets/fail_snack_bar.svg",
-                color: Color(0xFF008000),
+                color: const Color(0xFF008000),
                 height: 40,
               ),
               Positioned(
                 top: 10,
                 child: SvgPicture.asset(
                   "lib/mvc_implementation/screens/assets/close_snack_bar.svg",
-                  color: Color(0xFF008000),
+                  color: const Color(0xFF008000),
                   height: 16,
                 ),
               ),

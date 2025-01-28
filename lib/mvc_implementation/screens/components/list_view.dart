@@ -56,6 +56,7 @@ class PetsList extends StatelessWidget {
                         return deletePet(context);
                       });
                 }
+                return null;
               },
               key: ValueKey<Pets>(model),
               direction: DismissDirection.endToStart,
@@ -71,11 +72,11 @@ class PetsList extends StatelessWidget {
               ),
               onDismissed: (direction) {
                 //TODO:REMOVE
-                PetController _petController = PetController();
-                _petController.remove(model);
+                PetController petController = PetController();
+                petController.remove(model);
               },
               child: GestureDetector(
-                onLongPress: (() => null), // TODO: EDIT
+                onLongPress: (() {}), // TODO: EDIT
                 onTap: (() => Navigator.push(
                       context,
                       MaterialPageRoute(

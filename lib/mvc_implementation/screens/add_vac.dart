@@ -4,14 +4,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pet_app/mvc_implementation/controllers/id_controller.dart';
-import 'package:pet_app/mvc_implementation/controllers/user_controller.dart';
 import 'package:pet_app/mvc_implementation/controllers/vac_controller.dart';
-import 'package:pet_app/mvc_implementation/screens/components/form_auth_button.dart';
-import 'package:pet_app/mvc_implementation/screens/components/logo.dart';
 import 'package:pet_app/mvc_implementation/screens/components/subtitle.dart';
 import 'package:pet_app/mvc_implementation/screens/components/text_input_auth.dart';
 import 'package:pet_app/mvc_implementation/screens/components/titles.dart';
-import 'package:pet_app/mvc_implementation/screens/login.dart';
 
 class AddVacPage extends StatefulWidget {
   String petId;
@@ -70,7 +66,7 @@ class _AddVacPageState extends State<AddVacPage> {
         backgroundColor: Colors.white,
         automaticallyImplyLeading: false,
         leading: GestureDetector(
-          child: Icon(
+          child: const Icon(
             Icons.arrow_back_rounded,
             color: Color(0xFF212121),
             size: 30,
@@ -106,21 +102,30 @@ class _AddVacPageState extends State<AddVacPage> {
                   fontSize: 14.0,
                 ),
                 const SizedBox(height: 40),
-                TextInput(inputTitle: 'Vacina', controller: _vacinaController),
+                TextInput(
+                  inputTitle: 'Vacina',
+                  controller: _vacinaController,
+                  textInputType: TextInputType.name,
+                ),
                 const SizedBox(height: 20),
                 TextInput(
                   inputTitle: 'Data aplicada',
                   controller: _dataAplicadaController,
                   dataPicker: true,
+                  textInputType: TextInputType.none,
                 ),
                 const SizedBox(height: 20.0),
                 TextInput(
                   inputTitle: 'Próxima aplicação',
                   controller: _proximaAplicacaoController,
                   dataPicker: true,
+                  textInputType: TextInputType.none,
                 ),
                 const SizedBox(height: 20),
-                TextInput(inputTitle: 'Peso', controller: _pesoController),
+                TextInput(
+                    inputTitle: 'Peso',
+                    controller: _pesoController,
+                    textInputType: TextInputType.number),
                 const SizedBox(height: 30),
                 Titles(
                   title: 'Dados da Vacina',
@@ -131,21 +136,27 @@ class _AddVacPageState extends State<AddVacPage> {
                 TextInput(
                   inputTitle: 'Lote',
                   controller: _loteController,
+                  textInputType: TextInputType.name,
                 ),
                 const SizedBox(height: 20.0),
                 TextInput(
-                    inputTitle: 'Farmacêutica',
-                    controller: _farmaceuticaController),
+                  inputTitle: 'Farmacêutica',
+                  controller: _farmaceuticaController,
+                  textInputType: TextInputType.name,
+                ),
                 const SizedBox(height: 20.0),
                 TextInput(
                   inputTitle: 'Data de Validade',
                   controller: _dataValidadeController,
                   dataPicker: true,
+                  textInputType: TextInputType.none,
                 ),
                 const SizedBox(height: 20.0),
                 TextInput(
-                    inputTitle: 'Observações',
-                    controller: _observacoesController),
+                  inputTitle: 'Observações',
+                  controller: _observacoesController,
+                  textInputType: TextInputType.name,
+                ),
                 const SizedBox(height: 30),
                 Titles(
                   title: 'Rótulo da Vacina',
@@ -187,7 +198,7 @@ class _AddVacPageState extends State<AddVacPage> {
                       width: MediaQuery.of(context).size.width,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          primary: const Color(0xFF041A23),
+                          backgroundColor: const Color(0xFF041A23),
                           elevation: 4,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
@@ -197,9 +208,9 @@ class _AddVacPageState extends State<AddVacPage> {
                             width: 2,
                           ),
                         ),
-                        child: Text(
+                        child: const Text(
                           'Imagem do rótulo',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 24,
@@ -213,7 +224,6 @@ class _AddVacPageState extends State<AddVacPage> {
                               source: ImageSource.camera);
 
                           if (file == null) return;
-                          ;
 
                           String uniqueFileName =
                               DateTime.now().microsecondsSinceEpoch.toString();
@@ -263,9 +273,15 @@ class _AddVacPageState extends State<AddVacPage> {
                   paddingL: 30.0,
                 ),
                 const SizedBox(height: 30),
-                TextInput(inputTitle: 'Nome', controller: _nomeVetController),
+                TextInput(
+                    inputTitle: 'Nome',
+                    controller: _nomeVetController,
+                    textInputType: TextInputType.name),
                 const SizedBox(height: 20.0),
-                TextInput(inputTitle: 'CRMV', controller: _crmvController),
+                TextInput(
+                    inputTitle: 'CRMV',
+                    controller: _crmvController,
+                    textInputType: TextInputType.number),
                 const SizedBox(height: 30),
                 Titles(
                   title: 'Dados da Clínica',
@@ -273,18 +289,35 @@ class _AddVacPageState extends State<AddVacPage> {
                   paddingL: 30.0,
                 ),
                 const SizedBox(height: 30),
-                TextInput(inputTitle: 'CNPJ', controller: _cnpjController),
+                TextInput(
+                    inputTitle: 'CNPJ',
+                    controller: _cnpjController,
+                    textInputType: TextInputType.number),
                 const SizedBox(height: 20.0),
                 TextInput(
-                    inputTitle: 'Clínica', controller: _clinicaController),
+                    inputTitle: 'Clínica',
+                    controller: _clinicaController,
+                    textInputType: TextInputType.name),
                 const SizedBox(height: 20.0),
-                TextInput(inputTitle: 'Rua', controller: _ruaController),
+                TextInput(
+                    inputTitle: 'Rua',
+                    controller: _ruaController,
+                    textInputType: TextInputType.streetAddress),
                 const SizedBox(height: 20.0),
-                TextInput(inputTitle: 'Bairro', controller: _bairroController),
+                TextInput(
+                    inputTitle: 'Bairro',
+                    controller: _bairroController,
+                    textInputType: TextInputType.name),
                 const SizedBox(height: 20.0),
-                TextInput(inputTitle: 'Número', controller: _numeroController),
+                TextInput(
+                    inputTitle: 'Número',
+                    controller: _numeroController,
+                    textInputType: TextInputType.number),
                 const SizedBox(height: 20.0),
-                TextInput(inputTitle: 'Cidade', controller: _cidadeController),
+                TextInput(
+                    inputTitle: 'Cidade',
+                    controller: _cidadeController,
+                    textInputType: TextInputType.name),
                 const SizedBox(height: 20.0),
                 AddVacButton(
                   formKey: _formKey,
@@ -390,7 +423,7 @@ class AddVacButton extends StatelessWidget {
               width: MediaQuery.of(context).size.width,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  primary: const Color(0xFF041A23),
+                  backgroundColor: const Color(0xFF041A23),
                   elevation: 4,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
@@ -400,12 +433,12 @@ class AddVacButton extends StatelessWidget {
                     width: 2,
                   ),
                 ),
-                child: Text(
+                child: const Text(
                   'Adicionar',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 24,
+                    fontSize: 18,
                   ),
                 ),
                 onPressed: () async {
@@ -421,9 +454,9 @@ class AddVacButton extends StatelessWidget {
                       );
                     } else {
                       try {
-                        VacController _vacController = VacController();
+                        VacController vacController = VacController();
 
-                        _vacController.cadastroVacinas(
+                        vacController.cadastroVacinas(
                             _vacinaController.text,
                             gerarVacsID(),
                             _dataAplicadaController.text,
@@ -446,7 +479,7 @@ class AddVacButton extends StatelessWidget {
                             'false',
                             petId);
 
-                        _vacController.addVacInQueue(petId);
+                        vacController.addVacInQueue(petId);
                         Navigator.pop(context);
                       } catch (e) {
                         print('Erro: $e');

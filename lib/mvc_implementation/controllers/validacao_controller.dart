@@ -1,9 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:pet_app/components/id.dart';
-import 'package:pet_app/mvc_implementation/models/user.dart';
-import 'package:pet_app/mvc_implementation/screens/components/snackbar.dart';
 
 //TODO: VERIFICAR O POR QUÊ DO WARNING DO BUILD CONTEXT NA HORA DE MOSTRAR O SNACK BAR
 

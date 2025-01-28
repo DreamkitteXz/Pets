@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:pet_app/mvc_implementation/models/pets.dart';
 import 'package:pet_app/mvc_implementation/screens/vacinas.dart';
 import 'package:pet_app/mvc_implementation/screens/vermifugos.dart';
@@ -67,7 +66,7 @@ class PetInformation extends StatelessWidget {
                       Card(
                         cardTitle: 'Vacinas',
                         cardIcon: 'lib/assets/vacinabk.png',
-                        cardColor: Color(0xFF154E77),
+                        cardColor: const Color(0xFF154E77),
                         pet: pet,
                       ),
 
@@ -76,7 +75,7 @@ class PetInformation extends StatelessWidget {
                       Card(
                         cardIcon: 'lib/assets/vermifugo.png',
                         cardTitle: 'Vermifugos',
-                        cardColor: Color(0xFFE95B47),
+                        cardColor: const Color(0xFFE95B47),
                         pet: pet,
                       )
                     ],
@@ -191,7 +190,7 @@ class Card extends StatelessWidget {
                     cardTitle,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white),
                   ),
@@ -287,7 +286,7 @@ class InfoCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.pets),
+              const Icon(Icons.pets),
             ],
           ),
         ),

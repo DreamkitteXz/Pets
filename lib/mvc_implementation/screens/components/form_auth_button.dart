@@ -1,6 +1,8 @@
-//IMPLEMENTAR LÓGICA DE CONTROLLER E DECISÃO SE É LOGIN OU CREATE ACCOUNT
+// form_button.dart
 import 'package:flutter/material.dart';
 import 'package:pet_app/mvc_implementation/controllers/user_controller.dart';
+import 'package:pet_app/mvc_implementation/models/user.dart';
+import 'package:pet_app/mvc_implementation/screens/home_screen.dart';
 
 class FormButton extends StatelessWidget {
   final String title;
@@ -8,6 +10,16 @@ class FormButton extends StatelessWidget {
   final UserController userController;
   final TextEditingController emailController;
   final TextEditingController passwordController;
+  final TextEditingController? nameController;
+  final TextEditingController? cpfController;
+  final TextEditingController? phoneController;
+  final TextEditingController? streetController;
+  final TextEditingController? neighbourhoodController;
+  final TextEditingController? numberController;
+  final TextEditingController? stateController;
+  final TextEditingController? cepController;
+  final TextEditingController? addressInfoController;
+  final int type;
 
   const FormButton({
     Key? key,
@@ -16,6 +28,16 @@ class FormButton extends StatelessWidget {
     required this.userController,
     required this.emailController,
     required this.passwordController,
+    this.nameController,
+    this.cpfController,
+    this.phoneController,
+    this.streetController,
+    this.neighbourhoodController,
+    this.numberController,
+    this.stateController,
+    this.cepController,
+    this.addressInfoController,
+    required this.type,
   }) : super(key: key);
 
   @override
@@ -28,7 +50,7 @@ class FormButton extends StatelessWidget {
           width: MediaQuery.of(context).size.width,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
-              primary: const Color(0xFF041A23),
+              backgroundColor: const Color(0xFF041A23),
               elevation: 4,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
@@ -43,12 +65,57 @@ class FormButton extends StatelessWidget {
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 24,
+                fontSize: 18,
               ),
             ),
             onPressed: () async {
               if (formKey.currentState!.validate()) {
-                //userLogin(context);
+                switch (type) {
+                  case 1:
+                    bool loginSuccessful = await userController.loginUser(
+                      Users(
+                        email: emailController.text.trim(),
+                        password: passwordController.text.trim(),
+                      ),
+                      context,
+                    );
+                    if (loginSuccessful) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HomeScreenPage(),
+                        ),
+                      );
+                    }
+                    break;
+                  case 2:
+                    // ignore: use_build_context_synchronously
+                    bool accountCreated = await userController.createUser(
+                      Users(
+                        name: nameController?.text.trim(),
+                        email: emailController.text.trim(),
+                        cpf: cpfController?.text.trim(),
+                        phone: phoneController?.text.trim(),
+                        password: passwordController.text.trim(),
+                        street: streetController?.text.trim(),
+                        neighbourhood: neighbourhoodController?.text.trim(),
+                        number: numberController?.text.trim(),
+                        state: stateController?.text.trim(),
+                        cep: cepController?.text.trim(),
+                        addressDetails: addressInfoController?.text.trim(),
+                      ),
+                      context,
+                    );
+                    if (accountCreated) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HomeScreenPage(),
+                        ),
+                      );
+                    }
+                    break;
+                }
               }
             },
           ),

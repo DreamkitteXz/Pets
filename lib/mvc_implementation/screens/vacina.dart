@@ -1,72 +1,21 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:open_file/open_file.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pet_app/mvc_implementation/controllers/validacao_controller.dart';
 import 'package:pet_app/mvc_implementation/models/vacinas.dart';
 import 'package:pet_app/mvc_implementation/screens/components/subtitle.dart';
 import 'package:pet_app/mvc_implementation/screens/components/titles.dart';
-import 'package:pet_app/screens/create_account/design/animations.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 class VacinaPage extends StatefulWidget {
   final Vacinas vacina;
   final String petId;
-  VacinaPage({required this.vacina, required this.petId});
+  const VacinaPage({super.key, required this.vacina, required this.petId});
 
   @override
   State<VacinaPage> createState() => _VacinaPageState();
 }
 
 class _VacinaPageState extends State<VacinaPage> {
-  final animationsMap = {
-    'listViewOnPageLoadAnimation1': AnimationInfo(
-      trigger: AnimationTrigger.onPageLoad,
-      effects: [
-        VisibilityEffect(duration: 150.ms),
-        FadeEffect(
-          curve: Curves.easeInOut,
-          delay: 150.ms,
-          duration: 600.ms,
-          begin: 0,
-          end: 1,
-        ),
-        MoveEffect(
-          curve: Curves.easeInOut,
-          delay: 150.ms,
-          duration: 600.ms,
-          begin: const Offset(0, 170),
-          end: const Offset(0, 0),
-        ),
-      ],
-    ),
-    'listViewOnPageLoadAnimation2': AnimationInfo(
-      trigger: AnimationTrigger.onPageLoad,
-      effects: [
-        VisibilityEffect(duration: 150.ms),
-        FadeEffect(
-          curve: Curves.easeInOut,
-          delay: 150.ms,
-          duration: 600.ms,
-          begin: 0,
-          end: 1,
-        ),
-        MoveEffect(
-          curve: Curves.easeInOut,
-          delay: 150.ms,
-          duration: 600.ms,
-          begin: const Offset(0, 170),
-          end: const Offset(0, 0),
-        ),
-      ],
-    ),
-  };
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -119,7 +68,7 @@ class _VacinaPageState extends State<VacinaPage> {
                           title: 'Informações da Vacina',
                           fontSize: 18,
                           paddingL: 24,
-                          cor: Color(0xFF707070),
+                          cor: const Color(0xFF707070),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -129,7 +78,7 @@ class _VacinaPageState extends State<VacinaPage> {
                           title: 'Foto do Rótulo:',
                           fontSize: 16,
                           paddingL: 24,
-                          cor: Color(0xFF707070),
+                          cor: const Color(0xFF707070),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -182,7 +131,7 @@ class _VacinaPageState extends State<VacinaPage> {
                                 title: 'Dados da Vacina',
                                 fontSize: 24,
                                 paddingL: 24,
-                                cor: Color(0xFF062D3E),
+                                cor: const Color(0xFF062D3E),
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -212,7 +161,7 @@ class _VacinaPageState extends State<VacinaPage> {
                                 title: 'Dados do veterinário(a)',
                                 fontSize: 24,
                                 paddingL: 24,
-                                cor: Color(0xFF062D3E),
+                                cor: const Color(0xFF062D3E),
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -237,7 +186,7 @@ class _VacinaPageState extends State<VacinaPage> {
                                     title: 'Dados da Clínica',
                                     fontSize: 24,
                                     paddingL: 24,
-                                    cor: Color(0xFF062D3E),
+                                    cor: const Color(0xFF062D3E),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -266,8 +215,7 @@ class _VacinaPageState extends State<VacinaPage> {
                                     title: 'Cidade',
                                     icon: Icons.location_city),
                               ],
-                            ).animateOnPageLoad(
-                                animationsMap['listViewOnPageLoadAnimation2']!),
+                            ),
                           ],
                         ),
                       ),
@@ -279,7 +227,7 @@ class _VacinaPageState extends State<VacinaPage> {
                             title: 'Valide essa Vacina',
                             fontSize: 24,
                             paddingL: 24,
-                            cor: Color(0xFF041A23),
+                            cor: const Color(0xFF041A23),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -311,7 +259,7 @@ class _VacinaPageState extends State<VacinaPage> {
                                 child: ElevatedButton(
                                   onPressed: (() {}),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Color(0xFFFED7D7),
+                                    backgroundColor: const Color(0xFFFED7D7),
                                     elevation: 4,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(17),
@@ -333,7 +281,7 @@ class _VacinaPageState extends State<VacinaPage> {
                                         widget.petId, widget.vacina.id);
                                   }),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Color(0xFFD5F3C2),
+                                    backgroundColor: const Color(0xFFD5F3C2),
                                     elevation: 4,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(17),

@@ -3,14 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_app/mvc_implementation/controllers/id_controller.dart';
-import 'package:pet_app/teste_ate_padronizar/teste.dart';
 
-import '../../components/id.dart';
 
 class AddVermifugoPage extends StatefulWidget {
   final String? petId;
 
-  AddVermifugoPage({required this.petId});
+  const AddVermifugoPage({super.key, required this.petId});
 
   @override
   _AddVermifugoPageState createState() => _AddVermifugoPageState();
@@ -68,7 +66,7 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
           backgroundColor: Colors.white,
           automaticallyImplyLeading: false,
           leading: IconButton(
-            icon: Icon(
+            icon: const Icon(
               Icons.arrow_back_rounded,
               color: Colors.black,
               size: 30,
@@ -81,55 +79,55 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
         backgroundColor: Colors.white,
         body: SingleChildScrollView(
           child: Padding(
-            padding: EdgeInsetsDirectional.fromSTEB(32, 32, 32, 32),
+            padding: const EdgeInsetsDirectional.fromSTEB(32, 32, 32, 32),
             child: Column(
               mainAxisSize: MainAxisSize.max,
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Adicione um Vermífugo',
                   style: TextStyle(
                     fontFamily: 'Outfit',
                     fontSize: 28,
                   ),
                 ),
-                Padding(
+                const Padding(
                   padding: EdgeInsetsDirectional.fromSTEB(0, 12, 0, 24),
                   child: Text(
                     'Preencha os campos abaixo para adicionar um Vermífugo.',
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                   child: TextFormField(
                     controller: vermifugoController,
                     obscureText: false,
                     decoration: InputDecoration(
                       labelText: 'Vermífugo',
                       enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Colors.black,
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color(0x00000000),
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color(0x00000000),
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color(0x00000000),
                           width: 2,
                         ),
@@ -139,34 +137,34 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                   child: TextFormField(
                     controller: pesoController,
                     obscureText: false,
                     decoration: InputDecoration(
                       labelText: 'Peso ',
                       enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color(0x00000000),
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color(0x00000000),
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color(0x00000000),
                           width: 2,
                         ),
@@ -176,7 +174,7 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                   child: TextFormField(
                     readOnly: true,
                     controller: primeiraDoseController,
@@ -200,33 +198,33 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
                     decoration: InputDecoration(
                       labelText: 'Primeira dose',
                       enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color(0x00000000),
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color(0x00000000),
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color(0x00000000),
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      suffixIcon: Icon(
+                      suffixIcon: const Icon(
                         Icons.calendar_month,
                         size: 22,
                       ),
@@ -234,7 +232,7 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
                     children: [
@@ -255,7 +253,7 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
                           },
                         ),
                       ),
-                      Text(
+                      const Text(
                         'Dose de Reforço',
                       ),
                     ],
@@ -264,7 +262,7 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
                 _mostrarReforco
                     ? // Generated code for this TextField Widget...
                     Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
+                        padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                         child: TextFormField(
                           readOnly: true,
                           controller: segundaDoseController,
@@ -288,33 +286,33 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
                           decoration: InputDecoration(
                             labelText: 'Dose de Reforço',
                             enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
+                              borderSide: const BorderSide(
                                 width: 2,
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
+                              borderSide: const BorderSide(
                                 color: Color(0x00000000),
                                 width: 2,
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             errorBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
+                              borderSide: const BorderSide(
                                 color: Color(0x00000000),
                                 width: 2,
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             focusedErrorBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
+                              borderSide: const BorderSide(
                                 color: Color(0x00000000),
                                 width: 2,
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            suffixIcon: Icon(
+                            suffixIcon: const Icon(
                               Icons.calendar_month,
                               size: 22,
                             ),
@@ -323,7 +321,7 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
                       )
                     : const SizedBox(),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
+                  padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                   child: ElevatedButton(
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
@@ -338,11 +336,11 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
                         Navigator.pop(context);
                       }
                     },
-                    child: Text('Adicione'),
                     style: ElevatedButton.styleFrom(
-                      padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0),
+                      padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0),
                       elevation: 3,
                     ),
+                    child: const Text('Adicione'),
                   ),
                 ),
               ],

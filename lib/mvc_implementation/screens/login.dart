@@ -8,14 +8,29 @@ import 'package:pet_app/mvc_implementation/screens/components/snackbar.dart';
 import 'package:pet_app/mvc_implementation/screens/components/subtitle.dart';
 import 'package:pet_app/mvc_implementation/screens/components/text_input_auth.dart';
 import 'package:pet_app/mvc_implementation/screens/components/titles.dart';
-import 'package:pet_app/mvc_implementation/screens/home_screen.dart';
-import 'package:pet_app/mvc_implementation/screens/signup.dart';
 
-class LoginPage extends StatelessWidget {
-  LoginPage({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
+
   final TextEditingController _passwordController = TextEditingController();
+
   final _formKey = GlobalKey<FormState>();
+
+  final CustomSnackBar snackBar = CustomSnackBar();
+
+  Users _createUserFromControllers() {
+    return Users(
+      email: _emailController.text,
+      password: _passwordController.text,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +62,14 @@ class LoginPage extends StatelessWidget {
                 TextInput(
                   inputTitle: 'Email',
                   controller: _emailController,
+                  textInputType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 20.0),
                 TextInput(
                   inputTitle: 'Senha',
                   controller: _passwordController,
                   isPassword: true,
+                  textInputType: TextInputType.name,
                 ),
                 const SizedBox(height: 40.0),
                 FormButton(
@@ -61,6 +78,7 @@ class LoginPage extends StatelessWidget {
                   userController: userController,
                   emailController: _emailController,
                   passwordController: _passwordController,
+                  type: 1, //1 -> Login button
                 ),
                 const SizedBox(height: 20.0),
                 ActionText(

@@ -9,43 +9,84 @@ import 'package:pet_app/mvc_implementation/screens/components/snackbar.dart';
 FirebaseAuth firebaseAuth = FirebaseAuth.instance;
 FirebaseFirestore firebaseDatabase = FirebaseFirestore.instance;
 
+// usercontroller.dart
+
 class UserController {
   Future<String?> getCurrentUser() async {
     return firebaseAuth.currentUser?.uid;
   }
 
-  //ADD NEW USER
-  Future addUser(String uid, Users user) async {
+  Future<bool> createUser(Users user, BuildContext context) async {
     try {
       await firebaseAuth.createUserWithEmailAndPassword(
-          email: user.email!, password: user.password!);
-      await firebaseDatabase.collection("Users").doc(uid).set(user.toMap());
+          email: user.email, password: user.password);
+      await firebaseDatabase
+          .collection("Users")
+          .doc(firebaseAuth.currentUser!.uid)
+          .set(user.toMap());
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: CustomSnackBar(successfulText: 'Conta criada com sucesso!'),
+        backgroundColor: Colors.transparent,
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+      ));
+      return true;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case "email-already-in-use":
-          return CustomSnackBar(errorText: 'Email já está em uso.');
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: CustomSnackBar(errorText: 'Email já está em uso.'),
+            backgroundColor: Colors.transparent,
+            behavior: SnackBarBehavior.floating,
+            elevation: 0,
+          ));
+          break;
+        default:
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: CustomSnackBar(errorText: e.code),
+            backgroundColor: Colors.transparent,
+            behavior: SnackBarBehavior.floating,
+            elevation: 0,
+          ));
       }
-      return CustomSnackBar(errorText: e.code);
+      return false;
     }
   }
 
-  //LOGIN
-  Future<String?> loginUser(Users user) async {
+  Future<bool> loginUser(Users user, BuildContext context) async {
     try {
       await firebaseAuth.signInWithEmailAndPassword(
           email: user.email, password: user.password);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: CustomSnackBar(successfulText: 'Usuário logado com sucesso!'),
+        backgroundColor: Colors.transparent,
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+      ));
+      return true;
     } on FirebaseAuthException catch (e) {
+      String errorMessage;
       switch (e.code) {
         case 'user-not-found':
-          return 'Usuário não encontrado!';
+          errorMessage = 'Usuário não encontrado!';
+          break;
         case 'wrong-password':
-          return 'Senha Incorreta!';
+          errorMessage = 'Senha Incorreta!';
+          break;
         case 'invalid-email':
-          return 'Email Invalido!';
+          errorMessage = 'Email Inválido!';
+          break;
+        default:
+          errorMessage = e.code;
       }
-      print('E.CODE: ${e.code}');
-      return '$e.code';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: CustomSnackBar(errorText: errorMessage),
+        backgroundColor: Colors.transparent,
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+      ));
+      return false;
     }
-    return null;
   }
 }

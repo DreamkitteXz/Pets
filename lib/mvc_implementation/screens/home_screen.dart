@@ -1,19 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:pet_app/models/Pet.dart';
-import 'package:pet_app/mvc_implementation/controllers/user_controller.dart';
-import 'package:pet_app/mvc_implementation/models/pets.dart';
-import 'package:pet_app/mvc_implementation/models/user.dart';
 import 'package:pet_app/mvc_implementation/screens/add_pet.dart';
-import 'package:pet_app/mvc_implementation/screens/add_vac.dart';
 import 'package:pet_app/mvc_implementation/screens/components/list_view.dart';
 import 'package:pet_app/mvc_implementation/screens/components/titles.dart';
-import 'package:pet_app/mvc_implementation/screens/login.dart';
 
 class HomeScreenPage extends StatefulWidget {
   //Users user;
-  HomeScreenPage({
+  const HomeScreenPage({
     super.key,
     /*TODO: required this.user*/
   });
@@ -32,7 +24,7 @@ class _HomeScreenPageState extends State<HomeScreenPage> {
           },
           child: Scaffold(
             backgroundColor: Colors.white,
-            floatingActionButton: FloatingActionPets(),
+            floatingActionButton: const FloatingActionPets(),
             body: Column(
               // mainAxisAlignment: MainAxisAlignment.start,
               children: [
@@ -68,7 +60,7 @@ class _HomeScreenPageState extends State<HomeScreenPage> {
 }
 
 class FloatingActionPets extends StatelessWidget {
-  FloatingActionPets({
+  const FloatingActionPets({
     super.key,
   });
 
@@ -81,7 +73,7 @@ class FloatingActionPets extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddPetScreen(),
+              builder: (context) => const AddPetScreen(),
             ),
           );
         },

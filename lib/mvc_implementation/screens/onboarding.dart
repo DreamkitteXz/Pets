@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pet_app/mvc_implementation/models/onboarding_info.dart';
 import 'package:pet_app/mvc_implementation/screens/components/logo.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:pet_app/mvc_implementation/screens/login.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 class OnBoarding extends StatefulWidget {
@@ -19,11 +20,41 @@ class _OnBoardingState extends State<OnBoarding> {
       child: Scaffold(
         backgroundColor: Colors.white,
         body: Column(
-          //mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Logo(),
-            OnboardingCarrousel(slides: slides),
+            const Row(
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(bottom: 16.0, left: 8.0, top: 8.0),
+                  child: Logo(),
+                ),
+              ],
+            ),
+            Expanded(
+              child: Center(
+                child: OnboardingCarrousel(slides: slides),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginPage(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(27.0),
+                    ),
+                    backgroundColor: const Color(0xFF041A23)),
+                child: const Text('Começar', style: TextStyle(fontSize: 18.0)),
+              ),
+            ),
           ],
         ),
       ),
@@ -34,7 +65,7 @@ class _OnBoardingState extends State<OnBoarding> {
 class OnboardingCarrousel extends StatefulWidget {
   final List<SlideInfo> slides;
 
-  OnboardingCarrousel({
+  const OnboardingCarrousel({
     required this.slides,
     super.key,
   });
@@ -46,28 +77,31 @@ class OnboardingCarrousel extends StatefulWidget {
 class _OnboardingCarrouselState extends State<OnboardingCarrousel> {
   int activeIndex = 0;
   List<Color> dotsColors = [
-    Color(0xFFF29301),
-    Color(0xFF4A406E),
-    Color(0xFF041A23)
+    const Color(0xFFF29301),
+    const Color(0xFF4A406E),
+    const Color(0xFF041A23)
   ];
   final controller = CarouselController();
 
   @override
   Widget build(BuildContext context) {
-    return CarouselSlider(
-      carouselController: controller,
-      options: CarouselOptions(
-        height: 500.0,
-        onPageChanged: (index, reason) => setState(() => activeIndex = index),
-      ),
-      items: widget.slides.map((slide) {
-        return Column(
-          children: [
-            Builder(
+    return Column(
+      children: [
+        CarouselSlider(
+          carouselController: controller,
+          options: CarouselOptions(
+            height: MediaQuery.of(context).size.height * 0.6,
+            viewportFraction: 1.0,
+            enableInfiniteScroll: false,
+            onPageChanged: (index, reason) =>
+                setState(() => activeIndex = index),
+          ),
+          items: widget.slides.map((slide) {
+            return Builder(
               builder: (BuildContext context) {
                 return Container(
                   width: MediaQuery.of(context).size.width,
-                  margin: EdgeInsets.symmetric(horizontal: 5.0),
+                  margin: const EdgeInsets.symmetric(horizontal: 5.0),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8.0),
@@ -83,32 +117,34 @@ class _OnboardingCarrouselState extends State<OnboardingCarrousel> {
                       Text(
                         slide.title,
                         style: const TextStyle(
-                            fontSize: 26.0,
-                            fontWeight: FontWeight.bold,
-                            // fontFamily: 'Inter',
-                            color: Color(0xFF062D3E)),
+                          fontSize: 26.0,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF062D3E),
+                        ),
                       ),
                       const SizedBox(height: 30.0),
-                      Text(
-                        slide.description,
-                        style: const TextStyle(
-                            fontSize: 20.0,
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16.0, left: 16.0),
+                        child: Text(
+                          slide.description,
+                          style: const TextStyle(
+                            fontSize: 18.0,
                             fontWeight: FontWeight.w400,
-                            //fontFamily: 'Inter',
-                            color: Color(0xFF1F4251)),
-                        textAlign: TextAlign.center,
+                            color: Color(0xFF1F4251),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ],
                   ),
                 );
               },
-            ),
-            const SizedBox(height: 32),
-            dotIndicator(3),
-            //const SizedBox(height: 32),
-          ],
-        );
-      }).toList(),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 32),
+        dotIndicator(widget.slides.length),
+      ],
     );
   }
 
@@ -116,6 +152,8 @@ class _OnboardingCarrouselState extends State<OnboardingCarrousel> {
         activeIndex: activeIndex,
         count: dots,
         effect: SwapEffect(
-            activeDotColor: dotsColors[activeIndex], dotColor: Colors.black38),
+          activeDotColor: dotsColors[activeIndex],
+          dotColor: Colors.black38,
+        ),
       );
 }

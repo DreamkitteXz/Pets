@@ -9,7 +9,7 @@ class Logo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(left: 30.0, top: 40.0),
+      padding: const EdgeInsets.only(left: 30.0, top: 40.0),
       child: SvgPicture.asset(
         'assets/app/pets_logo.svg',
         color: Colors.black,

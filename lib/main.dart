@@ -2,11 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_app/mvc_implementation/screens/home_screen.dart';
-import 'package:pet_app/mvc_implementation/screens/login.dart';
 import 'package:pet_app/mvc_implementation/screens/onboarding.dart';
-import 'package:pet_app/mvc_implementation/screens/signup.dart';
-import 'package:pet_app/screens/Pet/home_screen.dart';
-import 'package:pet_app/screens/welcome/welcome.dart';
 
 import 'firebase_options.dart';
 
@@ -33,7 +29,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const RoteadorTelas(),
+      home: const OnBoarding(),
     );
   }
 }
@@ -50,9 +46,9 @@ class RoteadorTelas extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasData) {
-          return HomeScreenPage();
+          return const HomeScreenPage();
         } else {
-          return const WelcomePageWidget();
+          return const OnBoarding();
         }
       },
     );
