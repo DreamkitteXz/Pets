@@ -28,7 +28,7 @@ export default function VacinaCard({ title, content }) {
                 </div>
               </div>
               <div className="flex">
-                <span className="px-4 font-bold">Status:</span>
+                <span className="px-4 font-bold">Status: {content.is_vac_validada}</span>
                 <span className="text-gray-600">
                   {isOpen ? (
                     <div className="text-xl">
@@ -44,17 +44,18 @@ export default function VacinaCard({ title, content }) {
             </div>
           </div>
           {isOpen && (
-            <div className="p-4 border-t">
+            <div className="p-1 border-t">
               {/* CONTENT */}
+              <h2 className="text-lg font-bold px-4 mb-8">Dados da Vacina</h2>
+
               <div className="flex items-center mb-4">
                 <div className="flex flex-row">
-                  <h2 className="text-lg font-bold px-4">Dados da Vacina</h2>
                   <h2 className="text-sm text-[#656565] font-bold px-4 py-1">
-                    Data Aplicada: {content.data}
+                    Data Aplicada: {content.data_aplicacao}
                   </h2>
                 </div>
                 <h2 className="text-sm text-[#656565] font-bold px-4 py-1">
-                  Próxima Aplicação: {content.proxaplicacao}
+                  Próxima Aplicação: {content.proxima_aplicacao}
                 </h2>
               </div>
               <div className="flex items-start justify-between">
@@ -77,12 +78,12 @@ export default function VacinaCard({ title, content }) {
                   <div className="flex items-center justify-between pb-2">
                     <div className="mr-3 bg-[#D9D9D9] rounded-xl w-1/2">
                       <p className="text-base font-bold p-4">
-                        Peso:{content.farmaceutica}
+                        Peso:{content.peso_pet}
                       </p>
                     </div>
                     <div className="mr-3 bg-[#D9D9D9] rounded-xl w-1/2">
                       <p className="text-base font-bold p-4">
-                        Data de Validade:{content.lote}
+                        Data de Validade:{content.data_validade}
                       </p>
                     </div>
                   </div>
@@ -97,12 +98,12 @@ export default function VacinaCard({ title, content }) {
                   <div className="flex-initial items-center justify-between">
                     <div className="w-full mr-3 bg-[#D9D9D9] rounded-xl w-1/2">
                       <p className="text-base font-bold p-4">
-                        Nome:{content.farmaceutica}
+                        Nome:{content.nome_vet}
                       </p>
                     </div>
                     <div className="w-full mt-3 mr-3 bg-[#D9D9D9] rounded-xl w-1/2">
                       <p className="text-base font-bold p-4">
-                        CRMV:{content.lote}
+                        CRMV:{content.crmv}
                       </p>
                     </div>
                   </div>
@@ -117,18 +118,18 @@ export default function VacinaCard({ title, content }) {
                   <div className="flex-initial items-center justify-between">
                     <div className="w-full mr-3 bg-[#D9D9D9] rounded-xl w-1/2">
                       <p className="text-base font-bold p-4">
-                        Clínica:{content.farmaceutica}
+                        Clínica:{content.clinica}
                       </p>
                     </div>
                     <div className="flex items-center justify-between pb-3 mt-3">
                       <div className="mr-3 bg-[#D9D9D9] rounded-xl w-1/2">
                         <p className="text-base font-bold p-4">
-                          CNPJ:{content.farmaceutica}
+                          CNPJ:{content.cnpj}
                         </p>
                       </div>
                       <div className="bg-[#D9D9D9] rounded-xl w-1/2">
                         <p className="text-base font-bold p-4">
-                          Endereço:{content.lote}
+                          Endereço:{content.rua}
                         </p>
                       </div>
                     </div>
@@ -142,7 +143,7 @@ export default function VacinaCard({ title, content }) {
                   <div className="mt-3 flex items-end pb-3">
                     <div className="justify-items-center">
                       <img
-                        src="https://images.unsplash.com/photo-1581260466152-d2c0303e54f5?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8OSUzQTE2fGVufDB8fDB8fHww"
+                        src={content.imagem_rotulo}
                         alt="Image"
                         className="w-4/5 h-4/5 object-cover rounded-xl"
                       />
@@ -171,37 +172,37 @@ export default function VacinaCard({ title, content }) {
           <div className="flex items-center justify-around py-2 px-2">
             <span className="text-base font-bold">Nome:</span>
             <p className="text-sm font-medium text-[#656565]">
-              {content.nome}Teste
+              {content.pet}
             </p>
           </div>
           <div className="flex items-center justify-around py-2 px-2">
             <span className="text-base font-bold">Cor:</span>
             <p className="text-sm font-medium text-[#656565]">
-              {content.cor}Teste
+              {content.cor_pet}
             </p>
           </div>
           <div className="flex items-center justify-around py-2 px-2">
             <span className="text-base font-bold">Raça:</span>
             <p className="text-sm font-medium text-[#656565]">
-              {content.raca}Teste
+              {content.raca_pet}
             </p>
           </div>
           <div className="flex items-center justify-around py-2 px-2">
             <span className="text-base font-bold">Tipo:</span>
             <p className="text-sm font-medium text-[#656565]">
-              {content.tipo}Teste
+              {content.tipo_pet}
             </p>
           </div>
           <div className="flex items-center justify-around py-2 px-2">
             <span className="text-base font-bold">Sexo:</span>
             <p className="text-sm font-medium text-[#656565]">
-              {content.sexo}Teste
+              {content.sexo_pet}
             </p>
           </div>
           <div className="flex items-center justify-around py-2 px-2">
             <span className="text-base font-bold">Peso:</span>
             <p className="text-sm font-medium text-[#656565]">
-              {content.peso}Teste
+              {content.peso_pet}
             </p>
           </div>
         </div>

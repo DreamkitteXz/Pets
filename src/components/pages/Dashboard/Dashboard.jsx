@@ -56,8 +56,6 @@ function Dashboard() {
       </div>
       <div className="mt-2 mb-5 border border-b-4"></div>
       <HeaderSubtitle>
-        {selectedTitle} #TODO: Quando mudar o titulo, as tabelas devem exibir
-        tutores, vacina ou pet?
       </HeaderSubtitle>
       <div className="mt-5 flex flex-1 p-8 max-h-[80vh] overflow-auto">
         <Table columns={columns} data={data} rowKey="id" />

@@ -53,11 +53,11 @@ export default function VacinasTable() {
                         alt="Imagem do Usuário"
                       />
                     </div>
-                    {vacina.nomeDoPet}
+                    {vacina.pet}
                   </div>
                 </td>
-                <td className="text-slate-600">{vacina.vacina}</td>
-                <td className="text-slate-600">{vacina.data}</td>
+                <td className="text-slate-500">{vacina.vacina}</td>
+                <td className="text-slate-600">{vacina.data_aplicacao}</td>
                 <td className="text-slate-600">
                   <MdOutlineOpenInNew />
                 </td>
@@ -84,7 +84,7 @@ export default function VacinasTable() {
                   />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold">{selectedVaccine?.nomeDoPet}</h2>
+                  <h2 className="text-lg font-semibold">{selectedVaccine?.pet}</h2>
                 </div>
               </div>
               <div>
@@ -114,7 +114,7 @@ export default function VacinasTable() {
               <h1 className="font-bold text-xl">Informações:</h1>
             </div>
             <div className="">
-              <VacinaCard title={"Kayque"} content={"Olá mundi"} />
+              <VacinaCard title={selectedVaccine?.pet} content={selectedVaccine} />
             </div>
           </div>
         </div>

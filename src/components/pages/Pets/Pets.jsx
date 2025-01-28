@@ -1,4 +1,4 @@
-import React from "react";
+/*import React from "react";
 
 //internal components
 import HeaderTitle from "../../shared/Header/components/HeaderSubtitle";
@@ -93,3 +93,54 @@ function Pets() {
 }
 
 export default Pets;
+*/
+
+import React, { useEffect, useState } from "react";
+import { db } from "../../../config/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import Table from "../../tables/Table"; // Import the Table component you provided
+
+const FirestoreTable = () => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Define columns for the Table
+  const columns = [
+    { key: "Nome do Pet", header: "Pets" },
+    { key: "field1", header: "Field 1" },
+    { key: "field2", header: "Field 2" },
+    { key: "field3", header: "Field 3" },
+  ];
+
+  // Fetch data from Firestore
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "Veterinarians"));
+        const items = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setData(items);
+      } catch (error) {
+        console.error("Error fetching data: ", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Firestore Table</h1>
+      {loading ? (
+        <div className="text-center text-gray-500">Loading...</div>
+      ) : data.length > 0 ? (
+        <Table columns={columns} data={data} rowKey="id" />
+      ) : (
+        <div className="text-center text-gray-500">No data available</div>
+      )}
+    </div>
+  );
+};
+
+export default FirestoreTable;

@@ -1,12 +1,10 @@
 import React from "react";
 
-
-
 function Table({ columns, data, rowKey }) {
   return (
     <div className="overflow-x-auto">
       <table className="table-fixed w-full h-full">
-        <thead className="bg-white border-b-1 border-t-0">
+        <thead className="bg-grey-500 border-b-1 border-t-0">
           <tr>
             {columns.map((column) => (
               <th key={column.key} className="text-gray-500 text-sm">
