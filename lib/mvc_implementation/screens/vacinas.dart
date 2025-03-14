@@ -11,6 +11,10 @@ import 'package:pet_app/mvc_implementation/models/vacinas.dart';
 import 'package:pet_app/mvc_implementation/screens/add_vac.dart';
 import 'package:pet_app/mvc_implementation/screens/vacina.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter/services.dart';
 
 class VacinasPage extends StatelessWidget {
   final Pets pet;
@@ -38,6 +42,7 @@ class VacinasPage extends StatelessWidget {
               ),
               child: GestureDetector(
                 onTap: () async {
+                  print('Gerar PDF');
                   await _createPDF(context, pet.id);
                 },
                 child: SvgPicture.asset(
@@ -75,9 +80,9 @@ class VacinasPage extends StatelessWidget {
           builder:
               (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
             if (!snapshot.hasData) {
-              return Image.network(
-                  "https://iconscout.com/lottie-animations/cute-cat");
-              //Center(child: CircularProgressIndicator())
+              //  return Image.network(
+              //"https://iconscout.com/lottie-animations/cute-cat");
+              return const Center(child: CircularProgressIndicator());
             }
 
             List<Vacinas> listVac = snapshot.data!.docs.map((document) {
@@ -334,53 +339,84 @@ Future<void> _createPDF(BuildContext context, String petId) async {
   final PdfFont font = PdfStandardFont(PdfFontFamily.helvetica, 12);
 
   try {
-    final QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('Users')
-        .doc(FirebaseAuth.instance.currentUser!.uid)
-        .collection('Pets')
-        .doc(petId)
-        .collection("Vacinas")
-        .get();
+    if (await Permission.storage.request().isGranted) {
+      // Get the application files directory
+      final directory = await getApplicationDocumentsDirectory();
+      final appFlutterDir = Directory('${directory.path}/app_flutter');
+      if (!await appFlutterDir.exists()) {
+        await appFlutterDir.create(recursive: true);
+      }
 
-    if (snapshot.docs.isNotEmpty) {
-      graphics.drawString(
-        'Vacinas do Pet',
-        PdfStandardFont(PdfFontFamily.helvetica, 18, style: PdfFontStyle.bold),
-        bounds: const Rect.fromLTWH(0, 0, 500, 30),
-      );
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      final filePath = '${appFlutterDir.path}/vacinas_pet_$timestamp.pdf';
+      final file = File(filePath);
 
-      double offsetY = 40;
-      for (var doc in snapshot.docs) {
-        final Vacinas vacina =
-            Vacinas.fromMap(doc.data() as Map<String, dynamic>);
+      // Generate PDF content
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .collection('Pets')
+          .doc(petId)
+          .collection("Vacinas")
+          .get();
 
-        final String text =
-            'Vacina: ${vacina.vacina}, Data Aplicada: ${vacina.dataAplicada}, Validado: ${vacina.isValidadoVet == 'true' && vacina.isValidadoTutor == 'true' ? 'Sim' : 'Não'}';
+      if (snapshot.docs.isNotEmpty) {
+        graphics.drawString(
+          'Vacinas do Pet',
+          PdfStandardFont(PdfFontFamily.helvetica, 18,
+              style: PdfFontStyle.bold),
+          bounds: const Rect.fromLTWH(0, 0, 500, 30),
+        );
 
-        graphics.drawString(text, font,
-            bounds: Rect.fromLTWH(0, offsetY, 500, 20));
-        offsetY += 20;
+        double offsetY = 40;
+        for (var doc in snapshot.docs) {
+          final Vacinas vacina =
+              Vacinas.fromMap(doc.data() as Map<String, dynamic>);
+
+          final String text =
+              'Vacina: ${vacina.vacina}, Data Aplicada: ${vacina.dataAplicada}, Validado: ${vacina.isValidadoVet == 'true' && vacina.isValidadoTutor == 'true' ? 'Sim' : 'Não'}';
+
+          graphics.drawString(text, font,
+              bounds: Rect.fromLTWH(0, offsetY, 500, 20));
+          offsetY += 20;
+        }
+      } else {
+        graphics.drawString(
+          'Nenhuma vacina encontrada para este pet.',
+          font,
+          bounds: const Rect.fromLTWH(0, 0, 500, 20),
+        );
+      }
+
+      // Save the PDF
+      List<int> bytes = await document.save();
+      document.dispose();
+      await file.writeAsBytes(bytes);
+
+      print('PDF saved at: ${file.path}');
+
+      try {
+        final result = await OpenFile.open(
+          file.path,
+          type: 'application/pdf',
+          uti: 'com.adobe.pdf',
+        );
+
+        if (result.type != ResultType.done) {
+          throw Exception(result.message);
+        }
+      } catch (e) {
+        throw Exception('Could not open the PDF file: $e');
       }
     } else {
-      graphics.drawString(
-        'Nenhuma vacina encontrada para este pet.',
-        font,
-        bounds: const Rect.fromLTWH(0, 0, 500, 20),
-      );
+      throw Exception('Storage permission denied');
     }
-
-    List<int> bytes = await document.save();
-    document.dispose();
-
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/vacinas_pet.pdf');
-    await file.writeAsBytes(bytes);
-
-    OpenFile.open(file.path);
   } catch (e) {
+    print('Error generating PDF: $e');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Erro ao gerar PDF: $e'),
+        backgroundColor: Colors.red,
       ),
     );
   }

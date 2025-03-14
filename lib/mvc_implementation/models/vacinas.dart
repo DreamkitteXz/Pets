@@ -64,7 +64,7 @@ class Vacinas {
         clinica = map["Clínica"] ?? '',
         rua = map["Rua"] ?? '',
         bairro = map["Bairro"] ?? '',
-        numero = map["Numero"] ?? '',
+        numero = map["Número"] ?? '',
         cidade = map["Cidade"] ?? '',
         isValidadoVet = map["isValidadoVet"] ?? '',
         isValidadoTutor = map["isValidadoTutor"] ?? '';
@@ -87,7 +87,7 @@ class Vacinas {
       "Clínica": clinica,
       "Rua": rua,
       "Bairro": bairro,
-      "Numero": numero,
+      "Número": numero,
       "Cidade": cidade,
       "isValidadoVet": isValidadoVet,
       "isValidadoTutor": isValidadoTutor,

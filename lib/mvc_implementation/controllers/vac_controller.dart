@@ -121,7 +121,7 @@ class VacController {
 
       // Adiciona os dados no documento Vacinas_Pendentes
       await FirebaseFirestore.instance
-          .collection('Vacinas_Pendentes')
+          .collection('Pending_Vaccines')
           .doc(vacId)
           .set({
         'tutor': tutorNome,

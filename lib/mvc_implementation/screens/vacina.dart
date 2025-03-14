@@ -211,7 +211,7 @@ class _VacinaPageState extends State<VacinaPage> {
                                     title: 'Número',
                                     icon: Icons.location_on_outlined),
                                 VacinaInfo(
-                                    widget: widget.vacina.rua,
+                                    widget: widget.vacina.cidade,
                                     title: 'Cidade',
                                     icon: Icons.location_city),
                               ],

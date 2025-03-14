@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:pet_app/mvc_implementation/controllers/data_picker.dart';
 import 'package:pet_app/mvc_implementation/controllers/id_controller.dart';
 import 'package:pet_app/mvc_implementation/controllers/vac_controller.dart';
 import 'package:pet_app/mvc_implementation/screens/components/subtitle.dart';
@@ -108,18 +109,30 @@ class _AddVacPageState extends State<AddVacPage> {
                   textInputType: TextInputType.name,
                 ),
                 const SizedBox(height: 20),
-                TextInput(
+                /*TextInput(
                   inputTitle: 'Data aplicada',
                   controller: _dataAplicadaController,
                   dataPicker: true,
                   textInputType: TextInputType.none,
+                ),*/
+                DatePickerInput(
+                  inputTitle: 'Data aplicada',
+                  controller: _dataAplicadaController,
+                  isPastDateOnly: true,
+                  hint: 'Selecione uma data',
                 ),
                 const SizedBox(height: 20.0),
-                TextInput(
+                /*TextInput(
                   inputTitle: 'Próxima aplicação',
                   controller: _proximaAplicacaoController,
                   dataPicker: true,
                   textInputType: TextInputType.none,
+                ),*/
+                DatePickerInput(
+                  inputTitle: 'Próxima aplicação',
+                  controller: _proximaAplicacaoController,
+                  isFutureDateOnly: true,
+                  hint: 'Selecione uma data',
                 ),
                 const SizedBox(height: 20),
                 TextInput(
@@ -145,11 +158,16 @@ class _AddVacPageState extends State<AddVacPage> {
                   textInputType: TextInputType.name,
                 ),
                 const SizedBox(height: 20.0),
-                TextInput(
+                /*TextInput(
                   inputTitle: 'Data de Validade',
                   controller: _dataValidadeController,
                   dataPicker: true,
                   textInputType: TextInputType.none,
+                ),*/
+                DatePickerInput(
+                  inputTitle: 'Data de Validade',
+                  controller: _dataValidadeController,
+                  hint: 'Selecione uma data',
                 ),
                 const SizedBox(height: 20.0),
                 TextInput(
