@@ -1,146 +1,296 @@
-/*import React from "react";
+import React, { useState } from 'react';
+import { CiFilter } from "react-icons/ci";
+import PetDetailsModal from './PetDetailsModal';
+import PetEditModal from './PetEditModal';
 
-//internal components
-import HeaderTitle from "../../shared/Header/components/HeaderSubtitle";
-import Avatar from "../../shared/Header/components/Avatar";
-import Table from "../../tables/Table";
-import ValidStatusCard from "../../cards/ValidStatusCard";
-import WaitingStatusCard from "../../cards/WaitingStatusCard";
-import DeniedStatusCard from "../../cards/DeniedStatusCard";
-
-//icons
-import { FaSort } from "react-icons/fa";
-
-function Pets() {
-
-  const data = [
-    {
-      id: 1,
-      name: "Coragem, Cão Covarde",
-      vaccine: "Raiva",
-      status: "valid",
-      date: "16/06/24",
-      avatar: "https://i.pinimg.com/236x/d8/fc/c0/d8fcc0c6b81f56c3e5c80fdaebe2ebe5.jpg",
+const PetsPage = () => {
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [selectedPet, setSelectedPet] = useState(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
+  // Sample pet data
+  const petsData = [
+    { 
+      id: 1, 
+      name: 'Max', 
+      species: 'Dog', 
+      breed: 'Labrador', 
+      age: 3,
+      owner: 'John Smith',
+      vaccines: [
+        { name: 'Rabies', lastDate: '2024-12-10', nextDate: '2025-12-10', status: 'validated' },
+        { name: 'DHPP', lastDate: '2024-11-15', nextDate: '2025-05-15', status: 'validated' },
+        { name: 'Bordetella', lastDate: '2024-09-20', nextDate: '2025-03-20', status: 'validated' }
+      ],
+      status: 'validated'
     },
-    {
-      id: 2,
-      name: "Scooby Doo",
-      vaccine: "Polivalente",
-      status: "wating",
-      date: "20/06/24",
-      avatar: "https://i.pinimg.com/564x/72/f2/56/72f25653ad18c0ec71331a9f9f60d02a.jpg",
+    { 
+      id: 2, 
+      name: 'Luna', 
+      species: 'Cat', 
+      breed: 'Siamese', 
+      age: 2,
+      owner: 'Emily Johnson',
+      vaccines: [
+        { name: 'Rabies', lastDate: '2024-10-05', nextDate: '2025-10-05', status: 'validated' },
+        { name: 'FVRCP', lastDate: '2024-08-12', nextDate: '2025-02-12', status: 'waiting validation' }
+      ],
+      status: 'waiting validation'
     },
-    {
-      id: 3,
-      name: "Dino",
-      vaccine: "Gripe Canina",
-      status: "denied",
-      date: "25/06/24",
-      avatar: "https://media4.giphy.com/media/3o6EhEsq0gQuOJAZtm/giphy.gif?cid=6c09b9523pi8y3vuh97mhkllvfqjee8w7tiwm9yjbxl4s9cq&ep=v1_internal_gif_by_id&rid=giphy.gif&ct=g",
+    { 
+      id: 3, 
+      name: 'Bella', 
+      species: 'Dog', 
+      breed: 'Beagle', 
+      age: 5,
+      owner: 'Michael Brown',
+      vaccines: [
+        { name: 'Rabies', lastDate: '2024-07-20', nextDate: '2025-07-20', status: 'validated' },
+        { name: 'DHPP', lastDate: null, nextDate: '2025-03-01', status: 'waiting validation' }
+      ],
+      status: 'waiting validation'
     },
+    { 
+      id: 4, 
+      name: 'Oliver', 
+      species: 'Cat', 
+      breed: 'Persian', 
+      age: 4,
+      owner: 'Sarah Wilson',
+      vaccines: [
+        { name: 'Rabies', lastDate: '2024-11-30', nextDate: '2025-11-30', status: 'validated' },
+        { name: 'FVRCP', lastDate: '2024-12-05', nextDate: '2025-06-05', status: 'recused' },
+        { name: 'FeLV', lastDate: null, nextDate: null, status: 'recused' }
+      ],
+      status: 'recused'
+    },
+    { 
+      id: 5, 
+      name: 'Charlie', 
+      species: 'Dog', 
+      breed: 'Golden Retriever', 
+      age: 1,
+      owner: 'David Lee',
+      vaccines: [
+        { name: 'Rabies', lastDate: '2025-01-15', nextDate: '2026-01-15', status: 'validated' },
+        { name: 'DHPP', lastDate: '2025-01-15', nextDate: '2025-07-15', status: 'validated' },
+        { name: 'Leptospirosis', lastDate: '2025-01-15', nextDate: '2025-07-15', status: 'validated' }
+      ],
+      status: 'validated'
+    }
   ];
 
-  const columns = [
-    {
-      key: "name",
-      header: "Nome",
-      render: (value, row) => (
-        <div className="flex items-center">
-          <Avatar image={row.avatar} />
-          {value}
-        </div>
-      ),
-    },
-    { key: "vaccine", header: "Vacinas" },
-    { key: "status", header: (
-      <div className="flex items-center">
-        Status
-        <FaSort 
-          className="ml-2" 
-        />
-      </div>
-    ), render: (value, row) => <StatusCell status={row.status} />
-  },
-    { key: "date", header: "Data" },
-  ];
-
-  const StatusCell = ({ status }) => {
+  const getStatusColor = (status) => {
     switch (status) {
-      case "valid":
-        return <ValidStatusCard />;
-      case "wating":
-        return <WaitingStatusCard />;
-      case "denied":
-        return <DeniedStatusCard />;
+      case 'validated':
+        return 'text-green-600 bg-green-100';
+      case 'waiting validation':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'recused':
+        return 'text-red-600 bg-red-100';
       default:
-        return null;
+        return 'text-gray-600 bg-gray-100';
     }
   };
 
+  const getNextVaccineDate = (pet) => {
+    if (!pet.vaccines || pet.vaccines.length === 0) return 'No vaccines';
+    
+    const upcomingVaccines = pet.vaccines
+      .filter(v => v.nextDate && new Date(v.nextDate) > new Date())
+      .sort((a, b) => new Date(a.nextDate) - new Date(b.nextDate));
+    
+    if (upcomingVaccines.length === 0) return 'All vaccines up to date';
+    
+    const nextVaccine = upcomingVaccines[0];
+    return `${nextVaccine.name}: ${new Date(nextVaccine.nextDate).toLocaleDateString()}`;
+  };
+
+  const filteredPets = filterStatus === 'all' 
+    ? petsData 
+    : petsData.filter(pet => pet.status === filterStatus);
+
+  const handleViewPet = (pet) => {
+    setSelectedPet(pet);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleEditPet = (pet) => {
+    setSelectedPet(pet);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSavePet = (updatedPet) => {
+    // Here you would typically update the pet data in your backend
+    console.log('Saving updated pet:', updatedPet);
+  };
+
   return (
-    <div className="flex flex-col">
-      <h1 className="text-3xl	font-bold px-8">Overview</h1>
-      <p className="text-[#707070] px-8">TODO: Data</p>
-      <h3 className="font-semibold text-left text-[#707070] px-16 pb-16 pt-8">
-      Aqui esta todos os pets os quais você ja aplicou alguma vacina. 💉
-      </h3>
-      <HeaderTitle>Pets</HeaderTitle>
-      <div className="mt-5 flex flex-1 p-8 max-h-[80vh] overflow-auto">
-        <Table columns={columns} data={data} rowKey="id" />
+    <div className="container mx-auto p-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">Pet Management</h1>
+        <p className="text-gray-600">
+          Track vaccination status, upcoming appointments, and pet health information. 
+          Use the filters to quickly find pets based on their vaccination status.
+        </p>
       </div>
-    </div>
-  );
-}
 
-export default Pets;
-*/
+      {/* Filters and Actions */}
+      <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center bg-white rounded-lg shadow-sm p-2 border">
+            <CiFilter className="text-gray-500 mr-2" size={18} />
+            <select 
+              className="border-none bg-transparent focus:outline-none text-sm"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="all">All Statuses</option>
+              <option value="validated">Validated</option>
+              <option value="waiting validation">Waiting Validation</option>
+              <option value="recused">Recused</option>
+            </select>
+          </div>
+          
+          <span className="text-sm text-gray-500">
+            Showing {filteredPets.length} of {petsData.length} pets
+          </span>
+        </div>
+        
+        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+          Add New Pet
+        </button>
+      </div>
 
-import React, { useEffect, useState } from "react";
-import { db } from "../../../config/firebase";
-import { collection, getDocs } from "firebase/firestore";
-import Table from "../../tables/Table"; // Import the Table component you provided
+      {/* Pets Table */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Pet Information
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Owner
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Vaccine Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Next Vaccine
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredPets.map((pet) => (
+                <tr key={pet.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                        {pet.species === 'Dog' ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14z" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{pet.name}</div>
+                        <div className="text-sm text-gray-500">{pet.species} • {pet.breed} • {pet.age} yrs</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{pet.owner}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(pet.status)}`}>
+                      {pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}
+                    </span>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {pet.vaccines.length} vaccines recorded
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {getNextVaccineDate(pet)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button 
+                      className="text-blue-600 hover:text-blue-900 mr-3"
+                      onClick={() => handleViewPet(pet)}
+                    >
+                      View
+                    </button>
+                    <button 
+                      className="text-gray-600 hover:text-gray-900"
+                      onClick={() => handleEditPet(pet)}
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-const FirestoreTable = () => {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
+      {/* Vaccination Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8">
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+          <div className="text-green-600 text-lg font-semibold">Validated</div>
+          <div className="text-3xl font-bold mt-1">
+            {petsData.filter(pet => pet.status === 'validated').length}
+          </div>
+          <div className="text-sm text-gray-500 mt-1">pets with complete vaccination</div>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
+          <div className="text-yellow-600 text-lg font-semibold">Waiting Validation</div>
+          <div className="text-3xl font-bold mt-1">
+            {petsData.filter(pet => pet.status === 'waiting validation').length}
+          </div>
+          <div className="text-sm text-gray-500 mt-1">pets need review</div>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
+          <div className="text-red-600 text-lg font-semibold">Refused</div>
+          <div className="text-3xl font-bold mt-1">
+            {petsData.filter(pet => pet.status === 'recused').length}
+          </div>
+          <div className="text-sm text-gray-500 mt-1">pets with vaccine issues</div>
+        </div>
+        
+        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+          <div className="text-blue-600 text-lg font-semibold">Due This Month</div>
+          <div className="text-3xl font-bold mt-1">3</div>
+          <div className="text-sm text-gray-500 mt-1">pets need vaccination soon</div>
+        </div>
+      </div>
 
-  // Define columns for the Table
-  const columns = [
-    { key: "Nome do Pet", header: "Pets" },
-    { key: "field1", header: "Field 1" },
-    { key: "field2", header: "Field 2" },
-    { key: "field3", header: "Field 3" },
-  ];
+      {/* Add modals */}
+      <PetDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        pet={selectedPet}
+      />
 
-  // Fetch data from Firestore
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "Veterinarians"));
-        const items = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setData(items);
-      } catch (error) {
-        console.error("Error fetching data: ", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Firestore Table</h1>
-      {loading ? (
-        <div className="text-center text-gray-500">Loading...</div>
-      ) : data.length > 0 ? (
-        <Table columns={columns} data={data} rowKey="id" />
-      ) : (
-        <div className="text-center text-gray-500">No data available</div>
-      )}
+      <PetEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        pet={selectedPet}
+        onSave={handleSavePet}
+      />
     </div>
   );
 };
 
-export default FirestoreTable;
+export default PetsPage;

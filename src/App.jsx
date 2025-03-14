@@ -1,0 +1,69 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Layout from './components/shared/Layout/Layout';
+
+// Auth Pages
+import Login from './components/pages/Auth/Login/Auth';
+import CompleteProfile from './components/pages/Auth/CompleteProfile';
+import EmailVerification from './components/pages/Auth/EmailVerification';
+import ForgotPassword from './components/pages/Auth/ForgotPassword';
+import ResetPassword from './components/pages/Auth/ResetPassword';
+
+// Main Features
+import Dashboard from './components/pages/Dashboard/Dashboard';
+import Pets from './components/pages/Pets/Pets';
+import PetDetailsModal from './components/pages/Pets/PetDetailsModal';
+import Vaccines from './components/pages/Vacinas/Vacinas';
+import VaccineDetailsModal from './components/pages/Vacinas/VaccineDetailsModal';
+
+// Profile & Settings
+import Profile from './components/pages/Profile/Profile';
+import Settings from './components/pages/Settings/Settings';
+
+// Error Pages
+import NotFound from './components/pages/Error/NotFound';
+import Unauthorized from './components/pages/Error/Unauthorized';
+
+const App = () => {
+  return (
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/auth" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<EmailVerification />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
+
+        {/* Protected Routes */}
+        <Route element={<Layout />}>
+          {/* Dashboard */}
+          <Route path="/" element={<Dashboard />} />
+          
+          {/* Pets */}
+          <Route path="/pets">
+            <Route index element={<Pets />} />
+            <Route path=":petId" element={<PetDetailsModal />} />
+          </Route>
+          
+          {/* Vaccines */}
+          <Route path="/vaccines">
+            <Route index element={<Vaccines />} />
+            <Route path=":vaccineId" element={<VaccineDetailsModal />} />
+          </Route>
+          
+          {/* Profile & Settings */}
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/complete-profile" element={<CompleteProfile />} />
+        </Route>
+
+        {/* Error Routes */}
+        <Route path="/404" element={<NotFound />} />
+        <Route path="*" element={<Navigate to="/404" replace />} />
+      </Routes>
+    </Router>
+  );
+};
+
+export default App;

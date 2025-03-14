@@ -21,7 +21,7 @@ export const DASHBOARD_SIDEBAR_LINKS = [
 	{
 		key: 'vacinas',
 		label: 'Vacinas',
-		path: '/vacinas',
+		path: '/vacciness',
 		icon: <TbVaccine />
 	},
 ]

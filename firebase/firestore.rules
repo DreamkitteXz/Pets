@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isEmailVerified() {
+      return request.auth.token.email_verified;
+    }
+    
+    // Users collection rules
+    match /users/{userId} {
+      allow read: if isAuth() && isOwner(userId);
+      allow create: if isAuth() && isOwner(userId);
+      allow update: if isAuth() && isOwner(userId) && isEmailVerified();
+      allow delete: if false; // Prevent deletion
+      
+      // Validate data structure
+      function isValidUser() {
+        let user = request.resource.data;
+        return user.keys().hasAll(['email', 'name', 'cpf', 'crmv', 'address']) &&
+               user.email is string &&
+               user.name is string &&
+               user.cpf is string &&
+               user.crmv is string &&
+               user.address is map;
+      }
+      
+      // Additional validation can be added here
+    }
+  }
+}

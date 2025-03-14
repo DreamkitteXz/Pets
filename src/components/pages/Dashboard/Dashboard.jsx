@@ -1,67 +1,82 @@
-// Dashboard.js
-import React, { useState } from "react";
-import DashboardCards from "../Dashboard/components/DashboardCards";
-import Avatar from "../../shared/Header/components/Avatar";
-import Table from "../../tables/Table";
-import HeaderSubtitle from "../../shared/Header/components/HeaderSubtitle";
+import React from 'react';
+import Table from './../../tables/Table'; // Assuming the Table component is in a separate file
 
-function Dashboard() {
-  const [selectedTitle, setSelectedTitle] = useState("Tutores");
-
+const VeterinaryDashboard = () => {
+  // Define table columns
   const columns = [
-    {
-      key: "name",
-      header: "Nome",
-      render: (value, row) => (
-        <div className="flex items-center">
-          <Avatar image={row.avatar} />
-          {value}
-        </div>
-      ),
+    { key: 'petName', header: 'Pet Name' },
+    { key: 'species', header: 'Species' },
+    { key: 'breed', header: 'Breed' },
+    { key: 'age', header: 'Age', render: (value) => `${value} years` },
+    { key: 'owner', header: 'Owner' },
+    { key: 'lastVisit', header: 'Last Visit' },
+    { 
+      key: 'status', 
+      header: 'Status',
+      render: (value, row) => {
+        const statusColors = {
+          'Healthy': 'text-green-500',
+          'Recovering': 'text-yellow-500',
+          'Treatment': 'text-blue-500',
+          'Critical': 'text-red-500'
+        };
+        return <span className={`font-medium ${statusColors[value] || ''}`}>{value}</span>;
+      }
     },
-    { key: "pets", header: "Pets" },
-    { key: "address", header: "Endereço" },
-    { key: "phone", header: "Telefone" },
+    { key: 'nextAppointment', header: 'Next Appointment' },
   ];
 
-  const data = Array.from({ length: 5 }).map((_, index) => ({
-    id: index,
-    name: "Kayque Silva Fernandes Amado",
-    pets: "1",
-    address: "Rua Cassiano Pinto, 183",
-    phone: "(219) 555-0114",
-    avatar: "https://avatars.githubusercontent.com/u/93887857?v=4",
-  }));
+  // Sample veterinary data
+  const petData = [
+    { id: 1, petName: 'Max', species: 'Dog', breed: 'Labrador', age: 5, owner: 'John Smith', lastVisit: '2025-03-01', status: 'Healthy', nextAppointment: '2025-06-01' },
+    { id: 2, petName: 'Luna', species: 'Cat', breed: 'Siamese', age: 3, owner: 'Emily Johnson', lastVisit: '2025-02-15', status: 'Recovering', nextAppointment: '2025-03-20' },
+    { id: 3, petName: 'Charlie', species: 'Dog', breed: 'Beagle', age: 7, owner: 'Michael Brown', lastVisit: '2025-03-05', status: 'Treatment', nextAppointment: '2025-03-19' },
+    { id: 4, petName: 'Bella', species: 'Cat', breed: 'Persian', age: 4, owner: 'Sarah Wilson', lastVisit: '2025-02-28', status: 'Healthy', nextAppointment: '2025-05-28' },
+    { id: 5, petName: 'Rocky', species: 'Dog', breed: 'German Shepherd', age: 6, owner: 'David Lee', lastVisit: '2025-03-10', status: 'Critical', nextAppointment: '2025-03-15' },
+  ];
 
   return (
-    <div className="flex flex-col">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
-      <p>TODO: Data</p>
-      <div className="flex justify-center">
-        <DashboardCards
-          title={"Tutores"}
-          info={7}
-          onClick={() => setSelectedTitle("Tutores")}
-        />
-        <DashboardCards
-          title={"Pets"}
-          info={13}
-          onClick={() => setSelectedTitle("Pets")}
-        />
-        <DashboardCards
-          title={"Vacinas"}
-          info={20}
-          onClick={() => setSelectedTitle("Vacinas")}
+    <div className="container mx-auto p-4">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Veterinary Practice Dashboard</h1>
+        <p className="text-gray-600 mb-6">
+          Monitor patient status, upcoming appointments, and critical cases at a glance. 
+          This dashboard provides essential information for veterinary staff to prioritize care and follow up with patients.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">Patient Overview</h2>
+        <Table 
+          columns={columns} 
+          data={petData} 
+          rowKey="id" 
         />
       </div>
-      <div className="mt-2 mb-5 border border-b-4"></div>
-      <HeaderSubtitle>
-      </HeaderSubtitle>
-      <div className="mt-5 flex flex-1 p-8 max-h-[80vh] overflow-auto">
-        <Table columns={columns} data={data} rowKey="id" />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg shadow p-4">
+          <h2 className="text-lg font-semibold mb-2">Critical Cases</h2>
+          <div className="text-red-500 font-medium">
+            {petData.filter(pet => pet.status === 'Critical').length} patients
+          </div>
+          <p className="text-gray-500">Requiring immediate attention</p>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-4">
+          <h2 className="text-lg font-semibold mb-2">Today's Appointments</h2>
+          <div className="text-blue-500 font-medium">3 appointments</div>
+          <p className="text-gray-500">Scheduled for today</p>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-4">
+          <h2 className="text-lg font-semibold mb-2">Follow-ups Needed</h2>
+          <div className="text-yellow-500 font-medium">2 patients</div>
+          <p className="text-gray-500">Require follow-up calls</p>
+        </div>
       </div>
     </div>
   );
-}
+};
 
-export default Dashboard;
+export default VeterinaryDashboard;

@@ -1,18 +1,35 @@
-import React from "react";
-import { Outlet } from "react-router-dom";
-import SideBar from "../SideBar/SideBar";
-import Header from "../Header/Header";
+import React from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import SideBar from '../SideBar/SideBar';
+import Header from '../Header/Header';
+import { PROTECTED_ROUTES } from '../../../lib/consts/routes';
 
-export default function Layout() {
+const Layout = () => {
+  const location = useLocation();
+  const currentRoute = Object.values(PROTECTED_ROUTES)
+    .find(route => 
+      typeof route === 'string' 
+        ? route === location.pathname
+        : Object.values(route).some(r => 
+            typeof r === 'string' 
+              ? r === location.pathname
+              : location.pathname.startsWith(r.toString().split(':')[0])
+          )
+    );
+
   return (
-    <div className="flex flex-row bg-neutral-100 h-screen w-screen overflow-hidden">
-      <SideBar></SideBar>
-      <div className="flex flex-col flex-1">
-				<Header />
-				<div className="flex-1 p-4 min-h-0 overflow-auto bg-white">
-					<Outlet />
-				</div>
-			</div>
+    <div className="min-h-screen bg-gray-100">
+      <div className="flex">
+        <SideBar />
+        <main className="flex-1">
+          <Header currentRoute={currentRoute} />
+          <div className="p-6">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
-  )
-}
+  );
+};
+
+export default Layout;
