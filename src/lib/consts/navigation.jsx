@@ -21,7 +21,7 @@ export const DASHBOARD_SIDEBAR_LINKS = [
 	{
 		key: 'vacinas',
 		label: 'Vacinas',
-		path: '/vacciness',
+		path: '/vacinas',
 		icon: <TbVaccine />
 	},
 ]
@@ -29,13 +29,13 @@ export const DASHBOARD_SIDEBAR_LINKS = [
 export const DASHBOARD_SIDEBAR_BOTTOM_LINKS = [
 	{
 		key: 'settings',
-		label: 'Settings',
+		label: 'Configurações',
 		path: '/settings',
 		icon: <HiOutlineCog />
 	},
 	{
 		key: 'support',
-		label: 'Help & Support',
+		label: 'Ajuda & Suporte',
 		path: '/support',
 		icon: <HiOutlineQuestionMarkCircle />
 	}

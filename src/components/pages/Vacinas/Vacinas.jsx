@@ -152,11 +152,11 @@ const VaccinePage = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'approved':
-        return <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Approved</span>;
+        return <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Aprovado</span>;
       case 'rejected':
-        return <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Rejected</span>;
+        return <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Rejeitado</span>;
       case 'pending':
-        return <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Pending</span>;
+        return <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Pendente</span>;
       default:
         return null;
     }
@@ -197,10 +197,10 @@ const VaccinePage = () => {
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Vaccine Validation</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">Validação de Vacinas</h1>
         <p className="text-gray-600">
-          Review and validate vaccination records associated with your CRMV registration. 
-          All administered vaccines require validation to ensure compliance with regulatory standards and to maintain accurate health records.
+          Revise e valide os registros de vacinação associados ao seu registro CRMV. 
+          Todas as vacinas administradas requerem validação para garantir conformidade com os padrões regulatórios e manter registros de saúde precisos.
         </p>
       </div>
 
@@ -209,7 +209,7 @@ const VaccinePage = () => {
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-gray-500">Total Records</div>
+              <div className="text-sm text-gray-500">Total de Registros</div>
               <div className="text-2xl font-bold">{vaccineData.length}</div>
             </div>
             <div className="bg-blue-100 p-2 rounded-full">
@@ -223,7 +223,7 @@ const VaccinePage = () => {
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-gray-500">Pending</div>
+              <div className="text-sm text-gray-500">Pendentes</div>
               <div className="text-2xl font-bold">{vaccineData.filter(v => v.status === 'pending').length}</div>
             </div>
             <div className="bg-yellow-100 p-2 rounded-full">
@@ -237,7 +237,7 @@ const VaccinePage = () => {
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-gray-500">Approved</div>
+              <div className="text-sm text-gray-500">Aprovados</div>
               <div className="text-2xl font-bold">{vaccineData.filter(v => v.status === 'approved').length}</div>
             </div>
             <div className="bg-green-100 p-2 rounded-full">
@@ -251,7 +251,7 @@ const VaccinePage = () => {
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-gray-500">Rejected</div>
+              <div className="text-sm text-gray-500">Rejeitados</div>
               <div className="text-2xl font-bold">{vaccineData.filter(v => v.status === 'rejected').length}</div>
             </div>
             <div className="bg-red-100 p-2 rounded-full">
@@ -272,7 +272,7 @@ const VaccinePage = () => {
             </div>
             <input
               type="text"
-              placeholder="Search vaccines..."
+              placeholder="Buscar vacinas..."
               className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -286,21 +286,17 @@ const VaccinePage = () => {
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
+              <option value="all">Todos os Status</option>
+              <option value="pending">Pendente</option>
+              <option value="approved">Aprovado</option>
+              <option value="rejected">Rejeitado</option>
             </select>
           </div>
           
           <span className="text-sm text-gray-500">
-            Showing {filteredVaccines.length} of {vaccineData.length} records
+            Mostrando {filteredVaccines.length} de {vaccineData.length} registros
           </span>
         </div>
-        
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-          Record New Vaccine
-        </button>
       </div>
 
       {/* Vaccines Table */}
@@ -310,22 +306,22 @@ const VaccinePage = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID / Date
+                  ID / Data
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Pet / Owner
+                  Pet / Proprietário
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Vaccine Details
+                  Detalhes da Vacina
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  CRMV / Veterinarian
+                  CRMV / Veterinário
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  Ações
                 </th>
               </tr>
             </thead>
@@ -359,19 +355,19 @@ const VaccinePage = () => {
                       className="text-blue-600 hover:text-blue-900 font-medium text-sm mr-3"
                       onClick={() => handleViewDetails(vaccine)}
                     >
-                      View Details
+                      Ver Detalhes
                     </button>
                     <button 
                       className="text-gray-600 hover:text-gray-900 font-medium text-sm mr-3"
                       onClick={() => handleEditClick(vaccine)}
                     >
-                      Edit
+                      Editar
                     </button>
                     <button 
                       className="text-red-600 hover:text-red-900 font-medium text-sm"
                       onClick={() => handleDeleteClick(vaccine)}
                     >
-                      Delete
+                      Excluir
                     </button>
                   </td>
                 </tr>

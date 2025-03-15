@@ -47,7 +47,7 @@ const App = () => {
           </Route>
           
           {/* Vaccines */}
-          <Route path="/vaccines">
+          <Route path="/vacinas">
             <Route index element={<Vaccines />} />
             <Route path=":vaccineId" element={<VaccineDetailsModal />} />
           </Route>

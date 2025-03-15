@@ -3,7 +3,6 @@ import { DASHBOARD_SIDEBAR_BOTTOM_LINKS, DASHBOARD_SIDEBAR_LINKS } from "../../.
 import { Link, useLocation } from "react-router-dom";
 import classNames from "classnames";
 import { IoIosLogOut } from "react-icons/io";
-import { readData } from "../../../api/firebase";
 
 export default function SideBar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -11,7 +10,7 @@ export default function SideBar() {
 
   return (
     <div 
-      className={`bg-gradient-to-b from-[#1a1a1a] to-[#252525] p-4 flex flex-col text-white transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'} border-r border-neutral-800 shadow-lg h-screen`}
+      className={`bg-gradient-to-b from-[#1a1a1a] to-[#252525] p-4 flex flex-col text-white transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'} border-r border-neutral-800 shadow-lg overflow-y-auto`}
     >
       {/* Logo and collapse button */}
       <div className="flex items-center justify-between mb-8 px-1">
@@ -93,8 +92,8 @@ export default function SideBar() {
           </div>
           {!isCollapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-medium">Dr. Sarah Wilson</span>
-              <span className="text-xs text-neutral-400">Lead Veterinarian</span>
+              <span className="text-sm font-medium">Dra. Sarah Wilson</span>
+              <span className="text-xs text-neutral-400">Veterinária Chefe</span>
             </div>
           )}
         </div>
@@ -112,7 +111,7 @@ function SideBarLink({ item, isCollapsed, hoveredItem, setHoveredItem }) {
       to={item.path} 
       className={classNames(
         'flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-all duration-200',
-        isCollapsed ? 'justify-center' : '',
+        isCollapsed ? 'justify-center w-14' : '', // Added fixed width when collapsed
         isActive 
           ? 'bg-yellow-500 text-black font-medium shadow-md' 
           : 'text-neutral-400 hover:bg-neutral-700/50 hover:text-white'
@@ -121,7 +120,7 @@ function SideBarLink({ item, isCollapsed, hoveredItem, setHoveredItem }) {
       onMouseLeave={() => setHoveredItem(null)}
     >
       <div className={classNames(
-        'relative text-xl flex items-center justify-center w-8 h-8 rounded-lg',
+        'relative flex items-center justify-center w-8 h-8 rounded-lg text-xl flex-shrink-0', // Added flex-shrink-0
         hoveredItem === item.key && !isActive ? 'animate-bounce' : ''
       )}>
         {item.icon}

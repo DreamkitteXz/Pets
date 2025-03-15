@@ -95,16 +95,16 @@ const PetsPage = () => {
   };
 
   const getNextVaccineDate = (pet) => {
-    if (!pet.vaccines || pet.vaccines.length === 0) return 'No vaccines';
+    if (!pet.vaccines || pet.vaccines.length === 0) return 'Sem vacinas';
     
     const upcomingVaccines = pet.vaccines
       .filter(v => v.nextDate && new Date(v.nextDate) > new Date())
       .sort((a, b) => new Date(a.nextDate) - new Date(b.nextDate));
     
-    if (upcomingVaccines.length === 0) return 'All vaccines up to date';
+    if (upcomingVaccines.length === 0) return 'Todas as vacinas em dia';
     
     const nextVaccine = upcomingVaccines[0];
-    return `${nextVaccine.name}: ${new Date(nextVaccine.nextDate).toLocaleDateString()}`;
+    return `${nextVaccine.name}: ${new Date(nextVaccine.nextDate).toLocaleDateString('pt-BR')}`;
   };
 
   const filteredPets = filterStatus === 'all' 
@@ -129,10 +129,10 @@ const PetsPage = () => {
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Pet Management</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">Gerenciamento de Pets</h1>
         <p className="text-gray-600">
-          Track vaccination status, upcoming appointments, and pet health information. 
-          Use the filters to quickly find pets based on their vaccination status.
+          Acompanhe o status de vacinação, próximas consultas e informações de saúde dos pets. 
+          Use os filtros para encontrar rapidamente os pets com base em seu status de vacinação.
         </p>
       </div>
 
@@ -146,21 +146,17 @@ const PetsPage = () => {
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
-              <option value="all">All Statuses</option>
-              <option value="validated">Validated</option>
-              <option value="waiting validation">Waiting Validation</option>
-              <option value="recused">Recused</option>
+              <option value="all">Todos os Status</option>
+              <option value="validated">Validado</option>
+              <option value="waiting validation">Aguardando Validação</option>
+              <option value="recused">Recusado</option>
             </select>
           </div>
           
           <span className="text-sm text-gray-500">
-            Showing {filteredPets.length} of {petsData.length} pets
+            Mostrando {filteredPets.length} de {petsData.length} pets
           </span>
         </div>
-        
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-          Add New Pet
-        </button>
       </div>
 
       {/* Pets Table */}
@@ -173,16 +169,16 @@ const PetsPage = () => {
                   Pet Information
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Owner
+                  Proprietário
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Vaccine Status
+                  Status da Vacina
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Next Vaccine
+                  Próxima Vacina
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  Ações
                 </th>
               </tr>
             </thead>
@@ -216,7 +212,7 @@ const PetsPage = () => {
                       {pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}
                     </span>
                     <div className="text-xs text-gray-500 mt-1">
-                      {pet.vaccines.length} vaccines recorded
+                      {pet.vaccines.length} vacinas registradas
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -227,13 +223,13 @@ const PetsPage = () => {
                       className="text-blue-600 hover:text-blue-900 mr-3"
                       onClick={() => handleViewPet(pet)}
                     >
-                      View
+                      Visualizar
                     </button>
                     <button 
                       className="text-gray-600 hover:text-gray-900"
                       onClick={() => handleEditPet(pet)}
                     >
-                      Edit
+                      Editar
                     </button>
                   </td>
                 </tr>
@@ -246,33 +242,33 @@ const PetsPage = () => {
       {/* Vaccination Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8">
         <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
-          <div className="text-green-600 text-lg font-semibold">Validated</div>
+          <div className="text-green-600 text-lg font-semibold">Validados</div>
           <div className="text-3xl font-bold mt-1">
             {petsData.filter(pet => pet.status === 'validated').length}
           </div>
-          <div className="text-sm text-gray-500 mt-1">pets with complete vaccination</div>
+          <div className="text-sm text-gray-500 mt-1">pets com vacinação completa</div>
         </div>
         
         <div className="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
-          <div className="text-yellow-600 text-lg font-semibold">Waiting Validation</div>
+          <div className="text-yellow-600 text-lg font-semibold">Aguardando Validação</div>
           <div className="text-3xl font-bold mt-1">
             {petsData.filter(pet => pet.status === 'waiting validation').length}
           </div>
-          <div className="text-sm text-gray-500 mt-1">pets need review</div>
+          <div className="text-sm text-gray-500 mt-1">pets precisam de revisão</div>
         </div>
         
         <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
-          <div className="text-red-600 text-lg font-semibold">Refused</div>
+          <div className="text-red-600 text-lg font-semibold">Recusados</div>
           <div className="text-3xl font-bold mt-1">
             {petsData.filter(pet => pet.status === 'recused').length}
           </div>
-          <div className="text-sm text-gray-500 mt-1">pets with vaccine issues</div>
+          <div className="text-sm text-gray-500 mt-1">pets com problemas na vacinação</div>
         </div>
         
         <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
-          <div className="text-blue-600 text-lg font-semibold">Due This Month</div>
+          <div className="text-blue-600 text-lg font-semibold">Vence Este Mês</div>
           <div className="text-3xl font-bold mt-1">3</div>
-          <div className="text-sm text-gray-500 mt-1">pets need vaccination soon</div>
+          <div className="text-sm text-gray-500 mt-1">pets precisam de vacinação em breve</div>
         </div>
       </div>
 

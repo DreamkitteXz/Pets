@@ -18,14 +18,12 @@ const Layout = () => {
     );
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="flex">
-        <SideBar />
-        <main className="flex-1">
-          <Header currentRoute={currentRoute} />
-          <div className="p-6">
-            <Outlet />
-          </div>
+    <div className="h-screen flex bg-gray-100">
+      <SideBar />
+      <div className="flex-1 flex flex-col overflow-auto">
+        <Header currentRoute={currentRoute} />
+        <main className="flex-1 p-6 overflow-auto">
+          <Outlet />
         </main>
       </div>
     </div>
