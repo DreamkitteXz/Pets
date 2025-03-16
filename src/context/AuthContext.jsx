@@ -34,6 +34,8 @@ export const AuthProvider = ({ children }) => {
 
   console.log('AuthProvider rendering, loading:', loading); // Debug log
 
+  console.log('value:', value); // Debug log
+
   return (
     <AuthContext.Provider value={value}>
       {children}

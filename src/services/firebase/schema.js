@@ -127,7 +127,9 @@ const firestoreSchema = {
       
       // Vaccination history
       vaccines: [], // Array of vaccineIds
-      
+
+      veterinarians: [], // Array of vaccineIds
+
       status: 'active' | 'inactive',
       createdAt: Timestamp,
       updatedAt: Timestamp,
