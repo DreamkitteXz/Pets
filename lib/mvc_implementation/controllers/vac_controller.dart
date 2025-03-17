@@ -8,57 +8,89 @@ FirebaseFirestore firebaseDatabase = FirebaseFirestore.instance;
 String? vacId;
 
 class VacController {
-  //ADD NEW USER
-  Future cadastroVacinas(
-      String vacina,
-      String id,
-      String dataAplicacao,
-      String proximaAplicacao,
-      String pesoAplicacao,
-      String lote,
-      String farmaceutica,
-      String dataValidade,
-      String nomeVet,
-      String crmv,
-      String imagemRotulo,
-      String observacoes,
-      String cnpj,
-      String clinica,
-      String rua,
-      String bairro,
-      String numero,
-      String cidade,
-      String isValidadoVet,
-      String isValidadoTutor,
-      String petId) async {
-    await FirebaseFirestore.instance
-        .collection("Users")
-        .doc(FirebaseAuth.instance.currentUser?.uid)
-        .collection("Pets")
-        .doc(petId)
-        .collection("Vacinas")
-        .doc(id)
-        .set({
-      "Id": id,
-      "Vacina": vacina,
-      "Data Aplicada": dataAplicacao,
-      "Peso do Pet": pesoAplicacao,
-      "Próxima aplicação": proximaAplicacao,
-      "Lote": lote,
-      "Farmaceutica": farmaceutica,
-      "Data de Validade": dataValidade,
-      "Nome do Veterinário(a)": nomeVet,
-      "CRMV do Veterinário(a)": crmv,
-      "Imagem do Rótulo": imagemRotulo,
-      "Observações": observacoes,
-      "CNPJ": cnpj,
-      "Clínica": clinica,
-      "Rua": rua,
-      "Bairro": bairro,
-      "Número": numero,
-      "Cidade": cidade,
-      "isValidadoVet": isValidadoVet,
-      "isValidadoTutor": isValidadoTutor
+  Future<void> cadastroVacinas(
+    String name,
+    String id,
+    String administrationDate,
+    String nextDueDate,
+    String weight,
+    String batchNumber,
+    String manufacturer,
+    String expirationDate,
+    String veterinarianName,
+    String crmvNumber,
+    String labelImage,
+    String notes,
+    String clinicCnpj,
+    String clinicName,
+    String street,
+    String neighborhood,
+    String number,
+    String city,
+    String validatedByVet,
+    String validatedByTutor,
+    String petId,
+    String veterinarianId, // Add this parameter
+  ) async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    DateTime? parseDate(String date) {
+      try {
+        final parts = date.split('/');
+        if (parts.length == 3) {
+          return DateTime(
+              int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+        }
+      } catch (e) {
+        print('Error parsing date: $e');
+      }
+      return null;
+    }
+
+    await FirebaseFirestore.instance.collection('vaccines').doc(id).set({
+      'name': name,
+      'manufacturer': manufacturer,
+      'batchNumber': batchNumber,
+      'expirationDate': parseDate(expirationDate),
+      'administrationDate': parseDate(administrationDate),
+      'nextDueDate': parseDate(nextDueDate),
+
+      // Pet information
+      'petId': petId,
+      'petWeight': double.tryParse(weight) ?? 0.0,
+
+      // Owner information
+      'ownerId': user?.uid,
+      'ownerName': user?.displayName,
+      'ownerContact': user?.email,
+
+      // Veterinarian information
+      'veterinarianName': veterinarianName,
+      'veterinarianId': veterinarianId, // Add this field
+      'crmvNumber': crmvNumber,
+      'clinicName': clinicName,
+      'clinicCnpj': clinicCnpj,
+
+      // Clinic address
+      'clinicAddress': {
+        'street': street,
+        'number': number,
+        'neighborhood': neighborhood,
+        'city': city,
+      },
+
+      // Validation status
+      'status': 'pending',
+      'validationDetails': {
+        'validatedAt': null,
+        'validatedBy': null,
+        'notes': notes,
+        'rejectionReason': null,
+      },
+
+      'labelImage': labelImage,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
     vacId = id;
   }
@@ -67,95 +99,77 @@ class VacController {
     try {
       var userId = FirebaseAuth.instance.currentUser!.uid;
 
-      // Busca os dados do tutor
+      // Get tutor data
       DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
-          .collection('Users')
+          .collection('users')
           .doc(userId)
           .get();
       if (!userSnapshot.exists) {
-        print(userId);
-        print('O tutor não foi encontrado.');
+        print('Tutor not found');
         return;
       }
       Map<String, dynamic> userData =
           userSnapshot.data() as Map<String, dynamic>;
-      String tutorNome = userData['Nome'];
-      String tutorCpf = userData['CPF'];
-      String tutorTelefone = userData['Telefone'];
-      String tutorRua = userData['Rua'];
+      Map<String, dynamic> address =
+          userData['address'] as Map<String, dynamic>;
 
-      // Busca os dados do pet
+      // Get pet data
       DocumentSnapshot petSnapshot = await FirebaseFirestore.instance
-          .collection('Users')
+          .collection('users')
           .doc(userId)
-          .collection('Pets')
+          .collection('pets')
           .doc(petId)
           .get();
       if (!petSnapshot.exists) {
-        print(userId);
-        print('O pet não foi encontrado.');
+        print('Pet not found');
         return;
       }
       Map<String, dynamic> petData = petSnapshot.data() as Map<String, dynamic>;
       Pets pet = Pets.fromMap(petData);
 
-      // Busca os dados da vacina
-      DocumentSnapshot vacinaSnapshot = await FirebaseFirestore.instance
-          .collection('Users')
+      // Get vaccine data
+      DocumentSnapshot vaccineSnapshot = await FirebaseFirestore.instance
+          .collection('users')
           .doc(userId)
-          .collection('Pets')
+          .collection('pets')
           .doc(petId)
-          .collection('Vacinas')
+          .collection('vaccines')
           .doc(vacId)
           .get();
-      if (!vacinaSnapshot.exists) {
-        print(vacId);
-        print('A vacina não foi encontrada.');
+      if (!vaccineSnapshot.exists) {
+        print('Vaccine not found');
         return;
       }
-      print('vacId:');
-      print(vacId);
-      Map<String, dynamic> vacinaData =
-          vacinaSnapshot.data() as Map<String, dynamic>;
-      Vacinas vacina = Vacinas.fromMap(vacinaData);
+      Map<String, dynamic> vaccineData =
+          vaccineSnapshot.data() as Map<String, dynamic>;
 
-      // Adiciona os dados no documento Vacinas_Pendentes
+      // Add to pending vaccines collection
       await FirebaseFirestore.instance
-          .collection('Pending_Vaccines')
+          .collection('pending_vaccines')
           .doc(vacId)
           .set({
-        'tutor': tutorNome,
-        'cpf': tutorCpf,
-        'telefone': tutorTelefone,
-        'endereco_tutor': tutorRua,
-        "pet": pet.name,
-        "tipo_pet": pet.tipo,
-        "raca_pet": pet.raca,
-        "cor_pet": pet.cor,
-        "sexo_pet": pet.sexo,
-        "data_nasc_pet": pet.dataNasc,
-        "interio_castrado": pet.isInteiro,
-        "chip": pet.chip,
-        "id_vac": vacina.id,
-        "vacina": vacina.vacina,
-        "clinica": vacina.clinica,
-        "data_aplicacao": vacina.dataAplicada,
-        "proxima_aplicacao": vacina.proximaAplicacao,
-        "peso_pet": vacina.pesoDataAplicacao,
-        "lote": vacina.lote,
-        "farmaceutica": vacina.farmaceutica,
-        "data_validade": vacina.dataValidade,
-        "observacoes": vacina.observacoes,
-        "imagem_rotulo": vacina.imageRotulo,
-        "nome_vet": vacina.nomeVet,
-        "crmv": vacina.crmv,
-        "cnpj": vacina.cnpj,
-        "rua": vacina.rua,
-        "is_vac_validada_vet": vacina.isValidadoVet,
-        "is_vac_validada_tutor": vacina.isValidadoTutor
+        'owner': {
+          'name': userData['name'],
+          'cpf': userData['cpf'],
+          'phone': userData['phone'],
+          'address': address,
+        },
+        'pet': {
+          'id': pet.id,
+          'name': pet.name,
+          'species': pet.species,
+          'breed': pet.breed,
+          'color': pet.color,
+          'gender': pet.gender,
+          'birthDate': pet.birthDate,
+          'isNeutered': pet.isNeutered,
+          'chipNumber': pet.chipNumber,
+        },
+        'vaccine': vaccineData,
       });
     } catch (e) {
-      print('Erro ao adicionar dados: $e');
+      print('Error adding vaccine to queue: $e');
+      rethrow;
     }
   }
 }

@@ -19,6 +19,9 @@ class FormButton extends StatelessWidget {
   final TextEditingController? stateController;
   final TextEditingController? cepController;
   final TextEditingController? addressInfoController;
+  final TextEditingController? emergencyNameController;
+  final TextEditingController? emergencyPhoneController;
+  final TextEditingController? emergencyRelationController;
   final int type;
 
   const FormButton({
@@ -37,6 +40,9 @@ class FormButton extends StatelessWidget {
     this.stateController,
     this.cepController,
     this.addressInfoController,
+    this.emergencyNameController,
+    this.emergencyPhoneController,
+    this.emergencyRelationController,
     required this.type,
   }) : super(key: key);
 
@@ -103,6 +109,15 @@ class FormButton extends StatelessWidget {
                         state: stateController?.text.trim(),
                         cep: cepController?.text.trim(),
                         addressDetails: addressInfoController?.text.trim(),
+                        role: 'tutor',
+                        status: 'active',
+                        profileCompleted: false,
+                        emergencyContact: {
+                          'name': emergencyNameController?.text.trim(),
+                          'phone': emergencyPhoneController?.text.trim(),
+                          'relationship':
+                              emergencyRelationController?.text.trim(),
+                        },
                       ),
                       context,
                     );

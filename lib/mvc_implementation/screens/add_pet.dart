@@ -3,8 +3,10 @@ import 'package:pet_app/mvc_implementation/controllers/id_controller.dart';
 import 'package:pet_app/mvc_implementation/screens/components/subtitle.dart';
 import 'package:pet_app/mvc_implementation/screens/components/text_input_auth.dart';
 import 'package:pet_app/mvc_implementation/screens/components/titles.dart';
-
-import '../../components/id.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pet_app/mvc_implementation/controllers/pet_controller.dart';
+import 'package:pet_app/mvc_implementation/models/pets.dart'; // Add this line to import the Pets class
+import 'package:intl/intl.dart';
 
 class AddPetScreen extends StatefulWidget {
   const AddPetScreen({Key? key}) : super(key: key);
@@ -16,23 +18,30 @@ class AddPetScreen extends StatefulWidget {
 class _AddPetScreenState extends State<AddPetScreen> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final _nameController = TextEditingController();
-  final _tipoController = TextEditingController();
-  final _racaController = TextEditingController();
-  final _corController = TextEditingController();
-  final _dataNascController = TextEditingController();
-  final _sexoController = TextEditingController();
-  final _chipController = TextEditingController();
-  final _isInteiroController = TextEditingController();
+  final _speciesController =
+      TextEditingController(); // Changed from tipoController
+  final _breedController =
+      TextEditingController(); // Changed from racaController
+  final _colorController =
+      TextEditingController(); // Changed from corController
+  final _birthDateController =
+      TextEditingController(); // Changed from dataNascController
+  final _genderController =
+      TextEditingController(); // Changed from sexoController
+  final _chipNumberController =
+      TextEditingController(); // Changed from chipController
+  final _isNeuteredController =
+      TextEditingController(); // Changed from isInteiroController
 
   final _formKey = GlobalKey<FormState>();
 
-  final dropOptions1 = ['Cachorro', 'Gato'];
+  final dropOptions1 = ['dog', 'cat']; // Changed to match schema
   final dropValue1 = ValueNotifier('');
 
-  final dropOptions2 = ['Fêmea', 'Macho'];
+  final dropOptions2 = ['male', 'female']; // Changed to match schema
   final dropValue2 = ValueNotifier('');
 
-  final dropOptions3 = ['Inteiro', 'Castrado'];
+  final dropOptions3 = ['true', 'false']; // Changed for isNeutered boolean
   final dropValue3 = ValueNotifier('');
 
   @override
@@ -88,23 +97,23 @@ class _AddPetScreenState extends State<AddPetScreen> {
                         textInputType: TextInputType.name),
                     const SizedBox(height: 10),
                     dropFormOptions('Tipo', 'Selecione o Tipo', dropValue1,
-                        dropOptions1, _tipoController),
+                        dropOptions1, _speciesController),
                     const SizedBox(height: 10),
                     TextInput(
                         inputTitle: 'Raça',
-                        controller: _racaController,
+                        controller: _breedController,
                         textInputType: TextInputType.name),
                     const SizedBox(height: 10),
                     TextInput(
                         inputTitle: 'Cor',
-                        controller: _corController,
+                        controller: _colorController,
                         textInputType: TextInputType.name),
                     dropFormOptions('Sexo', 'Selecione o Sexo', dropValue2,
-                        dropOptions2, _sexoController),
+                        dropOptions2, _genderController),
                     const SizedBox(height: 10),
                     TextInput(
                         inputTitle: 'Data de Nascimento',
-                        controller: _dataNascController,
+                        controller: _birthDateController,
                         dataPicker: true,
                         hint: 'DD/MM/AAAA',
                         textInputType: TextInputType.name),
@@ -113,23 +122,26 @@ class _AddPetScreenState extends State<AddPetScreen> {
                         'Inteiro ou Castrado?',
                         dropValue3,
                         dropOptions3,
-                        _isInteiroController),
+                        _isNeuteredController),
                     const SizedBox(height: 10),
                     TextInput(
                         inputTitle: 'Chip',
-                        controller: _chipController,
+                        controller: _chipNumberController,
                         textInputType: TextInputType.name),
                     const SizedBox(height: 30),
                     AddButton(
-                        tipoController: _tipoController,
+                        speciesController: _speciesController,
                         formKey: _formKey,
                         nameController: _nameController,
-                        racaController: _racaController,
-                        sexoController: _sexoController,
-                        corController: _corController,
-                        dataNascController: _dataNascController,
-                        isInteiroController: _isInteiroController,
-                        chipController: _chipController),
+                        breedController: _breedController,
+                        genderController: _genderController,
+                        colorController: _colorController,
+                        birthDateController: _birthDateController,
+                        isNeuteredController: _isNeuteredController,
+                        chipNumberController: _chipNumberController,
+                        ownerId: FirebaseAuth.instance.currentUser?.uid,
+                        ownerName: '' // Get this from user profile
+                        ),
                     const SizedBox(height: 30),
                   ],
                 ),
@@ -237,39 +249,65 @@ class _AddPetScreenState extends State<AddPetScreen> {
           );
         });
   }
+
+  void _handleAddPet() async {
+    if (_formKey.currentState!.validate()) {
+      final pet = Pets(
+        id: gerarPetsID(),
+        name: _nameController.text.trim(),
+        species: _speciesController.text.trim(),
+        breed: _breedController.text.trim(),
+        gender: _genderController.text.trim(),
+        color: _colorController.text.trim(),
+        birthDate: DateTime.parse(_birthDateController.text.trim()),
+        isNeutered: _isNeuteredController.text.trim() == 'true',
+        chipNumber: _chipNumberController.text.trim(),
+        ownerId: FirebaseAuth.instance.currentUser?.uid,
+        status: 'active',
+      );
+
+      final petController = PetController();
+      await petController.createPet(pet);
+      Navigator.pop(context);
+    }
+  }
 }
 
 class AddButton extends StatelessWidget {
   const AddButton({
     super.key,
-    required TextEditingController tipoController,
+    required TextEditingController speciesController,
     required GlobalKey<FormState> formKey,
     required TextEditingController nameController,
-    required TextEditingController racaController,
-    required TextEditingController sexoController,
-    required TextEditingController corController,
-    required TextEditingController dataNascController,
-    required TextEditingController isInteiroController,
-    required TextEditingController chipController,
-  })  : _tipoController = tipoController,
+    required TextEditingController breedController,
+    required TextEditingController genderController,
+    required TextEditingController colorController,
+    required TextEditingController birthDateController,
+    required TextEditingController isNeuteredController,
+    required TextEditingController chipNumberController,
+    required this.ownerId,
+    required this.ownerName,
+  })  : _speciesController = speciesController,
         _formKey = formKey,
         _nameController = nameController,
-        _racaController = racaController,
-        _sexoController = sexoController,
-        _corController = corController,
-        _dataNascController = dataNascController,
-        _isInteiroController = isInteiroController,
-        _chipController = chipController;
+        _breedController = breedController,
+        _genderController = genderController,
+        _colorController = colorController,
+        _birthDateController = birthDateController,
+        _isNeuteredController = isNeuteredController,
+        _chipNumberController = chipNumberController;
 
-  final TextEditingController _tipoController;
+  final TextEditingController _speciesController;
   final GlobalKey<FormState> _formKey;
   final TextEditingController _nameController;
-  final TextEditingController _racaController;
-  final TextEditingController _sexoController;
-  final TextEditingController _corController;
-  final TextEditingController _dataNascController;
-  final TextEditingController _isInteiroController;
-  final TextEditingController _chipController;
+  final TextEditingController _breedController;
+  final TextEditingController _genderController;
+  final TextEditingController _colorController;
+  final TextEditingController _birthDateController;
+  final TextEditingController _isNeuteredController;
+  final TextEditingController _chipNumberController;
+  final String? ownerId;
+  final String ownerName;
 
   @override
   Widget build(BuildContext context) {
@@ -302,18 +340,26 @@ class AddButton extends StatelessWidget {
                   ),
                 ),
                 onPressed: () async {
-                  print(_tipoController.text);
                   if (_formKey.currentState!.validate()) {
-                    await cadastroPet(
-                        gerarPetsID(),
-                        _nameController.text.trim(),
-                        _tipoController.text.trim(),
-                        _racaController.text.trim(),
-                        _sexoController.text.trim(),
-                        _corController.text.trim(),
-                        _dataNascController.text.trim(),
-                        _isInteiroController.text.trim(),
-                        _chipController.text.trim());
+                    final pet = Pets(
+                      id: gerarPetsID(),
+                      name: _nameController.text.trim(),
+                      species: _speciesController.text.trim(),
+                      breed: _breedController.text.trim(),
+                      gender: _genderController.text.trim(),
+                      color: _colorController.text.trim(),
+                      birthDate: DateFormat('dd/MM/yyyy')
+                          .parse(_birthDateController.text.trim()),
+                      isNeutered: _isNeuteredController.text.trim() == 'true',
+                      chipNumber: _chipNumberController.text.trim(),
+                      ownerId: ownerId,
+                      status: 'active',
+                      vaccines: [],
+                      veterinarians: [],
+                    );
+
+                    final petController = PetController();
+                    await petController.createPet(pet);
                     Navigator.pop(context);
                   }
                 },

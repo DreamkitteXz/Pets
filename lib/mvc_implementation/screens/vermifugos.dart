@@ -40,14 +40,14 @@ class VermifugosPage extends StatelessWidget {
           centerTitle: true,
           elevation: 0,
         ),
-        floatingActionButton: FloatingActionVermifugo(petId: pet.id),
+        floatingActionButton: FloatingActionVermifugo(petId: pet.id!),
         body: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
-              .collection('Users')
+              .collection('users')
               .doc(FirebaseAuth.instance.currentUser!.uid)
-              .collection('Pets')
+              .collection('pets')
               .doc(pet.id)
-              .collection("Vermifugos")
+              .collection("dewormings")
               .snapshots(),
           builder:
               (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
@@ -110,7 +110,7 @@ class VermifugosPage extends StatelessWidget {
                           MaterialPageRoute(
                             builder: (context) => VermifugoPage(
                               vermifugo: model,
-                              petId: pet.id,
+                              petId: pet.id!,
                             ),
                           ),
                         );
@@ -128,11 +128,11 @@ class VermifugosPage extends StatelessWidget {
 
   void remove(Vermifugo model) {
     FirebaseFirestore.instance
-        .collection("Users")
+        .collection("users")
         .doc(FirebaseAuth.instance.currentUser!.uid)
-        .collection("Pets")
+        .collection("pets")
         .doc(pet.id)
-        .collection("Vermifugos")
+        .collection("dewormings")
         .doc(model.id)
         .delete();
   }
@@ -184,20 +184,20 @@ class CardVermifugo extends StatelessWidget {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: pet.tipo == 'cachorro' || pet.tipo == 'Cachorro'
-                            ? (pet.sexo == 'macho' || pet.sexo == 'Macho'
+                        child: pet.species == 'dog'
+                            ? (pet.gender == 'male'
                                 ? Image.asset(
-                                    'lib/assets/vacinadogmacho-removebg-preview.png')
+                                    'lib/assets/vermifugodogmacho-removebg-preview.png')
                                 : Image.asset(
-                                    'lib/assets/vacinadog-removebg-preview.png'))
-                            : (pet.tipo == 'gato' || pet.tipo == 'Gato'
-                                ? (pet.sexo == 'macho' || pet.sexo == 'macho'
+                                    'lib/assets/vermifugodog-removebg-preview.png'))
+                            : (pet.species == 'cat'
+                                ? (pet.gender == 'male'
                                     ? Image.asset(
-                                        'lib/assets/catmachovac-removebg-preview.png')
+                                        'lib/assets/catmachoverm-removebg-preview.png')
                                     : Image.asset(
-                                        'lib/assets/catfemeavac-removebg-preview.png'))
+                                        'lib/assets/catfemeaverm-removebg-preview.png'))
                                 : Image.asset(
-                                    'lib/assets/catfemeavac-removebg-preview.png')),
+                                    'lib/assets/catfemeaverm-removebg-preview.png')),
                       ),
                     ),
                   )),

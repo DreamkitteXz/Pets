@@ -9,6 +9,7 @@ import 'package:pet_app/mvc_implementation/controllers/vac_controller.dart';
 import 'package:pet_app/mvc_implementation/screens/components/subtitle.dart';
 import 'package:pet_app/mvc_implementation/screens/components/text_input_auth.dart';
 import 'package:pet_app/mvc_implementation/screens/components/titles.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AddVacPage extends StatefulWidget {
   String petId;
@@ -58,6 +59,65 @@ class _AddVacPageState extends State<AddVacPage> {
 
   String imageURL = '';
   File? _selectedImage;
+
+  String? selectedVetId;
+  List<Map<String, dynamic>> veterinarians = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchVeterinarians();
+  }
+
+  Future<void> fetchVeterinarians() async {
+    final vetsSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'veterinarian')
+        .where('status', isEqualTo: 'active')
+        .get();
+
+    setState(() {
+      veterinarians = vetsSnapshot.docs
+          .map((doc) => {
+                'id': doc.id,
+                ...doc.data(),
+              })
+          .toList();
+    });
+  }
+
+  void _updateVeterinarianFields(String vetId) async {
+    final vet = veterinarians.firstWhere((v) => v['id'] == vetId);
+    setState(() {
+      selectedVetId = vetId; // Make sure to store the vetId
+      _nomeVetController.text = vet['name'] ?? '';
+      _crmvController.text = vet['crmv'] ?? '';
+    });
+
+    if (vet['clinicId'] != null) {
+      try {
+        final clinicDoc = await FirebaseFirestore.instance
+            .collection('clinics')
+            .doc(vet['clinicId'])
+            .get();
+
+        if (clinicDoc.exists) {
+          final clinicData = clinicDoc.data()!;
+          setState(() {
+            _cnpjController.text = clinicData['cnpj'] ?? '';
+            _clinicaController.text = clinicData['name'] ?? '';
+            _ruaController.text = clinicData['address']['street'] ?? '';
+            _bairroController.text =
+                clinicData['address']['neighborhood'] ?? '';
+            _numeroController.text = clinicData['address']['number'] ?? '';
+            _cidadeController.text = clinicData['address']['city'] ?? '';
+          });
+        }
+      } catch (e) {
+        print('Error fetching clinic data: $e');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -291,15 +351,46 @@ class _AddVacPageState extends State<AddVacPage> {
                   paddingL: 30.0,
                 ),
                 const SizedBox(height: 30),
+
+                // Add dropdown for veterinarian selection
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                  child: DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Selecione o Veterinário',
+                      border: OutlineInputBorder(),
+                    ),
+                    value: selectedVetId,
+                    items: veterinarians.map<DropdownMenuItem<String>>((vet) {
+                      return DropdownMenuItem<String>(
+                        value: vet['id'] as String,
+                        child: Text(vet['name'] ?? ''),
+                      );
+                    }).toList(),
+                    onChanged: (String? vetId) {
+                      if (vetId != null) {
+                        selectedVetId = vetId;
+                        _updateVeterinarianFields(vetId);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 20.0),
+
+                // Make these fields read-only since they'll be auto-filled
                 TextInput(
-                    inputTitle: 'Nome',
-                    controller: _nomeVetController,
-                    textInputType: TextInputType.name),
+                  inputTitle: 'Nome',
+                  controller: _nomeVetController,
+                  textInputType: TextInputType.name,
+                  readOnly: true,
+                ),
                 const SizedBox(height: 20.0),
                 TextInput(
-                    inputTitle: 'CRMV',
-                    controller: _crmvController,
-                    textInputType: TextInputType.number),
+                  inputTitle: 'CRMV',
+                  controller: _crmvController,
+                  textInputType: TextInputType.number,
+                  readOnly: true,
+                ),
                 const SizedBox(height: 30),
                 Titles(
                   title: 'Dados da Clínica',
@@ -310,32 +401,33 @@ class _AddVacPageState extends State<AddVacPage> {
                 TextInput(
                     inputTitle: 'CNPJ',
                     controller: _cnpjController,
-                    textInputType: TextInputType.number),
-                const SizedBox(height: 20.0),
+                    textInputType: TextInputType.number,
+                    readOnly: true),
                 TextInput(
                     inputTitle: 'Clínica',
                     controller: _clinicaController,
-                    textInputType: TextInputType.name),
-                const SizedBox(height: 20.0),
+                    textInputType: TextInputType.name,
+                    readOnly: true),
                 TextInput(
                     inputTitle: 'Rua',
                     controller: _ruaController,
-                    textInputType: TextInputType.streetAddress),
-                const SizedBox(height: 20.0),
+                    textInputType: TextInputType.streetAddress,
+                    readOnly: true),
                 TextInput(
                     inputTitle: 'Bairro',
                     controller: _bairroController,
-                    textInputType: TextInputType.name),
-                const SizedBox(height: 20.0),
+                    textInputType: TextInputType.name,
+                    readOnly: true),
                 TextInput(
                     inputTitle: 'Número',
                     controller: _numeroController,
-                    textInputType: TextInputType.number),
-                const SizedBox(height: 20.0),
+                    textInputType: TextInputType.number,
+                    readOnly: true),
                 TextInput(
                     inputTitle: 'Cidade',
                     controller: _cidadeController,
-                    textInputType: TextInputType.name),
+                    textInputType: TextInputType.name,
+                    readOnly: true),
                 const SizedBox(height: 20.0),
                 AddVacButton(
                   formKey: _formKey,
@@ -358,6 +450,7 @@ class _AddVacPageState extends State<AddVacPage> {
                   numeroController: _numeroController,
                   cidadeController: _cidadeController,
                   cnpjController: _cnpjController,
+                  selectedVetId: selectedVetId, // Pass selectedVetId
                 )
               ]),
         ),
@@ -370,6 +463,7 @@ class AddVacButton extends StatelessWidget {
   String petId;
   String imageURL;
   GlobalKey<FormState> formKey;
+  String? selectedVetId; // Add selectedVetId
 
   AddVacButton(
       {super.key,
@@ -392,7 +486,8 @@ class AddVacButton extends StatelessWidget {
       required TextEditingController cidadeController,
       required this.petId,
       required this.imageURL,
-      required this.formKey})
+      required this.formKey,
+      this.selectedVetId}) // Add selectedVetId
       : _vacinaController = vacinaController,
         _dataAplicadaController = dataAplicadaController,
         _proximaAplicacaoController = proximaAplicacaoController,
@@ -460,47 +555,65 @@ class AddVacButton extends StatelessWidget {
                   ),
                 ),
                 onPressed: () async {
-                  print('imageURL:');
-                  print(imageURL);
-                  //getUserData();
-                  //getPetData(widget.petId);
                   if (formKey.currentState!.validate()) {
                     if (imageURL.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content: Text('Faça o upload da imagem')),
                       );
+                    } else if (selectedVetId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Selecione um veterinário')),
+                      );
                     } else {
                       try {
+                        // Get reference to the pet document
+                        DocumentReference petRef = FirebaseFirestore.instance
+                            .collection('pets')
+                            .doc(petId);
+
+                        // Create the vaccine
                         VacController vacController = VacController();
+                        String vaccineId = gerarVacsID();
 
-                        vacController.cadastroVacinas(
-                            _vacinaController.text,
-                            gerarVacsID(),
-                            _dataAplicadaController.text,
-                            _proximaAplicacaoController.text,
-                            _pesoController.text,
-                            _loteController.text,
-                            _farmaceuticaController.text,
-                            _dataValidadeController.text,
-                            _nomeVetController.text,
-                            _crmvController.text,
-                            _rotuloVacController.text,
-                            _observacoesController.text,
-                            _cnpjController.text,
-                            _clinicaController.text,
-                            _ruaController.text,
-                            _bairroController.text,
-                            _numeroController.text,
-                            _cidadeController.text,
-                            'false',
-                            'false',
-                            petId);
+                        await vacController.cadastroVacinas(
+                          _vacinaController.text,
+                          vaccineId,
+                          _dataAplicadaController.text,
+                          _proximaAplicacaoController.text,
+                          _pesoController.text,
+                          _loteController.text,
+                          _farmaceuticaController.text,
+                          _dataValidadeController.text,
+                          _nomeVetController.text,
+                          _crmvController.text,
+                          imageURL, // Changed from _rotuloVacController.text
+                          _observacoesController.text,
+                          _cnpjController.text,
+                          _clinicaController.text,
+                          _ruaController.text,
+                          _bairroController.text,
+                          _numeroController.text,
+                          _cidadeController.text,
+                          'false',
+                          'false',
+                          petId,
+                          selectedVetId!, // Add veterinarianId
+                        );
 
-                        vacController.addVacInQueue(petId);
+                        // Update the pet's vaccines array
+                        await petRef.update({
+                          'vaccines': FieldValue.arrayUnion([vaccineId]),
+                          'veterinarians':
+                              FieldValue.arrayUnion([selectedVetId])
+                        });
+
                         Navigator.pop(context);
                       } catch (e) {
-                        print('Erro: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e')),
+                        );
                       }
                     }
                   }

@@ -18,12 +18,21 @@ class UserController {
 
   Future<bool> createUser(Users user, BuildContext context) async {
     try {
-      await firebaseAuth.createUserWithEmailAndPassword(
-          email: user.email, password: user.password);
+      // Create auth user
+      UserCredential credential =
+          await firebaseAuth.createUserWithEmailAndPassword(
+              email: user.email, password: user.password);
+
+      // Set additional user data in Firestore
       await firebaseDatabase
-          .collection("Users")
-          .doc(firebaseAuth.currentUser!.uid)
-          .set(user.toMap());
+          .collection("users") // Changed from "Users" to "users"
+          .doc(credential.user!.uid)
+          .set({
+        ...user.toMap(),
+        'id': credential.user!.uid, // Ensure ID is set
+        'createdAt': FieldValue.serverTimestamp(), // Use server timestamp
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: CustomSnackBar(successfulText: 'Conta criada com sucesso!'),

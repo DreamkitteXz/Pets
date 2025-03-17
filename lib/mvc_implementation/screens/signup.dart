@@ -5,6 +5,7 @@ import 'package:pet_app/mvc_implementation/screens/components/logo.dart';
 import 'package:pet_app/mvc_implementation/screens/components/subtitle.dart';
 import 'package:pet_app/mvc_implementation/screens/components/text_input_auth.dart';
 import 'package:pet_app/mvc_implementation/screens/components/titles.dart';
+import 'package:pet_app/utils/input_formatters.dart';
 
 class SignUpPage extends StatefulWidget {
   SignUpPage({super.key});
@@ -36,6 +37,14 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _cepController = TextEditingController();
 
   final TextEditingController _addressInfoController = TextEditingController();
+
+  // Add new controllers for emergency contact
+  final TextEditingController _emergencyNameController =
+      TextEditingController();
+  final TextEditingController _emergencyPhoneController =
+      TextEditingController();
+  final TextEditingController _emergencyRelationController =
+      TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
 
@@ -69,30 +78,78 @@ class _SignUpPageState extends State<SignUpPage> {
                 TextInput(
                     inputTitle: 'Nome',
                     controller: _nameController,
-                    textInputType: TextInputType.name),
+                    textInputType: TextInputType.name,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Nome é obrigatório';
+                      }
+                      return null;
+                    }),
                 const SizedBox(height: 20),
                 TextInput(
                   inputTitle: 'Email',
                   controller: _emailController,
                   textInputType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Email é obrigatório';
+                    }
+                    final emailRegex =
+                        RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    if (!emailRegex.hasMatch(value)) {
+                      return 'Email inválido';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20.0),
                 TextInput(
                   inputTitle: 'CPF',
                   controller: _cpfController,
                   textInputType: TextInputType.number,
+                  inputFormatter: InputFormatters.cpfFormatter,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'CPF é obrigatório';
+                    }
+                    if (value.length < 14) {
+                      // Including dots and dash
+                      return 'CPF inválido';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
                 TextInput(
                     inputTitle: 'Telefone',
                     controller: _phoneController,
-                    textInputType: TextInputType.phone),
+                    textInputType: TextInputType.phone,
+                    inputFormatter: InputFormatters.phoneFormatter,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Telefone é obrigatório';
+                      }
+                      if (value.length < 15) {
+                        // Including parentheses and dash
+                        return 'Telefone inválido';
+                      }
+                      return null;
+                    }),
                 const SizedBox(height: 20),
                 TextInput(
                   inputTitle: 'Senha',
                   controller: _passwordController,
                   isPassword: true,
                   textInputType: TextInputType.name,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Senha é obrigatória';
+                    }
+                    if (value.length < 6) {
+                      return 'Senha deve ter no mínimo 6 caracteres';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 30.0),
                 Titles(
@@ -130,12 +187,58 @@ class _SignUpPageState extends State<SignUpPage> {
                   inputTitle: 'CEP',
                   controller: _cepController,
                   textInputType: TextInputType.number,
+                  inputFormatter: InputFormatters.cepFormatter,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'CEP é obrigatório';
+                    }
+                    if (value.length < 9) {
+                      // Including dash
+                      return 'CEP inválido';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20.0),
                 TextInput(
                     inputTitle: 'Complemento',
                     controller: _addressInfoController,
                     textInputType: TextInputType.name),
+                const SizedBox(height: 30.0),
+                Titles(
+                  title: 'Contato de Emergência',
+                  fontSize: 30.0,
+                  paddingL: 30.0,
+                ),
+                const SizedBox(height: 30.0),
+                TextInput(
+                  inputTitle: 'Nome do Contato',
+                  controller: _emergencyNameController,
+                  textInputType: TextInputType.name,
+                ),
+                const SizedBox(height: 20.0),
+                TextInput(
+                  inputTitle: 'Telefone do Contato',
+                  controller: _emergencyPhoneController,
+                  textInputType: TextInputType.phone,
+                  inputFormatter: InputFormatters.phoneFormatter,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Telefone do contato é obrigatório';
+                    }
+                    if (value.length < 15) {
+                      // Including parentheses and dash
+                      return 'Telefone inválido';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20.0),
+                TextInput(
+                  inputTitle: 'Relação com o Contato',
+                  controller: _emergencyRelationController,
+                  textInputType: TextInputType.text,
+                ),
                 const SizedBox(height: 40.0),
                 //FORBUTTON
                 FormButton(
@@ -153,6 +256,9 @@ class _SignUpPageState extends State<SignUpPage> {
                   stateController: _stateController,
                   cepController: _cepController,
                   addressInfoController: _addressInfoController,
+                  emergencyNameController: _emergencyNameController,
+                  emergencyPhoneController: _emergencyPhoneController,
+                  emergencyRelationController: _emergencyRelationController,
                   type: 2, // 2 -> Create account button
                 ),
                 const SizedBox(height: 20.0),

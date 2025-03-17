@@ -12,28 +12,41 @@ class PetsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
     return Expanded(
         child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
-                .collection('Users')
-                .doc(FirebaseAuth.instance.currentUser?.uid)
-                .collection('Pets')
+                .collection('pets')
+                .where('ownerId', isEqualTo: userId)
+                .where('status', isEqualTo: 'active')
                 .snapshots(),
             builder: bringData));
   }
 
   Widget bringData(
       BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-    if (!snapshot.hasData) {
-      return const Center(
-          child: CircularProgressIndicator(
-        color: Color(0xFF212121),
-      ));
+    if (snapshot.hasError) {
+      print('Error in snapshot: ${snapshot.error}');
+      return const Center(child: Text('Something went wrong'));
     }
+
+    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+      print('No data available in snapshot');
+      return const Center(child: Text('No pets found'));
+    }
+
     List<Pets> listPet = snapshot.data!.docs.map((document) {
       Map<String, dynamic> data = document.data() as Map<String, dynamic>;
+      // Set the document ID directly in the data
+      data['id'] = document.id;
+      print('Processing pet - Document ID: ${document.id}');
       return Pets.fromMap(data);
     }).toList();
+
+    // Verify IDs are set correctly
+    for (var pet in listPet) {
+      print('Loaded pet - ID: ${pet.id}, Name: ${pet.name}');
+    }
 
     return PetsCard(listPet);
   }
@@ -76,7 +89,9 @@ class PetsList extends StatelessWidget {
                 petController.remove(model);
               },
               child: GestureDetector(
-                onLongPress: (() {}), // TODO: EDIT
+                onLongPress: (() {
+                  print(model.id);
+                }), // TODO: EDIT
                 onTap: (() => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -131,17 +146,12 @@ class PetsList extends StatelessWidget {
                                               offset: Offset(0, 4),
                                             )
                                           ]),
-                                      child: model.tipo ==
-                                                  'cachorro' || //TODO: TRANFORMAR EM FUNÇÃO
-                                              model.tipo == 'Cachorro'
-                                          ? (model.sexo == 'Macho' ||
-                                                  model.sexo == 'macho'
+                                      child: model.species == 'dog'
+                                          ? (model.gender == 'male'
                                               ? Image.asset(imagemcaoMacho)
                                               : Image.asset(imagemcaoFemea))
-                                          : (model.tipo == 'gato' ||
-                                                  model.tipo == 'Gato'
-                                              ? (model.sexo == 'Macho' ||
-                                                      model.sexo == 'macho'
+                                          : (model.species == 'cat'
+                                              ? (model.gender == 'male'
                                                   ? Image.asset(imagemgatoMacho)
                                                   : Image.asset(
                                                       imagemgatoFemea))
@@ -159,7 +169,7 @@ class PetsList extends StatelessWidget {
                                 children: [
                                   Padding(
                                     padding: const EdgeInsets.only(left: 3),
-                                    child: Text(model.name,
+                                    child: Text(model.name ?? 'Unknown name',
                                         style: const TextStyle(
                                             color: Color(0xFF080809),
                                             fontSize: 20,
@@ -170,7 +180,8 @@ class PetsList extends StatelessWidget {
                                       padding:
                                           const EdgeInsetsDirectional.fromSTEB(
                                               5, 4, 8, 0),
-                                      child: Text(model.raca,
+                                      child: Text(
+                                          model.breed ?? 'Unknown breed',
                                           textAlign: TextAlign.start,
                                           style: const TextStyle(
                                               color: Color(0XFF707070),
@@ -184,7 +195,7 @@ class PetsList extends StatelessWidget {
                                           const EdgeInsetsDirectional.fromSTEB(
                                               5, 4, 8, 0),
                                       child: Text(
-                                        model.sexo,
+                                        model.gender ?? 'Unknown',
                                         textAlign: TextAlign.start,
                                         style: const TextStyle(
                                             color: Color(0XFF707070),

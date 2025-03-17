@@ -1,96 +1,163 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 //==========================================================================
 // Descrição: Classe com atributos das Vacinas para melhor manipulação delas.
 // Autor: Kayque Amado
 // Data: 09/03/2024
 //==========================================================================
 
-class Vacinas {
-  String id;
-  String vacina;
-  String dataAplicada;
-  String proximaAplicacao;
-  String pesoDataAplicacao;
-  String imageRotulo;
-  String lote;
-  String farmaceutica;
-  String dataValidade;
-  String nomeVet;
-  String crmv;
-  String observacoes;
-  String? cnpj;
-  String? clinica;
-  String? rua;
-  String? bairro;
-  String? numero;
-  String? cidade;
-  String isValidadoVet;
-  String isValidadoTutor;
-  Vacinas(
-      {required this.id,
-      required this.vacina,
-      required this.dataAplicada,
-      required this.proximaAplicacao,
-      required this.pesoDataAplicacao,
-      required this.imageRotulo,
-      required this.lote,
-      required this.farmaceutica,
-      required this.dataValidade,
-      required this.nomeVet,
-      required this.crmv,
-      required this.observacoes,
-      required this.isValidadoVet,
-      required this.isValidadoTutor,
-      this.cnpj,
-      this.clinica,
-      this.rua,
-      this.bairro,
-      this.numero,
-      this.cidade});
+enum VaccineStatus { pending, approved, rejected }
 
-  Vacinas.fromMap(Map<String, dynamic> map)
-      : id = map["Id"] ?? '',
-        vacina = map["Vacina"] ?? '',
-        dataAplicada = map["Data Aplicada"] ?? '',
-        pesoDataAplicacao = map["Peso do Pet"] ?? '',
-        proximaAplicacao = map["Próxima aplicação"] ?? '',
-        imageRotulo = map["Imagem do Rótulo"] ?? '',
-        lote = map["Lote"] ?? '',
-        farmaceutica = map["Farmaceutica"] ?? '',
-        dataValidade = map["Data de Validade"] ?? '',
-        nomeVet = map["Nome do Veterinário(a)"] ?? '',
-        crmv = map["CRMV do Veterinário(a)"] ?? '',
-        observacoes = map["Observações"] ?? '',
-        cnpj = map["CNPJ"] ?? '',
-        clinica = map["Clínica"] ?? '',
-        rua = map["Rua"] ?? '',
-        bairro = map["Bairro"] ?? '',
-        numero = map["Número"] ?? '',
-        cidade = map["Cidade"] ?? '',
-        isValidadoVet = map["isValidadoVet"] ?? '',
-        isValidadoTutor = map["isValidadoTutor"] ?? '';
+class Vacinas {
+  String? id;
+  String? name;
+  String? manufacturer;
+  String? batchNumber;
+  DateTime? expirationDate;
+  DateTime? administrationDate;
+  DateTime? nextDueDate;
+
+  // Pet information
+  String? petId;
+  String? petName;
+  String? petSpecies;
+  String? petBreed;
+  double? petWeight;
+
+  // Owner information
+  String? ownerId;
+  String? ownerName;
+  String? ownerContact;
+
+  // Veterinarian information
+  String? veterinarianId;
+  String? veterinarianName;
+  String? crmvNumber;
+  String? clinicName;
+  String? clinicCnpj;
+
+  // Clinic address
+  Map<String, String>? clinicAddress;
+
+  // Validation status
+  String? status;
+  Map<String, dynamic>? validationDetails;
+
+  // Additional information
+  String? labelImage;
+  String? notes;
+  DateTime? createdAt;
+  DateTime? updatedAt;
+
+  Vacinas({
+    this.id,
+    this.name,
+    this.manufacturer,
+    this.batchNumber,
+    this.expirationDate,
+    this.administrationDate,
+    this.nextDueDate,
+    this.petId,
+    this.petName,
+    this.petSpecies,
+    this.petBreed,
+    this.petWeight,
+    this.ownerId,
+    this.ownerName,
+    this.ownerContact,
+    this.veterinarianId,
+    this.veterinarianName,
+    this.crmvNumber,
+    this.clinicName,
+    this.clinicCnpj,
+    this.clinicAddress,
+    this.status = 'pending',
+    this.validationDetails,
+    this.labelImage,
+    this.notes,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory Vacinas.fromMap(Map<String, dynamic> map) {
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      if (value is String) {
+        try {
+          final parts = value.split('/');
+          if (parts.length == 3) {
+            return DateTime(
+                int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+          }
+        } catch (e) {
+          print('Error parsing date string: $e');
+        }
+      }
+      return null;
+    }
+
+    return Vacinas(
+      id: map['id'],
+      name: map['name'],
+      manufacturer: map['manufacturer'],
+      batchNumber: map['batchNumber'],
+      expirationDate: parseDate(map['expirationDate']),
+      administrationDate: parseDate(map['administrationDate']),
+      nextDueDate: parseDate(map['nextDueDate']),
+      petId: map['petId'],
+      petName: map['petName'],
+      petSpecies: map['petSpecies'],
+      petBreed: map['petBreed'],
+      petWeight: map['petWeight']?.toDouble(),
+      ownerId: map['ownerId'],
+      ownerName: map['ownerName'],
+      ownerContact: map['ownerContact'],
+      veterinarianId: map['veterinarianId'],
+      veterinarianName: map['veterinarianName'],
+      crmvNumber: map['crmvNumber'],
+      clinicName: map['clinicName'],
+      clinicCnpj: map['clinicCnpj'],
+      clinicAddress: Map<String, String>.from(map['clinicAddress'] ?? {}),
+      status: map['status'],
+      validationDetails: map['validationDetails'],
+      labelImage: map['labelImage'],
+      notes: map['notes'],
+      createdAt: parseDate(map['createdAt']),
+      updatedAt: parseDate(map['updatedAt']),
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
-      "Id": id,
-      "Vacina": vacina,
-      "Data Aplicada": dataAplicada,
-      "Peso do Pet": pesoDataAplicacao,
-      "Próxima aplicação": proximaAplicacao,
-      "Imagem do Rótulo": imageRotulo,
-      "Lote": lote,
-      "Farmaceutica": farmaceutica,
-      "Data de Validade": dataValidade,
-      "Nome do Veterinário(a)": nomeVet,
-      "CRMV do Veterinário(a)": crmv,
-      "Observações": observacoes,
-      "CNPJ": cnpj,
-      "Clínica": clinica,
-      "Rua": rua,
-      "Bairro": bairro,
-      "Número": numero,
-      "Cidade": cidade,
-      "isValidadoVet": isValidadoVet,
-      "isValidadoTutor": isValidadoTutor,
+      'id': id,
+      'name': name,
+      'manufacturer': manufacturer,
+      'batchNumber': batchNumber,
+      'expirationDate': expirationDate,
+      'administrationDate': administrationDate,
+      'nextDueDate': nextDueDate,
+      'petId': petId,
+      'petName': petName,
+      'petSpecies': petSpecies,
+      'petBreed': petBreed,
+      'petWeight': petWeight,
+      'ownerId': ownerId,
+      'ownerName': ownerName,
+      'ownerContact': ownerContact,
+      'veterinarianId': veterinarianId,
+      'veterinarianName': veterinarianName,
+      'crmvNumber': crmvNumber,
+      'clinicName': clinicName,
+      'clinicCnpj': clinicCnpj,
+      'clinicAddress': clinicAddress,
+      'status': status,
+      'validationDetails': validationDetails,
+      'labelImage': labelImage,
+      'notes': notes,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
     };
   }
 }

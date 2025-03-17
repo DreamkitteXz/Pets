@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pet_app/mvc_implementation/models/pets.dart';
 import 'package:pet_app/mvc_implementation/screens/vacinas.dart';
 import 'package:pet_app/mvc_implementation/screens/vermifugos.dart';
+import 'package:intl/intl.dart';
 
 class PetInformation extends StatelessWidget {
   final Pets pet;
@@ -10,12 +11,13 @@ class PetInformation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print("PetInformation - Pet ID: ${pet.id}"); // Add this debug print
     return SafeArea(
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
           title: Text(
-            pet.name,
+            pet.name ?? 'Unknown',
             style: const TextStyle(
                 fontFamily: 'Outfit',
                 fontWeight: FontWeight.w600,
@@ -27,6 +29,7 @@ class PetInformation extends StatelessWidget {
           leading: IconButton(
             onPressed: () async {
               Navigator.pop(context);
+              print(pet.id);
             },
             icon: const Icon(
               Icons.arrow_back_rounded,
@@ -95,34 +98,53 @@ class PetInformation extends StatelessWidget {
                     scrollDirection: Axis.vertical,
                     children: [
                       InfoCard(
-                        pet: pet.name,
-                        label: 'Nome',
+                        pet: pet.name ?? 'Unknown',
+                        label: 'Name',
                         iconPath:
                             'lib/mvc_implementation/screens/assets/pata.png',
                       ),
                       InfoCard(
-                        pet: pet.cor,
-                        label: 'Cor',
+                        pet: pet.color ?? 'Unknown',
+                        label: 'Color',
                         iconPath:
                             'lib/mvc_implementation/screens/assets/color.png',
                       ),
                       InfoCard(
-                        pet: pet.raca,
-                        label: 'Raça',
+                        pet: pet.breed ?? 'Unknown',
+                        label: 'Breed',
                         iconPath:
                             'lib/mvc_implementation/screens/assets/raca.png',
                       ),
                       InfoCard(
-                          pet: pet.tipo,
-                          label: 'Tipo',
+                          pet: pet.species ?? 'Unknown',
+                          label: 'Species',
                           iconPath:
                               'lib/mvc_implementation/screens/assets/tipo.png'),
                       InfoCard(
-                        pet: pet.sexo,
-                        label: 'Sexo',
+                        pet: pet.gender ?? 'Unknown',
+                        label: 'Gender',
                         iconPath:
                             'lib/mvc_implementation/screens/assets/sexo.png',
                       ),
+                      InfoCard(
+                        pet: pet.isNeutered ?? false ? 'Yes' : 'No',
+                        label: 'Neutered',
+                        iconPath:
+                            'lib/mvc_implementation/screens/assets/sexo.png',
+                      ),
+                      InfoCard(
+                        pet: pet.chipNumber ?? 'Not registered',
+                        label: 'Chip Number',
+                        iconPath:
+                            'lib/mvc_implementation/screens/assets/pata.png',
+                      ),
+                      if (pet.birthDate != null)
+                        InfoCard(
+                          pet: DateFormat('dd/MM/yyyy').format(pet.birthDate!),
+                          label: 'Birth Date',
+                          iconPath:
+                              'lib/mvc_implementation/screens/assets/calendar.png',
+                        ),
                     ],
                   ),
                 ),
@@ -152,6 +174,8 @@ class Card extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (cardTitle == 'Vacinas') {
+          print("Card onTap - Pet ID: ${pet.id}"); // Add this debug print
+          print("Full pet object: $pet"); // Add this to see all pet data
           Navigator.push(
             context,
             MaterialPageRoute(

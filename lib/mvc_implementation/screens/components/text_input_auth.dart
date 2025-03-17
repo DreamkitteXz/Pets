@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 class TextInput extends StatefulWidget {
   final String inputTitle;
@@ -8,16 +9,22 @@ class TextInput extends StatefulWidget {
   final bool isPassword;
   bool dataPicker;
   String? hint;
+  final String? Function(String?)? validator; // Add validator parameter
+  final MaskTextInputFormatter? inputFormatter;
+  final bool readOnly; // Add this line
 
-  TextInput(
-      {Key? key,
-      required this.textInputType,
-      required this.inputTitle,
-      required this.controller,
-      this.isPassword = false,
-      this.dataPicker = false,
-      this.hint})
-      : super(key: key);
+  TextInput({
+    Key? key,
+    required this.textInputType,
+    required this.inputTitle,
+    required this.controller,
+    this.isPassword = false,
+    this.dataPicker = false,
+    this.hint,
+    this.validator, // Add validator to constructor
+    this.inputFormatter,
+    this.readOnly = false, // Add this line
+  }) : super(key: key);
 
   @override
   State<TextInput> createState() => TextInputState();
@@ -57,6 +64,7 @@ class TextInputState extends State<TextInput> {
             controller: widget.controller,
             obscureText: _obscureText,
             keyboardType: widget.textInputType,
+            readOnly: widget.readOnly, // Add this line
             decoration: InputDecoration(
               hintText: widget.hint,
               enabledBorder: OutlineInputBorder(
@@ -144,12 +152,9 @@ class TextInputState extends State<TextInput> {
                 }
               }
             },
-            validator: (value) {
-              if (value != null && value.isEmpty) {
-                return 'Insira $article ${widget.inputTitle}';
-              }
-              return null;
-            },
+            validator: widget.validator, // Use the validator
+            inputFormatters:
+                widget.inputFormatter != null ? [widget.inputFormatter!] : null,
           ),
         ),
         if (widget.isPassword)
@@ -204,10 +209,21 @@ Future<DateTime?> _showDataPickernasc(
   final DateTime? picked = await showDatePicker(
     context: context,
     initialDate: selectedDate ?? DateTime.now(),
-    firstDate: DateTime(DateTime.now().year - 20),
+    firstDate: DateTime(1990),
     lastDate: DateTime.now(),
+    builder: (context, child) {
+      return Theme(
+        data: Theme.of(context).copyWith(
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF041A23),
+            ),
+          ),
+        ),
+        child: child!,
+      );
+    },
   );
 
   return picked;
 }
-  //===============================================================

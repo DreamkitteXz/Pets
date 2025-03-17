@@ -51,7 +51,7 @@ class _HomeScreenPageState extends State<HomeScreenPage> {
                   ),
                 ),
                 const SizedBox(height: 30),
-                const PetsList(),
+                const PetsList(), // Changed from PetsCard to PetsList
               ],
             ),
           )),

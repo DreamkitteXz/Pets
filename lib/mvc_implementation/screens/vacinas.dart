@@ -10,6 +10,7 @@ import 'package:pet_app/mvc_implementation/models/pets.dart';
 import 'package:pet_app/mvc_implementation/models/vacinas.dart';
 import 'package:pet_app/mvc_implementation/screens/add_vac.dart';
 import 'package:pet_app/mvc_implementation/screens/vacina.dart';
+import 'package:pet_app/mvc_implementation/services/vaccine_card_generator.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -23,6 +24,36 @@ class VacinasPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print("VacinasPage - Pet received: $pet"); // Add this debug print
+    print("VacinasPage - Pet ID: ${pet.id}"); // Add this debug print
+
+    if (pet.id == null) {
+      print("VacinasPage - Pet ID is null!"); // Add this debug print
+      // Return a more informative error screen
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Vacinas'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('Pet ID not found'),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Voltar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -37,13 +68,39 @@ class VacinasPage extends StatelessWidget {
           ),
           actions: <Widget>[
             Padding(
-              padding: const EdgeInsets.only(
-                right: 22.0,
-              ),
+              padding: const EdgeInsets.only(right: 22.0),
               child: GestureDetector(
                 onTap: () async {
-                  print('Gerar PDF');
-                  await _createPDF(context, pet.id);
+                  try {
+                    final snapshot = await FirebaseFirestore.instance
+                        .collection('vaccines')
+                        .where('petId', isEqualTo: pet.id)
+                        .get();
+
+                    List<Vacinas> vaccines = snapshot.docs.map((doc) {
+                      Map<String, dynamic> data = doc.data();
+                      data['id'] = doc.id;
+                      return Vacinas.fromMap(data);
+                    }).toList();
+
+                    final path = await VaccineCardGenerator.generateVaccineCard(
+                        pet, vaccines);
+                    final result = await OpenFile.open(
+                      path,
+                      type: 'application/pdf',
+                    );
+
+                    if (result.type != ResultType.done) {
+                      throw Exception(result.message);
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error opening PDF: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 child: SvgPicture.asset(
                   'lib/mvc_implementation/screens/assets/docs.svg',
@@ -68,14 +125,11 @@ class VacinasPage extends StatelessWidget {
           centerTitle: true,
           elevation: 0,
         ),
-        floatingActionButton: FloatingActionVac(petId: pet.id),
+        floatingActionButton: FloatingActionVac(petId: pet.id!),
         body: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
-              .collection('Users')
-              .doc(FirebaseAuth.instance.currentUser!.uid)
-              .collection('Pets')
-              .doc(pet.id)
-              .collection("Vacinas")
+              .collection('vaccines')
+              .where('petId', isEqualTo: pet.id)
               .snapshots(),
           builder:
               (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
@@ -88,7 +142,8 @@ class VacinasPage extends StatelessWidget {
             List<Vacinas> listVac = snapshot.data!.docs.map((document) {
               Map<String, dynamic> data =
                   document.data() as Map<String, dynamic>;
-              print(data);
+              // Add document ID to the data
+              data['id'] = document.id;
               return Vacinas.fromMap(data);
             }).toList();
 
@@ -96,7 +151,6 @@ class VacinasPage extends StatelessWidget {
               itemCount: listVac.length,
               itemBuilder: (context, index) {
                 Vacinas model = listVac[index];
-                print(model.vacina);
                 return Dismissible(
                     confirmDismiss: (DismissDirection direction) async {
                       if (direction == DismissDirection.endToStart) {
@@ -130,7 +184,7 @@ class VacinasPage extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
-                                VacinaPage(vacina: model, petId: pet.id),
+                                VacinaPage(vacina: model, petId: pet.id!),
                           ),
                         );
                         print(FirebaseAuth.instance.currentUser);
@@ -146,14 +200,7 @@ class VacinasPage extends StatelessWidget {
   }
 
   void remove(Vacinas model) {
-    FirebaseFirestore.instance
-        .collection("Users")
-        .doc(FirebaseAuth.instance.currentUser!.uid)
-        .collection("Pets")
-        .doc(pet.id)
-        .collection("Vacinas")
-        .doc(model.id)
-        .delete();
+    FirebaseFirestore.instance.collection("vaccines").doc(model.id).delete();
   }
 }
 
@@ -169,11 +216,15 @@ class CardVacinas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String formatDate(DateTime? date) {
+      if (date == null) return 'N/A';
+      return '${date.day}/${date.month}/${date.year}';
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Container(
         width: MediaQuery.of(context).size.width,
-        height: 100,
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: const [
@@ -183,115 +234,137 @@ class CardVacinas extends StatelessWidget {
               offset: Offset(0, 4),
             )
           ],
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFFE0E0E0),
+            width: 1,
+          ),
         ),
         child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 8, 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.max,
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(0, 1, 1, 1),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(0, 1, 1, 1),
-                      child: Container(
-                        width: 70,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: pet.tipo == 'cachorro' || pet.tipo == 'Cachorro'
-                            ? (pet.sexo == 'macho' || pet.sexo == 'Macho'
-                                ? Image.asset(
-                                    'lib/assets/vacinadogmacho-removebg-preview.png')
-                                : Image.asset(
-                                    'lib/assets/vacinadog-removebg-preview.png'))
-                            : (pet.tipo == 'gato' || pet.tipo == 'Gato'
-                                ? (pet.sexo == 'macho' || pet.sexo == 'macho'
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F5F5),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: pet.species == 'dog'
+                                ? (pet.gender == 'male'
+                                    ? Image.asset(
+                                        'lib/assets/vacinadogmacho-removebg-preview.png')
+                                    : Image.asset(
+                                        'lib/assets/vacinadog-removebg-preview.png'))
+                                : (pet.gender == 'male'
                                     ? Image.asset(
                                         'lib/assets/catmachovac-removebg-preview.png')
                                     : Image.asset(
-                                        'lib/assets/catfemeavac-removebg-preview.png'))
-                                : Image.asset(
-                                    'lib/assets/catfemeavac-removebg-preview.png')),
+                                        'lib/assets/catfemeavac-removebg-preview.png')),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                model.name ??
+                                    'Unknown Vaccine', // Changed from model.vacina
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1A1A1A),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Lote: ${model.batchNumber ?? 'N/A'}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF707070),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: model.status == 'approved'
+                          ? Colors.green.withOpacity(0.1)
+                          : model.status == 'rejected'
+                              ? Colors.red.withOpacity(0.1)
+                              : Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      model.status?.toUpperCase() ?? 'PENDING',
+                      style: TextStyle(
+                        color: model.status == 'approved'
+                            ? Colors.green
+                            : model.status == 'rejected'
+                                ? Colors.red
+                                : Colors.orange,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  )),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 4, 0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
                     children: [
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: Color(0xFF707070),
+                      ),
+                      const SizedBox(width: 4),
                       Text(
-                        model.vacina,
+                        'Aplicada: ${formatDate(model.administrationDate)}',
                         style: const TextStyle(
-                            fontSize: 19, fontWeight: FontWeight.w600),
-                      ),
-                      Flexible(
-                        child: Padding(
-                            padding: const EdgeInsetsDirectional.fromSTEB(
-                                0, 4, 8, 0),
-                            child: Row(
-                              children: [
-                                Text(
-                                  (model.isValidadoVet == 'true' &&
-                                          model.isValidadoTutor == 'true')
-                                      ? 'Validado'
-                                      : 'Aguardando validação',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                SvgPicture.asset(
-                                  (model.isValidadoVet == 'true' &&
-                                          model.isValidadoTutor == 'true')
-                                      ? 'lib/mvc_implementation/screens/assets/validado.svg'
-                                      : 'lib/mvc_implementation/screens/assets/aguardando.svg',
-                                  width: 18,
-                                  height: 18,
-                                )
-                              ],
-                            )),
-                      ),
-                      Flexible(
-                        child: Padding(
-                          padding:
-                              const EdgeInsetsDirectional.fromSTEB(0, 4, 8, 0),
-                          child: Text(
-                            model.dataAplicada,
-                            textAlign: TextAlign.start,
-                          ),
+                          fontSize: 14,
+                          color: Color(0xFF707070),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.only(right: 25.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Padding(
-                      padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0),
-                      child: Icon(
-                        Icons.chevron_right_rounded,
-                        color: Color(0xFF57636C),
-                        size: 24,
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.event_repeat,
+                        size: 16,
+                        color: Color(0xFF707070),
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Próxima: ${formatDate(model.nextDueDate)}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF707070),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
@@ -338,6 +411,11 @@ Future<void> _createPDF(BuildContext context, String petId) async {
   final PdfGraphics graphics = page.graphics;
   final PdfFont font = PdfStandardFont(PdfFontFamily.helvetica, 12);
 
+  String formatDate(DateTime? date) {
+    if (date == null) return 'N/A';
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
   try {
     if (await Permission.storage.request().isGranted) {
       // Get the application files directory
@@ -353,11 +431,8 @@ Future<void> _createPDF(BuildContext context, String petId) async {
 
       // Generate PDF content
       final QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
-          .collection('Pets')
-          .doc(petId)
-          .collection("Vacinas")
+          .collection('vaccines')
+          .where('petId', isEqualTo: petId)
           .get();
 
       if (snapshot.docs.isNotEmpty) {
@@ -374,7 +449,8 @@ Future<void> _createPDF(BuildContext context, String petId) async {
               Vacinas.fromMap(doc.data() as Map<String, dynamic>);
 
           final String text =
-              'Vacina: ${vacina.vacina}, Data Aplicada: ${vacina.dataAplicada}, Validado: ${vacina.isValidadoVet == 'true' && vacina.isValidadoTutor == 'true' ? 'Sim' : 'Não'}';
+              'Vacina: ${vacina.name}, Data Aplicada: ${formatDate(vacina.administrationDate)}, '
+              'Status: ${vacina.status?.toUpperCase() ?? 'PENDING'}';
 
           graphics.drawString(text, font,
               bounds: Rect.fromLTWH(0, offsetY, 500, 20));

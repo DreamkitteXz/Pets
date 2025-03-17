@@ -23,7 +23,7 @@ class _VacinaPageState extends State<VacinaPage> {
             backgroundColor: Colors.white,
             appBar: AppBar(
               title: Text(
-                widget.vacina.vacina,
+                widget.vacina.name ?? 'Unknown Vaccine',
                 style: const TextStyle(
                     color: Color(0xFF080809),
                     fontSize: 24,
@@ -43,8 +43,7 @@ class _VacinaPageState extends State<VacinaPage> {
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
                   child: SvgPicture.asset(
-                    (widget.vacina.isValidadoVet == 'true' &&
-                            widget.vacina.isValidadoTutor == 'true')
+                    widget.vacina.status == 'approved'
                         ? 'lib/mvc_implementation/screens/assets/validado.svg'
                         : 'lib/mvc_implementation/screens/assets/aguardando.svg',
                     width: 30,
@@ -89,11 +88,11 @@ class _VacinaPageState extends State<VacinaPage> {
                           mainAxisSize: MainAxisSize.max,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            if (widget.vacina.imageRotulo.isNotEmpty)
+                            if (widget.vacina.labelImage?.isNotEmpty ?? false)
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.network(
-                                  widget.vacina.imageRotulo,
+                                  widget.vacina.labelImage!,
                                   width: 300,
                                   height: 220,
                                   fit: BoxFit.cover,
@@ -114,15 +113,16 @@ class _VacinaPageState extends State<VacinaPage> {
                           scrollDirection: Axis.vertical,
                           children: [
                             VacinaInfo(
-                                widget: widget.vacina.vacina,
+                                widget: widget.vacina.name ?? 'N/A',
                                 title: 'Vacina',
                                 icon: Icons.vaccines),
                             VacinaInfo(
-                                widget: widget.vacina.dataAplicada,
+                                widget: formatDate(
+                                    widget.vacina.administrationDate),
                                 title: 'Data Aplicada',
                                 icon: Icons.date_range),
                             VacinaInfo(
-                                widget: widget.vacina.proximaAplicacao,
+                                widget: formatDate(widget.vacina.nextDueDate),
                                 title: 'Próxima Aplicação',
                                 icon: Icons.date_range),
                             Padding(
@@ -136,23 +136,25 @@ class _VacinaPageState extends State<VacinaPage> {
                               ),
                             ),
                             VacinaInfo(
-                                widget: widget.vacina.lote,
+                                widget: widget.vacina.batchNumber ?? 'N/A',
                                 title: 'Lote',
                                 icon: Icons.folder),
                             VacinaInfo(
-                                widget: widget.vacina.farmaceutica,
+                                widget: widget.vacina.manufacturer ?? 'N/A',
                                 title: 'Farmacêutica',
                                 icon: Icons.medical_information),
                             VacinaInfo(
-                                widget: widget.vacina.dataValidade,
+                                widget:
+                                    formatDate(widget.vacina.expirationDate),
                                 title: 'Data de Validade',
                                 icon: Icons.date_range),
                             VacinaInfo(
-                                widget: widget.vacina.pesoDataAplicacao,
+                                widget: widget.vacina.petWeight?.toString() ??
+                                    'N/A',
                                 title: 'Peso do Pet',
                                 icon: Icons.percent),
                             VacinaInfo(
-                                widget: widget.vacina.observacoes,
+                                widget: widget.vacina.notes ?? 'N/A',
                                 title: 'Observações',
                                 icon: Icons.insert_drive_file_outlined),
                             Padding(
@@ -172,11 +174,12 @@ class _VacinaPageState extends State<VacinaPage> {
                               scrollDirection: Axis.vertical,
                               children: [
                                 VacinaInfo(
-                                    widget: widget.vacina.nomeVet,
+                                    widget:
+                                        widget.vacina.veterinarianName ?? 'N/A',
                                     title: 'Nome',
                                     icon: Icons.person),
                                 VacinaInfo(
-                                    widget: widget.vacina.crmv,
+                                    widget: widget.vacina.crmvNumber ?? 'N/A',
                                     title: 'CRMV',
                                     icon: Icons.edit_document),
                                 Padding(
@@ -191,27 +194,35 @@ class _VacinaPageState extends State<VacinaPage> {
                                   ),
                                 ),
                                 VacinaInfo(
-                                    widget: widget.vacina.cnpj,
+                                    widget: widget.vacina.clinicCnpj ?? 'N/A',
                                     title: 'CNPJ',
                                     icon: Icons.document_scanner),
                                 VacinaInfo(
-                                    widget: widget.vacina.clinica,
+                                    widget: widget.vacina.clinicName ?? 'N/A',
                                     title: 'Clínica',
                                     icon: Icons.store),
                                 VacinaInfo(
-                                    widget: widget.vacina.rua,
+                                    widget: widget
+                                            .vacina.clinicAddress?['street'] ??
+                                        'N/A',
                                     title: 'Rua',
                                     icon: Icons.location_on_outlined),
                                 VacinaInfo(
-                                    widget: widget.vacina.bairro,
+                                    widget: widget.vacina
+                                            .clinicAddress?['neighborhood'] ??
+                                        'N/A',
                                     title: 'Bairro',
                                     icon: Icons.location_on_outlined),
                                 VacinaInfo(
-                                    widget: widget.vacina.numero,
+                                    widget: widget
+                                            .vacina.clinicAddress?['number'] ??
+                                        'N/A',
                                     title: 'Número',
                                     icon: Icons.location_on_outlined),
                                 VacinaInfo(
-                                    widget: widget.vacina.cidade,
+                                    widget:
+                                        widget.vacina.clinicAddress?['city'] ??
+                                            'N/A',
                                     title: 'Cidade',
                                     icon: Icons.location_city),
                               ],
@@ -219,8 +230,8 @@ class _VacinaPageState extends State<VacinaPage> {
                           ],
                         ),
                       ),
-                      if (widget.vacina.isValidadoVet == 'true' &&
-                          widget.vacina.isValidadoTutor == 'false')
+                      if (widget.vacina.status != 'approved' &&
+                          widget.vacina.status != 'rejected')
                         Padding(
                           padding: const EdgeInsets.fromLTRB(0, 12, 0, 24),
                           child: Titles(
@@ -231,8 +242,7 @@ class _VacinaPageState extends State<VacinaPage> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      if (widget.vacina.isValidadoVet == 'true' &&
-                          widget.vacina.isValidadoTutor == 'false')
+                      if (widget.vacina.status == 'pending')
                         Padding(
                           padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
                           child: SubTitle(
@@ -241,12 +251,11 @@ class _VacinaPageState extends State<VacinaPage> {
                             isObservacoes: true,
                             titleObservacoes: 'Orientações:',
                             textObservacoes:
-                                'Seu veterinário ja validou a aplicação dessa vacina, para finalizar o processo clique em validar para poder emiti-la no Certificado de vacinação do seu Pet.',
+                                'Para finalizar o processo clique em validar para poder emiti-la no Certificado de vacinação do seu Pet.',
                             padding: 0,
                           ),
                         ),
-                      if (widget.vacina.isValidadoVet == 'true' &&
-                          widget.vacina.isValidadoTutor == 'false')
+                      if (widget.vacina.status == 'pending')
                         Padding(
                           padding: const EdgeInsets.only(
                               left: 24.0, right: 24.0, bottom: 42, top: 16),
@@ -257,7 +266,9 @@ class _VacinaPageState extends State<VacinaPage> {
                                 height: 40,
                                 width: 120,
                                 child: ElevatedButton(
-                                  onPressed: (() {}),
+                                  onPressed: (() async {
+                                    // TODO: Implement rejection logic
+                                  }),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFFED7D7),
                                     elevation: 4,
@@ -278,7 +289,7 @@ class _VacinaPageState extends State<VacinaPage> {
                                 child: ElevatedButton(
                                   onPressed: (() {
                                     ValidacaoController().validadeVacTutor(
-                                        widget.petId, widget.vacina.id);
+                                        widget.petId, widget.vacina.id!);
                                   }),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFD5F3C2),
@@ -297,14 +308,19 @@ class _VacinaPageState extends State<VacinaPage> {
                             ],
                           ),
                         ),
-                      if (widget.vacina.isValidadoVet == 'false' ||
-                          widget.vacina.isValidadoTutor == 'true')
+                      if (widget.vacina.status == 'approved' ||
+                          widget.vacina.status == 'rejected')
                         const SizedBox(
                           height: 1,
                         )
                     ],
                   ),
                 ))));
+  }
+
+  String formatDate(DateTime? date) {
+    if (date == null) return 'N/A';
+    return '${date.day}/${date.month}/${date.year}';
   }
 }
 
