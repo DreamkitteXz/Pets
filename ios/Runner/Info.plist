@@ -49,5 +49,9 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>This app needs access to your location to show your current position.</string>
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>This app needs access to your location to show your current position.</string>
 	</dict>
 </plist>

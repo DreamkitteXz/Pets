@@ -73,6 +73,9 @@ dependencies:
   smooth_page_indicator: ^1.1.0
   permission_handler: ^11.0.1
   package_info_plus: ^4.2.0
+  path: ^1.8.3
+  percent_indicator: ^4.2.4
+  geolocator: ^11.1.0
 
 flutter_native_splash:
   color: "#041A23"
@@ -129,21 +132,21 @@ flutter:
     - lib/assets/OpenSans-Regular.ttf
     - assets/app/pets_logo.svg
     - assets/app/pets_logo.png
-    - lib/mvc_implementation/screens/assets/cat1.svg
-    - lib/mvc_implementation/screens/assets/cat2.svg
-    - lib/mvc_implementation/screens/assets/dog1.svg
-    - lib/mvc_implementation/screens/assets/password_icon.svg
-    - lib/mvc_implementation/screens/assets/bubbles_snack_bar.svg
-    - lib/mvc_implementation/screens/assets/close_snack_bar.svg
-    - lib/mvc_implementation/screens/assets/fail_snack_bar.svg
-    - lib/mvc_implementation/screens/assets/pata.png
-    - lib/mvc_implementation/screens/assets/color.png
-    - lib/mvc_implementation/screens/assets/raca.png
-    - lib/mvc_implementation/screens/assets/tipo.png
-    - lib/mvc_implementation/screens/assets/sexo.png
-    - lib/mvc_implementation/screens/assets/docs.svg
-    - lib/mvc_implementation/screens/assets/validado.svg
-    - lib/mvc_implementation/screens/assets/aguardando.svg
+    - lib/screens/assets/cat1.svg
+    - lib/screens/assets/cat2.svg
+    - lib/screens/assets/dog1.svg
+    - lib/screens/assets/password_icon.svg
+    - lib/screens/assets/bubbles_snack_bar.svg
+    - lib/screens/assets/close_snack_bar.svg
+    - lib/screens/assets/fail_snack_bar.svg
+    - lib/screens/assets/pata.png
+    - lib/screens/assets/color.png
+    - lib/screens/assets/raca.png
+    - lib/screens/assets/tipo.png
+    - lib/screens/assets/sexo.png
+    - lib/screens/assets/docs.svg
+    - lib/screens/assets/validado.svg
+    - lib/screens/assets/aguardando.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

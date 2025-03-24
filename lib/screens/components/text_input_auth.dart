@@ -1,0 +1,229 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+
+class TextInput extends StatefulWidget {
+  final String inputTitle;
+  final TextEditingController controller;
+  final TextInputType textInputType;
+  final bool isPassword;
+  bool dataPicker;
+  String? hint;
+  final String? Function(String?)? validator; // Add validator parameter
+  final MaskTextInputFormatter? inputFormatter;
+  final bool readOnly; // Add this line
+
+  TextInput({
+    Key? key,
+    required this.textInputType,
+    required this.inputTitle,
+    required this.controller,
+    this.isPassword = false,
+    this.dataPicker = false,
+    this.hint,
+    this.validator, // Add validator to constructor
+    this.inputFormatter,
+    this.readOnly = false, // Add this line
+  }) : super(key: key);
+
+  @override
+  State<TextInput> createState() => TextInputState();
+}
+
+class TextInputState extends State<TextInput> {
+  bool _obscureText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.isPassword;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String article = artigoPalavra();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 30.0),
+          child: Text(
+            widget.inputTitle,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF041A23),
+              fontSize: 16,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.only(left: 30.0, right: 30.0),
+          child: TextFormField(
+            controller: widget.controller,
+            obscureText: _obscureText,
+            keyboardType: widget.textInputType,
+            readOnly: widget.readOnly, // Add this line
+            decoration: InputDecoration(
+              hintText: widget.hint, // Add hint text
+              enabledBorder: OutlineInputBorder(
+                borderSide: const BorderSide(
+                  color: Color(0xFFCAC6C6),
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              suffixIcon: widget.isPassword
+                  ? Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: IconButton(
+                        icon: Icon(
+                          _obscureText
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: const Color(0xFF212121),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureText = !_obscureText;
+                          });
+                        },
+                      ),
+                    )
+                  : widget.dataPicker
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.date_range_rounded,
+                              color: Color(0xFF212121),
+                            ),
+                            onPressed: () async {
+                              DateTime? selectedDate;
+                              if (widget.dataPicker) {
+                                DateTime? pickedDate =
+                                    await _showDataPickernasc(
+                                        selectedDate, context);
+                                if (pickedDate != null) {
+                                  setState(() {
+                                    selectedDate = pickedDate;
+                                    widget.controller.text =
+                                        formatDateToString(pickedDate);
+                                  });
+                                }
+                              }
+                            },
+                          ),
+                        )
+                      : null,
+              focusedBorder: OutlineInputBorder(
+                borderSide: const BorderSide(
+                  color: Color(0xFFCAC6C6),
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderSide: const BorderSide(
+                  color: Color(0xFFFDA29B),
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderSide: const BorderSide(
+                  color: Color(0xFFFDA29B),
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(9),
+              ),
+            ),
+            onTap: () async {
+              DateTime? selectedDate;
+              if (widget.dataPicker) {
+                DateTime? pickedDate =
+                    await _showDataPickernasc(selectedDate, context);
+                if (pickedDate != null) {
+                  setState(() {
+                    selectedDate = pickedDate;
+                    widget.controller.text = formatDateToString(pickedDate);
+                  });
+                }
+              }
+            },
+            validator: widget.validator, // Use the validator
+            inputFormatters:
+                widget.inputFormatter != null ? [widget.inputFormatter!] : null,
+          ),
+        ),
+        if (widget.isPassword)
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0, right: 30.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                InkWell(
+                  //TODO: COLOCAR A TELA DE ESQUECEU A SENHA!
+                  child: Text(
+                    'Esqueceu a Senha?',
+                    textAlign: TextAlign.start,
+                    style: TextStyle(
+                        color: Color(0xFF707070),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // VERIFICA SE A PALAVRA É MASCULINA OU FEMININA
+  String artigoPalavra() {
+    String article = 'o'; // Define o artigo padrão como masculino ('o')
+    if (widget.inputTitle.isNotEmpty) {
+      // Verifica se a palavra não está vazia
+      String lastChar = widget.inputTitle[widget.inputTitle.length - 1];
+      // Obtém o último caractere da palavra
+      if (lastChar.toLowerCase() == 'a') {
+        // Se o último caractere for 'a' (minúsculo), o artigo é definido como feminino ('a')
+        article = 'a';
+      }
+    }
+    return article;
+  }
+}
+// ===============================================================
+// Função DataPicker e Função de formatação para aparecer na Tela
+
+String formatDateToString(DateTime? date) {
+  if (date == null) return '';
+  return DateFormat('dd/MM/yyyy').format(date);
+}
+
+Future<DateTime?> _showDataPickernasc(
+    DateTime? selectedDate, BuildContext context) async {
+  final DateTime? picked = await showDatePicker(
+    context: context,
+    initialDate: selectedDate ?? DateTime.now(),
+    firstDate: DateTime(1990),
+    lastDate: DateTime.now(),
+    builder: (context, child) {
+      return Theme(
+        data: Theme.of(context).copyWith(
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF041A23),
+            ),
+          ),
+        ),
+        child: child!,
+      );
+    },
+  );
+
+  return picked;
+}

@@ -1,8 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:pet_app/mvc_implementation/screens/home_screen.dart';
-import 'package:pet_app/mvc_implementation/screens/onboarding.dart';
+import 'package:pet_app/controllers/validacao_controller.dart';
+import 'package:pet_app/screens/home_screen.dart';
+import 'package:pet_app/screens/onboarding.dart';
 
 import 'firebase_options.dart';
 
@@ -25,11 +26,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NavigationService.navigatorKey,
       title: 'Tutor App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const OnBoarding(),
+      home: const RoteadorTelas(),
     );
   }
 }
@@ -46,7 +48,7 @@ class RoteadorTelas extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasData) {
-          return const HomeScreenPage();
+          return HomeScreenPage(user: snapshot.data as User);
         } else {
           return const OnBoarding();
         }

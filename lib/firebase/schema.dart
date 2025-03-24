@@ -6,7 +6,15 @@ enum UserRole { veterinarian, tutor }
 
 enum UserStatus { active, pending, suspended }
 
-enum VaccineStatus { pending, approved, rejected }
+enum VaccineStatus {
+  pending,
+  vetApproved,
+  vetRejected,
+  tutorApproved,
+  tutorRejected,
+  fullyApproved,
+  rejected
+}
 
 enum PetStatus { active, inactive }
 
@@ -15,6 +23,8 @@ enum ClinicStatus { active, inactive }
 enum AppointmentType { checkup, vaccination, emergency, surgery }
 
 enum AppointmentStatus { scheduled, completed, cancelled }
+
+enum DewormingStatus { active, completed, expired }
 
 class FirestoreSchema {
   // Users collection
@@ -105,14 +115,35 @@ class FirestoreSchema {
           'status':
               VaccineStatus.values.map((e) => e.name).toList(), // Enum in Dart
           'validationDetails': {
-            'validatedAt': Timestamp,
-            'validatedBy': String, // validating vet's userId
-            'notes': String,
-            'rejectionReason': String,
+            'vetValidation': {
+              'status': String, // 'pending', 'approved', 'rejected'
+              'validatedAt': Timestamp,
+              'validatedBy': String, // userId
+              'notes': String,
+              'rejectionReason': String,
+            },
+            'tutorValidation': {
+              'status': String, // 'pending', 'approved', 'rejected'
+              'validatedAt': Timestamp,
+              'validatedBy': String, // userId
+              'notes': String,
+              'rejectionReason': String,
+            },
           },
 
           // Additional information
           'labelImage': String, // URL to Firebase Storage
+          'labelImageMetadata': {
+            'name': String,
+            'size': int,
+            'contentType': String,
+            'timeCreated': Timestamp,
+            'updated': Timestamp,
+            'location': {
+              'latitude': double,
+              'longitude': double,
+            },
+          },
           'notes': String,
           'createdAt': Timestamp,
           'updatedAt': Timestamp,
@@ -202,6 +233,58 @@ class FirestoreSchema {
           'notes': String,
           'createdAt': Timestamp,
           'updatedAt': Timestamp,
+        }
+      };
+
+  // Deworming collection
+  static Map<String, dynamic> deworming(String dewormingId) => {
+        dewormingId: {
+          // Basic information
+          'id': String,
+          'name': String,
+          'manufacturer': String,
+          'dosage': String,
+          'weight': double,
+          'administrationDate': Timestamp,
+          'nextDueDate': Timestamp,
+          'isReinforcementNeeded': bool,
+          'reinforcementDate': Timestamp,
+
+          // Pet information
+          'petId': String,
+          'petName': String,
+          'petWeight': double,
+
+          // Owner information
+          'ownerId': String,
+          'ownerName': String,
+
+          // Veterinarian information
+          'veterinarianId': String,
+          'veterinarianName': String,
+          'crmvNumber': String,
+
+          // Clinical information
+          'clinicId': String,
+          'clinicName': String,
+          'clinicAddress': {
+            'street': String,
+            'number': String,
+            'neighborhood': String,
+            'city': String,
+            'state': String,
+          },
+
+          // Status and tracking
+          'status': DewormingStatus.values.map((e) => e.name).toList(),
+          'effectivenessNotes': String,
+          'sideEffects': List<String>,
+          'observations': String,
+
+          // Metadata
+          'createdAt': Timestamp,
+          'updatedAt': Timestamp,
+          'createdBy': String, // veterinarianId
         }
       };
 }
