@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CiCircleCheck, CiCircleRemove, CiCircleAlert } from "react-icons/ci";
 import { IoClose } from "react-icons/io5";
-import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -10,12 +10,44 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
   const [validationNote, setValidationNote] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  if (!isOpen || !vaccine) return null;
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setCurrentUser(userDoc.data());
+        }
+      }
+    };
+    fetchUserInfo();
+  }, [user]);
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    return new Date(timestamp.toDate()).toLocaleDateString();
+  if (!isOpen || !vaccine || !currentUser) return null;
+
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    const formatToDDMMYYYY = (dateObj) => {
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const year = dateObj.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+    // Handle string dates
+    if (typeof date === 'string') return date;
+    // Handle Firestore Timestamp
+    if (date?.toDate instanceof Function) return formatToDDMMYYYY(date.toDate());
+    // Handle regular Date objects
+    if (date instanceof Date) return formatToDDMMYYYY(date);
+    // Handle Timestamp-like objects
+    if (date?.seconds) return formatToDDMMYYYY(new Date(date.seconds * 1000));
+    // Handle specific timestamp format
+    if (typeof date === 'object' && date.seconds && date.nanoseconds) {
+      return formatToDDMMYYYY(new Date(date.seconds * 1000));
+    }
+    return 'Invalid Date';
   };
 
   const getStatusIcon = (status) => {
@@ -32,21 +64,24 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
   };
 
   const handleValidation = async (isApproved) => {
-    if (!vaccine || !user) return;
-    
+    if (!vaccine || !currentUser) return;
+
     setIsValidating(true);
     try {
       const vaccineRef = doc(db, 'vaccines', vaccine.id);
       const validationDetails = {
+        status: isApproved ? 'approved' : 'rejected',
         validatedAt: Timestamp.now(),
-        validatedBy: user.uid,
+        validatedBy: currentUser.uid,
+        validatedByName: currentUser.name || 'Unknown', // Ensure name is defined
+        validatedByCrmv: currentUser.crmv || 'Unknown', // Ensure crmv is defined
         notes: validationNote,
         rejectionReason: isApproved ? '' : rejectionReason
       };
 
       await updateDoc(vaccineRef, {
         status: isApproved ? 'approved' : 'rejected',
-        validationDetails,
+        'validationDetails.vetValidation': validationDetails,
         updatedAt: Timestamp.now()
       });
 
@@ -59,8 +94,36 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
     }
   };
 
+  const handleImageViewerClose = (e) => {
+    if (e.target.id === 'image-viewer-overlay') {
+      setIsImageViewerOpen(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      {isImageViewerOpen && (
+        <div
+          id="image-viewer-overlay"
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]"
+          onClick={handleImageViewerClose}
+        >
+          <div className="relative max-w-4xl mx-auto">
+            <button 
+              onClick={() => setIsImageViewerOpen(false)}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300"
+            >
+              <IoClose size={30} />
+            </button>
+            <img
+              src={vaccine.labelImage}
+              alt="Rótulo da vacina"
+              className="max-h-[80vh] w-auto object-contain transform transition-transform duration-300 hover:scale-125"
+            />
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
@@ -79,6 +142,26 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
               </div>
               <span className="text-gray-500">ID: {vaccine.id}</span>
             </div>
+
+            {/* Updated Vaccine Label Image Section */}
+            {vaccine.labelImage && (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Foto do Rótulo da Vacina</h3>
+                <div 
+                  className="border rounded-lg overflow-hidden cursor-pointer"
+                  onClick={() => setIsImageViewerOpen(true)}
+                >
+                  <img
+                    src={vaccine.labelImage}
+                    alt="Rótulo da vacina"
+                    className="w-full h-auto max-h-[300px] object-contain hover:opacity-90 transition-opacity"
+                  />
+                </div>
+                <p className="text-sm text-gray-500 text-center">
+                  Clique na imagem para ampliar
+                </p>
+              </div>
+            )}
 
             {/* Main Details Grid */}
             <div className="grid grid-cols-2 gap-6">
@@ -157,31 +240,33 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
             </div>
 
             {/* Clinic Information */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Informações da Clínica</h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm text-gray-600">Nome da Clínica</label>
-                    <div className="font-medium">{vaccine.clinicName}</div>
+            {vaccine.clinicName && (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Informações da Clínica</h3>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-sm text-gray-600">Nome da Clínica</label>
+                      <div className="font-medium">{vaccine.clinicName}</div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600">CNPJ</label>
+                      <div className="font-medium">{vaccine.clinicCnpj}</div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm text-gray-600">CNPJ</label>
-                    <div className="font-medium">{vaccine.clinicCnpj}</div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm text-gray-600">Endereço</label>
-                    <div className="font-medium">
-                      {vaccine.clinicAddress?.street}, {vaccine.clinicAddress?.number}
-                      <br />
-                      {vaccine.clinicAddress?.neighborhood} - {vaccine.clinicAddress?.city}/{vaccine.clinicAddress?.state}
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-sm text-gray-600">Endereço</label>
+                      <div className="font-medium">
+                        {vaccine.clinicAddress?.street}, {vaccine.clinicAddress?.number}
+                        <br />
+                        {vaccine.clinicAddress?.neighborhood} - {vaccine.clinicAddress?.city}/{vaccine.clinicAddress?.state}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Validation Information - Only show if vaccine is approved or rejected */}
             {(vaccine.status === 'approved' || vaccine.status === 'rejected') && vaccine.validationDetails && (
@@ -195,7 +280,9 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
                     </div>
                     <div>
                       <label className="block text-sm text-gray-600">Validado Por</label>
-                      <div className="font-medium">{vaccine.validationDetails.validatedBy}</div>
+                      <div className="font-medium">
+                        {vaccine.veterinarianName} (CRMV: {vaccine.crmvNumber})
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -217,7 +304,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
             )}
 
             {/* Validation Controls */}
-            {vaccine?.status === 'pending' && (
+            {vaccine?.status === 'pending' && !vaccine.validationDetails?.vetValidation && (
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 space-y-6">
                 <div className="flex items-center gap-3">
                   <CiCircleAlert className="text-blue-600" size={24} />

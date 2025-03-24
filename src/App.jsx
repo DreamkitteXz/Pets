@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/shared/Layout/Layout';
 import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Auth Pages
 import Login from './components/pages/Auth/Login/Auth';
@@ -36,28 +37,30 @@ const App = () => {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<EmailVerification />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/complete-profile" element={<CompleteProfile />} />
 
           {/* Protected Routes */}
-          <Route element={<Layout />}>
-            {/* Dashboard */}
-            <Route path="/" element={<Dashboard />} />
-            
-            {/* Pets */}
-            <Route path="/pets">
-              <Route index element={<Pets />} />
-              <Route path=":petId" element={<PetDetailsModal />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<Layout />}>
+              {/* Dashboard */}
+              <Route path="/" element={<Dashboard />} />
+              
+              {/* Pets */}
+              <Route path="/pets">
+                <Route index element={<Pets />} />
+                <Route path=":petId" element={<PetDetailsModal />} />
+              </Route>
+              
+              {/* Vaccines */}
+              <Route path="/vacinas">
+                <Route index element={<Vaccines />} />
+                <Route path=":vaccineId" element={<VaccineDetailsModal />} />
+              </Route>
+              
+              {/* Profile & Settings */}
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
             </Route>
-            
-            {/* Vaccines */}
-            <Route path="/vacinas">
-              <Route index element={<Vaccines />} />
-              <Route path=":vaccineId" element={<VaccineDetailsModal />} />
-            </Route>
-            
-            {/* Profile & Settings */}
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/complete-profile" element={<CompleteProfile />} />
           </Route>
 
           {/* Error Routes */}

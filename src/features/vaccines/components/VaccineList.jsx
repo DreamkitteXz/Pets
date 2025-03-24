@@ -68,10 +68,10 @@ const VaccineList = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right text-sm font-medium">
-                    <button className="text-blue-600 hover:text-blue-900 mr-3">
+                    <button className="text-blue-600 hover:text-blue-900 mr-3" disabled>
                       Edit
                     </button>
-                    <button className="text-red-600 hover:text-red-900">
+                    <button className="text-red-600 hover:text-red-900" disabled>
                       Delete
                     </button>
                   </td>

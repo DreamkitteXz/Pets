@@ -22,9 +22,9 @@ export function usePetDetails(petId) {
         const petData = {
           id: petDoc.id,
           ...petDoc.data(),
-          birthDate: petDoc.data().birthDate?.toDate(),
-          createdAt: petDoc.data().createdAt?.toDate(),
-          updatedAt: petDoc.data().updatedAt?.toDate()
+          birthDate: petDoc.data().birthDate?.toDate?.() || null,
+          createdAt: petDoc.data().createdAt?.toDate?.() || null,
+          updatedAt: petDoc.data().updatedAt?.toDate?.() || null
         };
 
         // Fetch associated vaccines
@@ -36,8 +36,8 @@ export function usePetDetails(petId) {
         const vaccinesData = vaccineSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          administrationDate: doc.data().administrationDate?.toDate(),
-          nextDueDate: doc.data().nextDueDate?.toDate()
+          administrationDate: doc.data().administrationDate?.toDate?.() || null,
+          nextDueDate: doc.data().nextDueDate?.toDate?.() || null
         }));
 
         setPet(petData);

@@ -1,82 +1,149 @@
-import React from 'react';
-import Table from './../../tables/Table'; // Assuming the Table component is in a separate file
+import React, { useState } from 'react';
+import { useDashboard } from '../../../hooks/useDashboard';
+import Table from '../../tables/Table';
+import { formatDate } from '../../../utils/formatters';
+import LoadingScreen from '../../ui/LoadingScreen';
 
-const VeterinaryDashboard = () => {
-  // Define table columns
+const Dashboard = () => {
+  const { dashboardData, loading, error } = useDashboard();
+  const [showDevMessage, setShowDevMessage] = useState(false);
+
+  if (loading) return <LoadingScreen />;
+  if (error) return <div>Erro ao carregar dados do dashboard</div>;
+  if (!dashboardData) return null;
+
   const columns = [
-    { key: 'petName', header: 'Pet Name' },
-    { key: 'species', header: 'Species' },
-    { key: 'breed', header: 'Breed' },
-    { key: 'age', header: 'Age', render: (value) => `${value} years` },
-    { key: 'owner', header: 'Owner' },
-    { key: 'lastVisit', header: 'Last Visit' },
+    { key: 'name', header: 'Nome do Pet' },
+    { key: 'species', header: 'Espécie' },
+    { key: 'breed', header: 'Raça' },
+    { 
+      key: 'birthDate', 
+      header: 'Idade',
+      render: (date) => {
+        const years = date ? Math.floor((new Date() - new Date(date)) / (1000 * 60 * 60 * 24 * 365)) : 0;
+        return `${years} anos`;
+      }
+    },
+    { key: 'ownerName', header: 'Tutor' },
+    { 
+      key: 'lastVisit', 
+      header: 'Última Visita',
+      render: (date) => date ? formatDate(date) : 'N/A'
+    },
     { 
       key: 'status', 
       header: 'Status',
-      render: (value, row) => {
+      render: (value) => {
         const statusColors = {
-          'Healthy': 'text-green-500',
-          'Recovering': 'text-yellow-500',
-          'Treatment': 'text-blue-500',
-          'Critical': 'text-red-500'
+          'healthy': 'text-green-500',
+          'recovering': 'text-yellow-500',
+          'treatment': 'text-blue-500',
+          'critical': 'text-red-500'
         };
-        return <span className={`font-medium ${statusColors[value] || ''}`}>{value}</span>;
+        const statusText = {
+          'healthy': 'Saudável',
+          'recovering': 'Em Recuperação',
+          'treatment': 'Em Tratamento',
+          'critical': 'Crítico'
+        };
+        return <span className={`font-medium ${statusColors[value] || ''}`}>
+          {statusText[value] || value}
+        </span>;
       }
-    },
-    { key: 'nextAppointment', header: 'Next Appointment' },
+    }
   ];
 
-  // Sample veterinary data
-  const petData = [
-    { id: 1, petName: 'Max', species: 'Dog', breed: 'Labrador', age: 5, owner: 'John Smith', lastVisit: '2025-03-01', status: 'Healthy', nextAppointment: '2025-06-01' },
-    { id: 2, petName: 'Luna', species: 'Cat', breed: 'Siamese', age: 3, owner: 'Emily Johnson', lastVisit: '2025-02-15', status: 'Recovering', nextAppointment: '2025-03-20' },
-    { id: 3, petName: 'Charlie', species: 'Dog', breed: 'Beagle', age: 7, owner: 'Michael Brown', lastVisit: '2025-03-05', status: 'Treatment', nextAppointment: '2025-03-19' },
-    { id: 4, petName: 'Bella', species: 'Cat', breed: 'Persian', age: 4, owner: 'Sarah Wilson', lastVisit: '2025-02-28', status: 'Healthy', nextAppointment: '2025-05-28' },
-    { id: 5, petName: 'Rocky', species: 'Dog', breed: 'German Shepherd', age: 6, owner: 'David Lee', lastVisit: '2025-03-10', status: 'Critical', nextAppointment: '2025-03-15' },
-  ];
+  const handleConsultationClick = () => {
+    setShowDevMessage(true);
+    setTimeout(() => setShowDevMessage(false), 3000);
+  };
 
   return (
     <div className="container mx-auto p-4">
+      {/* Development Message Toast */}
+      {showDevMessage && (
+        <div className="fixed bottom-4 right-4 bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg shadow-lg z-20">
+          🚧 Sistema de consultas em desenvolvimento
+        </div>
+      )}
+
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Veterinary Practice Dashboard</h1>
+        <h1 className="text-3xl font-bold mb-2">Dashboard Veterinário</h1>
         <p className="text-gray-600 mb-6">
-          Monitor patient status, upcoming appointments, and critical cases at a glance. 
-          This dashboard provides essential information for veterinary staff to prioritize care and follow up with patients.
+          Monitore seus pacientes, consultas e casos críticos.
         </p>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4">
+          <h2 className="text-lg font-semibold mb-2">Pacientes Totais</h2>
+          <div className="text-blue-500 font-medium text-2xl">
+            {dashboardData.totalPets}
+          </div>
+          <p className="text-gray-500">Pets cadastrados</p>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-4">
+          <h2 className="text-lg font-semibold mb-2">Consultas Hoje</h2>
+          <div className="text-blue-500 font-medium text-2xl">
+            {dashboardData.todayAppointments.length}
+          </div>
+          <p className="text-gray-500">Agendadas para hoje</p>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-4">
+          <h2 className="text-lg font-semibold mb-2">Casos Críticos</h2>
+          <div className="text-red-500 font-medium text-2xl">
+            {dashboardData.criticalCases}
+          </div>
+          <p className="text-gray-500">Necessitam atenção</p>
+        </div>
+      </div>
+
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Patient Overview</h2>
+        <h2 className="text-xl font-semibold mb-4">Pacientes Recentes</h2>
         <Table 
           columns={columns} 
-          data={petData} 
+          data={dashboardData.recentPets} 
           rowKey="id" 
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-lg font-semibold mb-2">Critical Cases</h2>
-          <div className="text-red-500 font-medium">
-            {petData.filter(pet => pet.status === 'Critical').length} patients
+      {dashboardData.todayAppointments.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 relative">
+          <div className="absolute inset-0 bg-gray-50/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+            <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-lg text-sm">
+              🚧 Em desenvolvimento
+            </span>
           </div>
-          <p className="text-gray-500">Requiring immediate attention</p>
+          <h2 className="text-xl font-semibold mb-4">Consultas de Hoje</h2>
+          <div className="space-y-4">
+            {dashboardData.todayAppointments.map(appointment => (
+              <div 
+                key={appointment.id} 
+                className="flex items-center justify-between border-b pb-4 cursor-pointer hover:bg-gray-50 transition-colors p-2 rounded"
+                onClick={handleConsultationClick}
+              >
+                <div>
+                  <h3 className="font-medium">{appointment.petName}</h3>
+                  <p className="text-gray-500">{formatDate(appointment.date)}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-sm ${
+                  appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                  appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {appointment.status === 'scheduled' ? 'Agendada' :
+                   appointment.status === 'completed' ? 'Concluída' :
+                   'Cancelada'}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-lg font-semibold mb-2">Today's Appointments</h2>
-          <div className="text-blue-500 font-medium">3 appointments</div>
-          <p className="text-gray-500">Scheduled for today</p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-lg font-semibold mb-2">Follow-ups Needed</h2>
-          <div className="text-yellow-500 font-medium">2 patients</div>
-          <p className="text-gray-500">Require follow-up calls</p>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
 
-export default VeterinaryDashboard;
+export default Dashboard;

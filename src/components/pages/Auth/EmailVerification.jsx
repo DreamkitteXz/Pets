@@ -38,9 +38,9 @@ const EmailVerification = () => {
     try {
       const user = auth.currentUser;
       await sendEmailVerification(user);
-      setError('Verification email sent! Please check your inbox.');
+      setError('E-mail de verificação enviado! Por favor, verifique sua caixa de entrada.');
     } catch (error) {
-      setError('Error sending verification email: ' + error.message);
+      setError('Erro ao enviar e-mail de verificação: ' + error.message);
     }
   };
 
@@ -56,25 +56,25 @@ const EmailVerification = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-100 to-teal-50">
       <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-teal-600 mb-4">Email Verification</h2>
+          <h2 className="text-3xl font-bold text-teal-600 mb-4">Verificação de E-mail</h2>
           <div className="mb-6">
             {!isVerified ? (
               <>
                 <p className="text-gray-600 mb-4">
-                  Please verify your email address to continue. Check your inbox for a verification link.
+                  Por favor, verifique seu endereço de e-mail para continuar. Verifique sua caixa de entrada para o link de verificação.
                 </p>
                 <button
                   onClick={handleResendEmail}
                   className="bg-teal-500 text-white px-6 py-2 rounded-md hover:bg-teal-600 transition duration-150"
                 >
-                  Resend Verification Email
+                  Reenviar E-mail de Verificação
                 </button>
               </>
             ) : (
-              <p className="text-green-600">Email verified! Redirecting...</p>
+              <p className="text-green-600">E-mail verificado! Redirecionando...</p>
             )}
             {error && (
-              <p className={`mt-4 text-sm ${error.includes('sent') ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`mt-4 text-sm ${error.includes('enviado') ? 'text-green-600' : 'text-red-600'}`}>
                 {error}
               </p>
             )}

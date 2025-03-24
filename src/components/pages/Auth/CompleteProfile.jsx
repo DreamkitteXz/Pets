@@ -24,7 +24,8 @@ const CompleteProfile = () => {
       city: '',
       state: '',
       zipCode: ''
-    }
+    },
+    phone: ''  // Add phone field
   });
   
   const [loading, setLoading] = useState(false);
@@ -35,9 +36,9 @@ const CompleteProfile = () => {
   const [step, setStep] = useState(1);
   
   const specialtyOptions = [
-    'Small Animals', 'Large Animals', 'Exotic Pets', 'Birds', 
-    'Dermatology', 'Cardiology', 'Neurology', 'Orthopedics',
-    'Surgery', 'Internal Medicine', 'Emergency Care', 'Oncology'
+    'Pequenos Animais', 'Grandes Animais', 'Pets Exóticos', 'Aves', 
+    'Dermatologia', 'Cardiologia', 'Neurologia', 'Ortopedia',
+    'Cirurgia', 'Emergência', 'Oncologia', 'Acupuntura Integrativa'
   ];
 
   const handleCEPLookup = async (cep) => {
@@ -53,10 +54,10 @@ const CompleteProfile = () => {
           ...addressData
         }
       }));
-      setSuccess('Address found successfully!');
+      setSuccess('Endereço encontrado com sucesso!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      setError('Error looking up address');
+      setError('Erro ao buscar endereço');
       setTimeout(() => setError(''), 3000);
     } finally {
       setIsAddressLookupLoading(false);
@@ -67,19 +68,19 @@ const CompleteProfile = () => {
     const errors = {};
     
     if (!validateCPF(formData.cpf)) {
-      errors.cpf = 'Invalid CPF';
+      errors.cpf = 'CPF inválido';
     }
     
     if (!validateCRMV(formData.crmv)) {
-      errors.crmv = 'Invalid CRMV format (CRMV-XX 12345)';
+      errors.crmv = 'Formato de CRMV inválido (CRMV-XX 12345)';
     }
     
     if (!formData.address.zipCode) {
-      errors.zipCode = 'ZIP Code is required';
+      errors.zipCode = 'CEP é obrigatório';
     }
     
     if (formData.specialties.length === 0) {
-      errors.specialties = 'Please select at least one specialty';
+      errors.specialties = 'Selecione pelo menos uma especialidade';
     }
 
     setValidationErrors(errors);
@@ -142,12 +143,12 @@ const CompleteProfile = () => {
   const handleNextStep = () => {
     if (step === 1) {
       if (!formData.fullName || !formData.cpf || !formData.crmv || formData.specialties.length === 0) {
-        setError('Please fill in all required fields to continue');
+        setError('Por favor, preencha todos os campos obrigatórios para continuar');
         setTimeout(() => setError(''), 3000);
         return;
       }
       if (validationErrors.cpf || validationErrors.crmv) {
-        setError('Please correct the validation errors before continuing');
+        setError('Por favor, corrija os erros de validação antes de continuar');
         setTimeout(() => setError(''), 3000);
         return;
       }
@@ -173,13 +174,14 @@ const CompleteProfile = () => {
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         ...formData,
+        role: 'veterinarian',
         updatedAt: new Date().toISOString(),
         status: 'active',
         profileCompleted: true
       });
 
       setSuccess('Profile completed successfully! Redirecting to dashboard...');
-      setTimeout(() => navigate('/dashboard'), 2000);
+      setTimeout(() => navigate('/'), 2000);
     } catch (error) {
       setError(error.message);
       setTimeout(() => setError(''), 3000);
@@ -195,7 +197,7 @@ const CompleteProfile = () => {
           <div className={`rounded-full transition duration-500 ease-in-out h-12 w-12 flex items-center justify-center py-3 border-2 ${step >= 1 ? 'border-teal-600 bg-teal-100' : 'border-gray-300'}`}>
             <User size={24} />
           </div>
-          <div className="text-center text-xs mt-2">Professional Info</div>
+          <div className="text-center text-xs mt-2">Informações Profissionais</div>
         </div>
         
         <div className={`flex-auto border-t-2 transition duration-500 ease-in-out ${step >= 2 ? 'border-teal-600' : 'border-gray-300'}`}></div>
@@ -204,24 +206,20 @@ const CompleteProfile = () => {
           <div className={`rounded-full transition duration-500 ease-in-out h-12 w-12 flex items-center justify-center py-3 border-2 ${step >= 2 ? 'border-teal-600 bg-teal-100' : 'border-gray-300'}`}>
             <MapPin size={24} />
           </div>
-          <div className="text-center text-xs mt-2">Address</div>
+          <div className="text-center text-xs mt-2">Endereço</div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen py-8 px-4 bg-gradient-to-r from-blue-100 to-teal-50">
-      <div className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-xl">
-        <div className="flex items-center justify-center mb-4">
-          <Stethoscope size={32} className="text-teal-600 mr-2" />
-          <h2 className="text-3xl font-bold text-center text-teal-600">Complete Your Vet Profile</h2>
+    <div className="min-h-screen py-8 px-4 bg-gray-50">
+      <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <div className="flex items-center justify-center mb-6">
+          <Stethoscope size={32} className="text-blue-600 mr-2" />
+          <h2 className="text-3xl font-bold text-gray-800">Complete Seu Perfil Veterinário</h2>
         </div>
-        
-        <p className="text-center text-gray-600 mb-8">
-          Help pet owners find the best care by sharing your expertise and information
-        </p>
-        
+
         {renderStepIndicator()}
         
         {success && (
@@ -237,27 +235,49 @@ const CompleteProfile = () => {
             {error}
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {step === 1 && (
-            <>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="space-y-6">
+              <div className="flex items-center space-x-6 mb-6">
+                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                  <span className="text-3xl text-gray-500">
+                    {formData.fullName.split(' ').map(n => n[0]).join('')}
+                  </span>
+                </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Full Name <span className="text-red-500">*</span></label>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User size={16} className="text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500"
-                      placeholder="Dr. Jane Smith"
-                      required
-                    />
-                  </div>
+                  <button type="button" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Enviar Foto
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Nome Completo <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    name="fullName" 
+                    value={formData.fullName} 
+                    onChange={handleChange}
+                    className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Telefone <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="tel" 
+                    name="phone" 
+                    value={formData.phone} 
+                    onChange={handleChange}
+                    placeholder="(00) 00000-0000"
+                    className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
                 </div>
 
                 <div>
@@ -312,24 +332,10 @@ const CompleteProfile = () => {
                     </div>
                   )}
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Years of Experience</label>
-                  <input
-                    type="number"
-                    name="yearsOfExperience"
-                    value={formData.yearsOfExperience}
-                    onChange={handleChange}
-                    min="0"
-                    max="70"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500"
-                    placeholder="e.g. 5"
-                  />
-                </div>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Specialties <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Especialidades <span className="text-red-500">*</span></label>
                 {validationErrors.specialties && (
                   <div className="text-red-600 text-sm mb-2 flex items-center">
                     <AlertCircle size={14} className="mr-1" />
@@ -358,13 +364,13 @@ const CompleteProfile = () => {
                   ))}
                 </div>
               </div>
-            </>
+            </div>
           )}
 
           {step === 2 && (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700">ZIP Code <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700">CEP <span className="text-red-500">*</span></label>
                 <div className="mt-1 relative rounded-md shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <MapPin size={16} className="text-gray-400" />
@@ -387,7 +393,7 @@ const CompleteProfile = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Street <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700">Rua <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="address.street"
@@ -399,7 +405,7 @@ const CompleteProfile = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Number <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700">Número <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="address.number"
@@ -411,7 +417,7 @@ const CompleteProfile = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Complement</label>
+                <label className="block text-sm font-medium text-gray-700">Complemento</label>
                 <input
                   type="text"
                   name="address.complement"
@@ -422,7 +428,7 @@ const CompleteProfile = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Neighborhood <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700">Bairro <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="address.neighborhood"
@@ -434,7 +440,7 @@ const CompleteProfile = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">City <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700">Cidade <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="address.city"
@@ -446,7 +452,7 @@ const CompleteProfile = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">State <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700">Estado <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="address.state"
@@ -467,7 +473,7 @@ const CompleteProfile = () => {
                 onClick={handlePrevStep}
                 className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
               >
-                Previous
+                Anterior
               </button>
             )}
             
@@ -477,7 +483,7 @@ const CompleteProfile = () => {
                 onClick={handleNextStep}
                 className="ml-auto px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
               >
-                Next
+                Próximo
               </button>
             ) : (
               <button
@@ -487,7 +493,7 @@ const CompleteProfile = () => {
                   loading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
-                {loading ? 'Saving...' : 'Complete Profile'}
+                {loading ? 'Salvando...' : 'Completar Perfil'}
               </button>
             )}
           </div>

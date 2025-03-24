@@ -15,6 +15,19 @@ const VaccinePage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    // Handle string dates
+    if (typeof date === 'string') return date;
+    // Handle Firestore Timestamp
+    if (date?.toDate instanceof Function) return date.toDate().toLocaleDateString();
+    // Handle regular Date objects
+    if (date instanceof Date) return date.toLocaleDateString();
+    // Handle Timestamp-like objects
+    if (date?.seconds) return new Date(date.seconds * 1000).toLocaleDateString();
+    return 'Invalid Date';
+  };
+
   const filteredVaccines = vaccines
     .filter(vaccine => {
       const isStatusMatch = filterStatus === 'all' || vaccine.status === filterStatus;
@@ -228,16 +241,17 @@ const VaccinePage = () => {
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">{vaccine.id}</div>
                         <div className="text-sm text-gray-500">
-                          {new Date(vaccine.administrationDate?.toDate()).toLocaleDateString()}
+                          {formatDate(vaccine.administrationDate)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">{vaccine.petName}</div>
                         <div className="text-sm text-gray-500">{vaccine.ownerName}</div>
+                        {console.log('Pet Name:', vaccine.petName, 'Owner Name:', vaccine.ownerName)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">{vaccine.name}</div>
-                        <div className="text-sm text-gray-500">Batch: {vaccine.batchNumber}</div>
+                        <div className="text-sm text-gray-500">Lote: {vaccine.batchNumber}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">{vaccine.crmvNumber}</div>
@@ -255,18 +269,6 @@ const VaccinePage = () => {
                           onClick={() => handleViewDetails(vaccine)}
                         >
                           Ver Detalhes
-                        </button>
-                        <button 
-                          className="text-gray-600 hover:text-gray-900 font-medium text-sm mr-3"
-                          onClick={() => handleEditClick(vaccine)}
-                        >
-                          Editar
-                        </button>
-                        <button 
-                          className="text-red-600 hover:text-red-900 font-medium text-sm"
-                          onClick={() => handleDeleteClick(vaccine)}
-                        >
-                          Excluir
                         </button>
                       </td>
                     </tr>

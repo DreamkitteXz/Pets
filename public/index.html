@@ -1,11 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Sistema de gerenciamento de vacinas para pets" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <title>Pet Manager</title>
+
+    <!-- Firebase SDKs -->
+    <script defer src="/__/firebase/10.7.2/firebase-app-compat.js"></script>
+    <script defer src="/__/firebase/10.7.2/firebase-auth-compat.js"></script>
+    <script defer src="/__/firebase/10.7.2/firebase-firestore-compat.js"></script>
+    <script defer src="/__/firebase/10.7.2/firebase-storage-compat.js"></script>
+    <script defer src="/__/firebase/10.7.2/firebase-analytics-compat.js"></script>
+    <script defer src="/__/firebase/init.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        try {
+          let app = firebase.app();
+          let features = ['auth', 'firestore', 'storage', 'analytics'];
+          app.features = features;
+        } catch (e) {
+          console.error(e);
+          document.getElementById('root-loading').innerHTML = 
+            '<p class="error">Error loading Firebase SDK. Check the console for details.</p>';
+        }
+      });
+    </script>
+
+    <style>
+      #root-loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100vw;
+        background-color: #f9fafb;
+      }
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root">
+      <div id="root-loading">
+        <div class="loading-spinner"></div>
+      </div>
+    </div>
   </body>
 </html>

@@ -2,7 +2,7 @@
   "name": "crud-app",
   "version": "3.3.0",
   "private": true,
-  "homepage": "https://safdarjamal.github.io/crud-app/",
+  "homepage": "https://pet-app-fccae.web.app",
   "author": {
     "name": "Safdar Jamal",
     "url": "https://safdarjamal.github.io"
@@ -29,7 +29,8 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "deploy": "react-scripts build && firebase deploy --only hosting",
+    "firebase-init": "firebase init"
   },
   "eslintConfig": {
     "extends": [

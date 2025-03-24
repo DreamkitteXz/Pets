@@ -1,104 +1,159 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { DASHBOARD_SIDEBAR_BOTTOM_LINKS, DASHBOARD_SIDEBAR_LINKS } from "../../../lib/consts/navigation";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { auth, db } from "../../../config/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
 import classNames from "classnames";
 import { IoIosLogOut } from "react-icons/io";
+import LogoWhite from "../../../assets/logo_white";
+import LogoutModal from "../LogoutModal/LogoutModal";
 
 export default function SideBar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          setCurrentUser(userDoc.data());
+        }
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    try {
+      await signOut(auth);
+      navigate("/auth");
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    } finally {
+      setShowLogoutModal(false);
+    }
+  };
 
   return (
-    <div 
-      className={`bg-gradient-to-b from-[#1a1a1a] to-[#252525] p-4 flex flex-col text-white transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'} border-r border-neutral-800 shadow-lg overflow-y-auto`}
-    >
-      {/* Logo and collapse button */}
-      <div className="flex items-center justify-between mb-8 px-1">
-        {!isCollapsed && (
-          <div className="flex items-center gap-3">
-            <div className="bg-yellow-500 h-8 w-8 rounded-lg flex items-center justify-center text-black font-bold text-lg shadow-md">
+    <>
+      <div 
+        className={`bg-gradient-to-b from-[#1a1a1a] to-[#252525] p-4 flex flex-col text-white transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'} border-r border-neutral-800 shadow-lg overflow-y-auto`}
+      >
+        {/* Logo and collapse button */}
+        <div className="flex items-center justify-between mb-8 px-1">
+          {!isCollapsed ? (
+            <LogoWhite />
+          ) : (
+            <div className="bg-yellow-500 h-10 w-10 rounded-lg flex items-center justify-center text-black font-bold text-xl mx-auto shadow-md">
               V
             </div>
-            <span className="text-white text-xl font-medium">VetCare</span>
-          </div>
-        )}
-        {isCollapsed && (
-          <div className="bg-yellow-500 h-10 w-10 rounded-lg flex items-center justify-center text-black font-bold text-xl mx-auto shadow-md">
-            V
-          </div>
-        )}
-        <button 
-          onClick={() => setIsCollapsed(!isCollapsed)} 
-          className={`text-neutral-400 hover:text-white transition-colors ${isCollapsed ? 'mx-auto mt-4' : ''}`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Navigation Links */}
-      <div className="flex-1 py-2 space-y-1">
-        {DASHBOARD_SIDEBAR_LINKS.map((item) => (
-          <SideBarLink 
-            key={item.key} 
-            item={item} 
-            isCollapsed={isCollapsed} 
-            hoveredItem={hoveredItem}
-            setHoveredItem={setHoveredItem}
-          />
-        ))}
-      </div>
-
-      {/* Bottom Section */}
-      <div className="space-y-1 pt-4 border-t border-neutral-700">
-        {DASHBOARD_SIDEBAR_BOTTOM_LINKS.map((item) => (
-          <SideBarLink 
-            key={item.key} 
-            item={item} 
-            isCollapsed={isCollapsed}
-            hoveredItem={hoveredItem}
-            setHoveredItem={setHoveredItem}
-          />
-        ))}
-        
-        {/* Logout Button */}
-        <div 
-          className={classNames(
-            'flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-all duration-200 text-red-400 hover:bg-red-400/10 hover:text-red-300 mt-4',
-            isCollapsed ? 'justify-center' : ''
           )}
-          onMouseEnter={() => setHoveredItem('logout')}
-          onMouseLeave={() => setHoveredItem(null)}
-        >
-          <div className={classNames(
-            'relative text-xl flex items-center justify-center w-8 h-8 rounded-lg',
-            hoveredItem === 'logout' ? 'animate-pulse' : ''
-          )}>
-            <IoIosLogOut />
-          </div>
-          {!isCollapsed && <span>Logout</span>}
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)} 
+            className={`text-neutral-400 hover:text-white transition-colors ${isCollapsed ? 'mx-auto mt-4' : ''}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </button>
         </div>
-      </div>
 
-      {/* User Profile Section */}
-      <div className="mt-auto pt-4 border-t border-neutral-700">
-        <div className={classNames(
-          'flex items-center gap-3 p-3 rounded-xl hover:bg-neutral-700/50 transition-all cursor-pointer',
-          isCollapsed ? 'justify-center' : ''
-        )}>
-          <div className="bg-blue-100 text-blue-600 h-10 w-10 rounded-full flex items-center justify-center font-medium text-sm">
-            SW
-          </div>
-          {!isCollapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">Dra. Sarah Wilson</span>
-              <span className="text-xs text-neutral-400">Veterinária Chefe</span>
+        {/* Navigation Links */}
+        <div className="flex-1 py-2 space-y-1">
+          {DASHBOARD_SIDEBAR_LINKS.map((item) => (
+            <SideBarLink 
+              key={item.key} 
+              item={item} 
+              isCollapsed={isCollapsed} 
+              hoveredItem={hoveredItem}
+              setHoveredItem={setHoveredItem}
+            />
+          ))}
+        </div>
+
+        {/* Bottom Section */}
+        <div className="space-y-1 pt-4 border-t border-neutral-700">
+          {DASHBOARD_SIDEBAR_BOTTOM_LINKS.map((item) => (
+            <SideBarLink 
+              key={item.key} 
+              item={item} 
+              isCollapsed={isCollapsed}
+              hoveredItem={hoveredItem}
+              setHoveredItem={setHoveredItem}
+            />
+          ))}
+          
+          {/* Updated Logout Button */}
+          <div 
+            className={classNames(
+              'flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-all duration-200 text-red-400 hover:bg-red-400/10 hover:text-red-300 mt-4',
+              isCollapsed ? 'justify-center' : ''
+            )}
+            onClick={handleLogoutClick}
+            onMouseEnter={() => setHoveredItem('logout')}
+            onMouseLeave={() => setHoveredItem(null)}
+          >
+            <div className={classNames(
+              'relative text-xl flex items-center justify-center w-8 h-8 rounded-lg',
+              hoveredItem === 'logout' ? 'animate-pulse' : ''
+            )}>
+              <IoIosLogOut />
             </div>
-          )}
+            {!isCollapsed && <span>Sair</span>}
+          </div>
         </div>
+
+        {/* Updated User Profile Section */}
+        {!loading && currentUser && (
+          <div className="mt-auto pt-4 border-t border-neutral-700">
+            <div className={classNames(
+              'flex items-center gap-3 p-3 rounded-xl hover:bg-neutral-700/50 transition-all cursor-pointer',
+              isCollapsed ? 'justify-center' : ''
+            )}>
+              <div className="bg-yellow-100 text-yellow-600 h-10 w-10 rounded-full flex items-center justify-center font-medium text-sm">
+                {currentUser.profileImage ? (
+                  <img 
+                    src={currentUser.profileImage} 
+                    alt={currentUser.name} 
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                ) : (
+                  currentUser.name?.charAt(0).toUpperCase()
+                )}
+              </div>
+              {!isCollapsed && (
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{currentUser.name}</span>
+                  <span className="text-xs text-neutral-400">
+                    {currentUser.role === 'veterinarian' 
+                      ? `CRMV: ${currentUser.crmv}` 
+                      : 'Tutor'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+
+      <LogoutModal 
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleLogoutConfirm}
+      />
+    </>
   );
 }
 
