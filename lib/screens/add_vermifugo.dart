@@ -7,6 +7,10 @@ import 'package:percent_indicator/percent_indicator.dart';
 import 'package:pet_app/screens/components/snackbar.dart';
 import 'package:pet_app/firebase/schema.dart';
 import 'package:pet_app/controllers/data_picker.dart';
+import 'deworming_steps/vermifugo_basic_info_step.dart';
+import 'deworming_steps/vermifugo_dates_step.dart';
+import 'deworming_steps/vermifugo_observations_step.dart';
+import 'deworming_steps/vermifugo_veterinarian_step.dart';
 
 class AddVermifugoPage extends StatefulWidget {
   final String? petId;
@@ -141,6 +145,28 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
         'ownerId': petData['ownerId'],
         'ownerName': petData['ownerName'],
 
+        // Veterinarian information
+        'veterinarianId': selectedVetId,
+        'veterinarianName': veterinarians.firstWhere(
+          (vet) => vet['id'] == selectedVetId,
+          orElse: () => {'name': null},
+        )['name'],
+        'crmvNumber': veterinarians.firstWhere(
+          (vet) => vet['id'] == selectedVetId,
+          orElse: () => {'crmv': null},
+        )['crmv'],
+
+        // Clinic information
+        'clinicId': selectedClinicId,
+        'clinicName': clinics.firstWhere(
+          (clinic) => clinic['id'] == selectedClinicId,
+          orElse: () => {'name': null},
+        )['name'],
+        'clinicAddress': clinics.firstWhere(
+          (clinic) => clinic['id'] == selectedClinicId,
+          orElse: () => {'address': null},
+        )['address'],
+
         // Status and tracking
         'status': DewormingStatus.active.name,
         'effectivenessNotes': effectivenessNotesController.text,
@@ -191,138 +217,63 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
     return [
       Step(
         title: const Text('Informações Básicas'),
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Informações do Vermífugo',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF041A23),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: vermifugoController,
-              decoration: InputDecoration(
-                labelText: 'Nome do Vermífugo',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              validator: (value) =>
-                  value?.isEmpty ?? true ? 'Campo obrigatório' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: pesoController,
-              decoration: InputDecoration(
-                labelText: 'Peso do Pet',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              validator: (value) =>
-                  value?.isEmpty ?? true ? 'Campo obrigatório' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: manufacturerController,
-              decoration: InputDecoration(
-                labelText: 'Fabricante',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: dosageController,
-              decoration: InputDecoration(
-                labelText: 'Dosagem',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
+        content: VermifugoBasicInfoStep(
+          vermifugoController: vermifugoController,
+          pesoController: pesoController,
+          manufacturerController: manufacturerController,
+          dosageController: dosageController,
         ),
         isActive: _currentStep >= 0,
         state: _currentStep > 0 ? StepState.complete : StepState.indexed,
       ),
       Step(
-        title: const Text('Datas'),
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Datas de Aplicação',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF041A23),
-              ),
-            ),
-            const SizedBox(height: 16),
-            DatePickerInput(
-              inputTitle: 'Data da Primeira Dose',
-              controller: primeiraDoseController,
-              validator: (value) =>
-                  value?.isEmpty ?? true ? 'Campo obrigatório' : null,
-            ),
-            const SizedBox(height: 16),
-            CheckboxListTile(
-              title: const Text('Dose de Reforço'),
-              value: _mostrarReforco,
-              onChanged: (bool? value) {
-                setState(() {
-                  _mostrarReforco = value ?? false;
-                });
-              },
-            ),
-            if (_mostrarReforco) ...[
-              const SizedBox(height: 16),
-              DatePickerInput(
-                inputTitle: 'Data da Dose de Reforço',
-                controller: segundaDoseController,
-                isFutureDateOnly: true,
-              ),
-            ],
-          ],
+        title: const Text('Veterinário'),
+        content: VermifugoVeterinarianStep(
+          selectedVetId: selectedVetId,
+          nameController: TextEditingController(
+            text: veterinarians.firstWhere(
+              (vet) => vet['id'] == selectedVetId,
+              orElse: () => {'name': ''},
+            )['name'],
+          ),
+          crmvController: TextEditingController(
+            text: veterinarians.firstWhere(
+              (vet) => vet['id'] == selectedVetId,
+              orElse: () => {'crmv': ''},
+            )['crmv'],
+          ),
+          veterinarians: veterinarians,
+          onVetSelected: (vetId) {
+            setState(() {
+              selectedVetId = vetId;
+            });
+          },
         ),
         isActive: _currentStep >= 1,
         state: _currentStep > 1 ? StepState.complete : StepState.indexed,
       ),
       Step(
-        title: const Text('Observações'),
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextFormField(
-              controller: effectivenessNotesController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Notas de Efetividade',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: observationsController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Observações Gerais',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
+        title: const Text('Datas'),
+        content: VermifugoDatesStep(
+          primeiraDoseController: primeiraDoseController,
+          segundaDoseController: segundaDoseController,
+          mostrarReforco: _mostrarReforco,
+          onReforcoChanged: (value) {
+            setState(() {
+              _mostrarReforco = value;
+            });
+          },
         ),
         isActive: _currentStep >= 2,
+        state: _currentStep > 2 ? StepState.complete : StepState.indexed,
+      ),
+      Step(
+        title: const Text('Observações'),
+        content: VermifugoObservationsStep(
+          effectivenessNotesController: effectivenessNotesController,
+          observationsController: observationsController,
+        ),
+        isActive: _currentStep >= 3,
       ),
     ];
   }

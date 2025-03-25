@@ -100,50 +100,42 @@ class PetInformation extends StatelessWidget {
                       InfoCard(
                         pet: pet.name ?? 'Desconhecido',
                         label: 'Nome',
-                        iconPath:
-                            'lib/mvc_implementation/screens/assets/pata.png',
+                        iconPath: Icons.pets,
                       ),
                       InfoCard(
                         pet: pet.color ?? 'Desconhecido',
                         label: 'Cor',
-                        iconPath:
-                            'lib/mvc_implementation/screens/assets/color.png',
+                        iconPath: Icons.color_lens,
                       ),
                       InfoCard(
                         pet: pet.breed ?? 'Desconhecido',
                         label: 'Raça',
-                        iconPath:
-                            'lib/mvc_implementation/screens/assets/raca.png',
+                        iconPath: Icons.pets,
                       ),
                       InfoCard(
                           pet: pet.species ?? 'Desconhecido',
                           label: 'Espécie',
-                          iconPath:
-                              'lib/mvc_implementation/screens/assets/tipo.png'),
+                          iconPath: Icons.category),
                       InfoCard(
                         pet: pet.gender ?? 'Desconhecido',
                         label: 'Sexo',
-                        iconPath:
-                            'lib/mvc_implementation/screens/assets/sexo.png',
+                        iconPath: Icons.transgender,
                       ),
                       InfoCard(
                         pet: pet.isNeutered ?? false ? 'Sim' : 'Não',
                         label: 'Castrado',
-                        iconPath:
-                            'lib/mvc_implementation/screens/assets/sexo.png',
+                        iconPath: Icons.check_circle,
                       ),
                       InfoCard(
                         pet: pet.chipNumber ?? 'Não registrado',
                         label: 'Número do Chip',
-                        iconPath:
-                            'lib/mvc_implementation/screens/assets/pata.png',
+                        iconPath: Icons.confirmation_number,
                       ),
                       if (pet.birthDate != null)
                         InfoCard(
                           pet: DateFormat('dd/MM/yyyy').format(pet.birthDate!),
                           label: 'Data de Nascimento',
-                          iconPath:
-                              'lib/mvc_implementation/screens/assets/calendar.png',
+                          iconPath: Icons.calendar_today,
                         ),
                     ],
                   ),
@@ -174,15 +166,13 @@ class Card extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (cardTitle == 'Vacinas') {
-          print("Card onTap - Pet ID: ${pet.id}"); // Add this debug print
-          print("Full pet object: $pet"); // Add this to see all pet data
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => VacinasPage(pet: pet),
             ),
           );
-        } else if (cardTitle == 'Vermifugos') {
+        } else if (cardTitle == 'Vermífugos') {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -244,7 +234,7 @@ class Card extends StatelessWidget {
 
 class InfoCard extends StatelessWidget {
   String label;
-  String iconPath;
+  IconData iconPath; // Changed from String to IconData
   String pet;
   InfoCard(
       {super.key,
@@ -310,7 +300,11 @@ class InfoCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.pets),
+              Icon(
+                iconPath,
+                color: Colors.black,
+                size: 24,
+              ),
             ],
           ),
         ),
