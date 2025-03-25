@@ -40,7 +40,7 @@ class VacinasPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Pet ID not found'),
+              const Text('ID do Pet não encontrado'),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
@@ -94,14 +94,14 @@ class VacinasPage extends StatelessWidget {
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Error opening PDF: $e'),
+                        content: Text('Erro ao abrir PDF: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 },
                 child: SvgPicture.asset(
-                  'lib/mvc_implementation/screens/assets/docs.svg',
+                  'lib/screens/assets/docs.svg',
                   width: 25,
                   height: 25,
                 ),
@@ -281,7 +281,7 @@ class CardVacinas extends StatelessWidget {
                             children: [
                               Text(
                                 model.name ??
-                                    'Unknown Vaccine', // Changed from model.vacina
+                                    'Vacina Desconhecida', // Changed from model.vacina
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -290,7 +290,7 @@ class CardVacinas extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Lote: ${model.batchNumber ?? 'N/A'}',
+                                'Lote: ${model.batchNumber ?? 'N/D'}',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   color: Color(0xFF707070),
@@ -308,19 +308,29 @@ class CardVacinas extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: model.status == 'approved'
                           ? Colors.green.withOpacity(0.1)
-                          : model.status == 'rejected'
+                          : model.status == 'rejected' ||
+                                  model.status == 'vetRejected' ||
+                                  model.status == 'tutorRejected'
                               ? Colors.red.withOpacity(0.1)
-                              : Colors.orange.withOpacity(0.1),
+                              : model.status == 'vetApproved' ||
+                                      model.status == 'tutorApproved'
+                                  ? Colors.orange.withOpacity(0.1)
+                                  : Colors.grey.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      model.status?.toUpperCase() ?? 'PENDING',
+                      _getStatusText(model.status ?? 'pending'),
                       style: TextStyle(
                         color: model.status == 'approved'
                             ? Colors.green
-                            : model.status == 'rejected'
+                            : model.status == 'rejected' ||
+                                    model.status == 'vetRejected' ||
+                                    model.status == 'tutorRejected'
                                 ? Colors.red
-                                : Colors.orange,
+                                : model.status == 'vetApproved' ||
+                                        model.status == 'tutorApproved'
+                                    ? Colors.orange
+                                    : Colors.grey,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -373,6 +383,24 @@ class CardVacinas extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'approved':
+        return 'APROVADO';
+      case 'vetApproved':
+        return 'APROVADO VET';
+      case 'tutorApproved':
+        return 'APROVADO TUTOR';
+      case 'rejected':
+      case 'vetRejected':
+      case 'tutorRejected':
+        return 'REJEITADO';
+      case 'pending':
+      default:
+        return 'PENDENTE';
+    }
   }
 }
 

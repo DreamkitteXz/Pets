@@ -82,7 +82,7 @@ class SnackBarError extends StatelessWidget {
             borderRadius:
                 const BorderRadius.only(bottomLeft: Radius.circular(20)),
             child: SvgPicture.asset(
-              "lib/mvc_implementation/screens/assets/bubbles_snack_bar.svg",
+              "lib/screens/assets/bubbles_snack_bar.svg",
               height: 48,
               width: 40,
               color: const Color(0xFF801336),
@@ -96,13 +96,13 @@ class SnackBarError extends StatelessWidget {
             padding: const EdgeInsets.all(8.0),
             child: Stack(alignment: Alignment.center, children: [
               SvgPicture.asset(
-                "lib/mvc_implementation/screens/assets/fail_snack_bar.svg",
+                "lib/screens/assets/fail_snack_bar.svg",
                 height: 40,
               ),
               Positioned(
                 top: 10,
                 child: SvgPicture.asset(
-                  "lib/mvc_implementation/screens/assets/close_snack_bar.svg",
+                  "lib/screens/assets/close_snack_bar.svg",
                   height: 16,
                 ),
               ),
@@ -164,7 +164,7 @@ class SuccessfulSnackBar extends StatelessWidget {
             borderRadius:
                 const BorderRadius.only(bottomLeft: Radius.circular(20)),
             child: SvgPicture.asset(
-              "lib/mvc_implementation/screens/assets/bubbles_snack_bar.svg",
+              "lib/screens/assets/bubbles_snack_bar.svg",
               height: 48,
               width: 40,
               color: const Color(0xFF008000),
@@ -178,14 +178,14 @@ class SuccessfulSnackBar extends StatelessWidget {
             padding: const EdgeInsets.all(8.0),
             child: Stack(alignment: Alignment.center, children: [
               SvgPicture.asset(
-                "lib/mvc_implementation/screens/assets/fail_snack_bar.svg",
+                "lib/screens/assets/fail_snack_bar.svg",
                 color: const Color(0xFF008000),
                 height: 40,
               ),
               Positioned(
                 top: 10,
                 child: SvgPicture.asset(
-                  "lib/mvc_implementation/screens/assets/close_snack_bar.svg",
+                  "lib/screens/assets/close_snack_bar.svg",
                   color: const Color(0xFF008000),
                   height: 16,
                 ),

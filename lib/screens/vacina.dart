@@ -52,8 +52,8 @@ class _VacinaPageState extends State<VacinaPage> {
                   padding: const EdgeInsets.only(right: 16),
                   child: SvgPicture.asset(
                     widget.vacina.status == 'approved'
-                        ? 'lib/mvc_implementation/screens/assets/validado.svg'
-                        : 'lib/mvc_implementation/screens/assets/aguardando.svg',
+                        ? 'lib/screens/assets/validado.svg'
+                        : 'lib/screens/assets/aguardando.svg',
                     width: 30,
                     height: 30,
                   ),

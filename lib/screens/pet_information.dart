@@ -17,7 +17,7 @@ class PetInformation extends StatelessWidget {
         backgroundColor: Colors.white,
         appBar: AppBar(
           title: Text(
-            pet.name ?? 'Unknown',
+            pet.name ?? 'Desconhecido',
             style: const TextStyle(
                 fontFamily: 'Outfit',
                 fontWeight: FontWeight.w600,
@@ -77,7 +77,7 @@ class PetInformation extends StatelessWidget {
                       //Vermifugos
                       Card(
                         cardIcon: 'lib/assets/vermifugo.png',
-                        cardTitle: 'Vermifugos',
+                        cardTitle: 'Vermífugos',
                         cardColor: const Color(0xFFE95B47),
                         pet: pet,
                       )
@@ -98,50 +98,50 @@ class PetInformation extends StatelessWidget {
                     scrollDirection: Axis.vertical,
                     children: [
                       InfoCard(
-                        pet: pet.name ?? 'Unknown',
-                        label: 'Name',
+                        pet: pet.name ?? 'Desconhecido',
+                        label: 'Nome',
                         iconPath:
                             'lib/mvc_implementation/screens/assets/pata.png',
                       ),
                       InfoCard(
-                        pet: pet.color ?? 'Unknown',
-                        label: 'Color',
+                        pet: pet.color ?? 'Desconhecido',
+                        label: 'Cor',
                         iconPath:
                             'lib/mvc_implementation/screens/assets/color.png',
                       ),
                       InfoCard(
-                        pet: pet.breed ?? 'Unknown',
-                        label: 'Breed',
+                        pet: pet.breed ?? 'Desconhecido',
+                        label: 'Raça',
                         iconPath:
                             'lib/mvc_implementation/screens/assets/raca.png',
                       ),
                       InfoCard(
-                          pet: pet.species ?? 'Unknown',
-                          label: 'Species',
+                          pet: pet.species ?? 'Desconhecido',
+                          label: 'Espécie',
                           iconPath:
                               'lib/mvc_implementation/screens/assets/tipo.png'),
                       InfoCard(
-                        pet: pet.gender ?? 'Unknown',
-                        label: 'Gender',
+                        pet: pet.gender ?? 'Desconhecido',
+                        label: 'Sexo',
                         iconPath:
                             'lib/mvc_implementation/screens/assets/sexo.png',
                       ),
                       InfoCard(
-                        pet: pet.isNeutered ?? false ? 'Yes' : 'No',
-                        label: 'Neutered',
+                        pet: pet.isNeutered ?? false ? 'Sim' : 'Não',
+                        label: 'Castrado',
                         iconPath:
                             'lib/mvc_implementation/screens/assets/sexo.png',
                       ),
                       InfoCard(
-                        pet: pet.chipNumber ?? 'Not registered',
-                        label: 'Chip Number',
+                        pet: pet.chipNumber ?? 'Não registrado',
+                        label: 'Número do Chip',
                         iconPath:
                             'lib/mvc_implementation/screens/assets/pata.png',
                       ),
                       if (pet.birthDate != null)
                         InfoCard(
                           pet: DateFormat('dd/MM/yyyy').format(pet.birthDate!),
-                          label: 'Birth Date',
+                          label: 'Data de Nascimento',
                           iconPath:
                               'lib/mvc_implementation/screens/assets/calendar.png',
                         ),
