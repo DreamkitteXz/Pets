@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CiCircleCheck, CiCircleRemove, CiCircleAlert } from "react-icons/ci";
-import { IoClose } from "react-icons/io5";
+import { IoClose, IoInformationCircle } from "react-icons/io5";
 import { doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { useAuth } from '../../../context/AuthContext';
@@ -12,6 +12,8 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
   const [isValidating, setIsValidating] = useState(false);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
+  const mapRef = useRef(null);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -24,6 +26,31 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
     };
     fetchUserInfo();
   }, [user]);
+
+  useEffect(() => {
+    if (isMetadataModalOpen && vaccine?.labelImageMetadata?.location) {
+      try {
+        const { latitude, longitude } = vaccine.labelImageMetadata.location;
+        if (!window.google?.maps) {
+          console.error('Google Maps not loaded');
+          return;
+        }
+
+        const map = new window.google.maps.Map(mapRef.current, {
+          center: { lat: latitude, lng: longitude },
+          zoom: 15,
+        });
+
+        new window.google.maps.Marker({
+          position: { lat: latitude, lng: longitude },
+          map,
+          title: "Local da Foto",
+        });
+      } catch (error) {
+        console.error('Error initializing map:', error);
+      }
+    }
+  }, [isMetadataModalOpen, vaccine?.labelImageMetadata?.location]);
 
   if (!isOpen || !vaccine || !currentUser) return null;
 
@@ -143,9 +170,20 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
             </div>
 
             {/* Updated Vaccine Label Image Section */}
-            {vaccine.labelImage && (
+            {vaccine?.labelImage && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Foto do Rótulo da Vacina</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-lg">Foto do Rótulo da Vacina</h3>
+                  {vaccine?.labelImageMetadata && (
+                    <button
+                      onClick={() => setIsMetadataModalOpen(true)}
+                      className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+                    >
+                      <IoInformationCircle size={20} />
+                      <span className="text-sm">Metadados</span>
+                    </button>
+                  )}
+                </div>
                 <div 
                   className="border rounded-lg overflow-hidden cursor-pointer"
                   onClick={() => setIsImageViewerOpen(true)}
@@ -159,6 +197,61 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
                 <p className="text-sm text-gray-500 text-center">
                   Clique na imagem para ampliar
                 </p>
+              </div>
+            )}
+
+            {/* Metadata Modal */}
+            {isMetadataModalOpen && vaccine?.labelImageMetadata && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+                <div className="bg-white rounded-lg w-full max-w-2xl p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Metadados da Imagem</h3>
+                    <button 
+                      onClick={() => setIsMetadataModalOpen(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <IoClose size={24} />
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <label className="block text-gray-600">Nome do Arquivo</label>
+                        <div className="font-medium">{vaccine.labelImageMetadata.name}</div>
+                      </div>
+                      <div>
+                        <label className="block text-gray-600">Tamanho</label>
+                        <div className="font-medium">{(vaccine.labelImageMetadata.size / 1024).toFixed(2)} KB</div>
+                      </div>
+                      <div>
+                        <label className="block text-gray-600">Tipo</label>
+                        <div className="font-medium">{vaccine.labelImageMetadata.contentType}</div>
+                      </div>
+                      <div>
+                        <label className="block text-gray-600">Data de Upload</label>
+                        <div className="font-medium">{formatDate(vaccine.labelImageMetadata.timeCreated)}</div>
+                      </div>
+                      {vaccine.labelImageMetadata.location && (
+                        <div className="col-span-2">
+                          <label className="block text-gray-600">Localização</label>
+                          <div className="font-medium">
+                            {vaccine.labelImageMetadata.location.latitude}°, {vaccine.labelImageMetadata.location.longitude}°
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {vaccine.labelImageMetadata.location && (
+                      <div className="mt-4">
+                        <label className="block text-gray-600 mb-2">Localização no Mapa</label>
+                        <div 
+                          ref={mapRef}
+                          className="w-full h-[300px] rounded-lg border border-gray-200"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
