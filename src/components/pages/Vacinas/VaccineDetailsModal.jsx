@@ -72,15 +72,14 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
       const validationDetails = {
         status: isApproved ? 'approved' : 'rejected',
         validatedAt: Timestamp.now(),
-        validatedBy: currentUser.uid,
-        validatedByName: currentUser.name || 'Unknown', // Ensure name is defined
-        validatedByCrmv: currentUser.crmv || 'Unknown', // Ensure crmv is defined
+        validatedBy: user.uid,
+        validatedByName: currentUser.name || 'Unknown',
+        validatedByCrmv: currentUser.crmv || 'Unknown',
         notes: validationNote,
         rejectionReason: isApproved ? '' : rejectionReason
       };
 
       await updateDoc(vaccineRef, {
-        status: isApproved ? 'approved' : 'rejected',
         'validationDetails.vetValidation': validationDetails,
         updatedAt: Timestamp.now()
       });
@@ -304,7 +303,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
             )}
 
             {/* Validation Controls */}
-            {vaccine?.status === 'pending' && !vaccine.validationDetails?.vetValidation && (
+            {(vaccine.validationDetails?.vetValidation?.status === 'pending' || !vaccine.validationDetails?.vetValidation?.status) && (
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 space-y-6">
                 <div className="flex items-center gap-3">
                   <CiCircleAlert className="text-blue-600" size={24} />

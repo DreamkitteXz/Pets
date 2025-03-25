@@ -3,6 +3,7 @@ import { CiFilter } from "react-icons/ci";
 import PetDetailsModal from './PetDetailsModal';
 import PetEditModal from './PetEditModal';
 import { usePets } from '../../../hooks/usePets';
+import { useAuth } from '../../../context/AuthContext'; // Correct import path
 
 const PetsPage = () => {
   const [filterStatus, setFilterStatus] = useState('all');
@@ -11,6 +12,8 @@ const PetsPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
   const { pets, loading, error } = usePets();
+  const { user } = useAuth(); // Ensure useAuth is used within AuthProvider
+  const userId = user?.id; // Extract userId from user object
 
   // Early return for loading state
   if (loading) {
@@ -64,6 +67,19 @@ const PetsPage = () => {
     return `${nextVaccine.name}: ${new Date(nextVaccine.nextDate).toLocaleDateString('pt-BR')}`;
   };
 
+  const getPetAge = (birthDate) => {
+    const birth = new Date(birthDate);
+    const now = new Date();
+    const ageInMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+    
+    if (ageInMonths < 12) {
+      return `${ageInMonths} ${ageInMonths === 1 ? 'mês' : 'meses'}`;
+    }
+    
+    const ageInYears = Math.floor(ageInMonths / 12);
+    return `${ageInYears} ${ageInYears === 1 ? 'ano' : 'anos'}`;
+  };
+
   const handleViewPet = (pet) => {
     setSelectedPet(pet);
     setIsDetailsModalOpen(true);
@@ -77,6 +93,10 @@ const PetsPage = () => {
   const handleSavePet = (updatedPet) => {
     // Here you would typically update the pet data in your backend
     console.log('Saving updated pet:', updatedPet);
+  };
+
+  const getUserVaccinesCount = (pet, userId) => {
+    return pet.vaccines?.filter(vaccine => vaccine.ownerId === userId).length || 0;
   };
 
   return (
@@ -124,7 +144,7 @@ const PetsPage = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pet Information
+                    Pet
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Proprietário
@@ -158,7 +178,7 @@ const PetsPage = () => {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{pet.name}</div>
-                          <div className="text-sm text-gray-500">{pet.species} • {pet.breed} • {pet.age} yrs</div>
+                          <div className="text-sm text-gray-500">{pet.species} • {pet.breed} • {getPetAge(pet.birthDate)}</div>
                         </div>
                       </div>
                     </td>
@@ -170,7 +190,7 @@ const PetsPage = () => {
                         {pet.status?.charAt(0).toUpperCase() + pet.status?.slice(1)}
                       </span>
                       <div className="text-xs text-gray-500 mt-1">
-                        {(pet.vaccines?.length || 0)} vacinas registradas
+                        {getUserVaccinesCount(pet, userId)} vacinas registradas
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -182,12 +202,6 @@ const PetsPage = () => {
                         onClick={() => handleViewPet(pet)}
                       >
                         Visualizar
-                      </button>
-                      <button 
-                        className="text-gray-600 hover:text-gray-900"
-                        onClick={() => handleEditPet(pet)}
-                      >
-                        Editar
                       </button>
                     </td>
                   </tr>
