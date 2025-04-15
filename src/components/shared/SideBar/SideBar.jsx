@@ -6,7 +6,8 @@ import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import classNames from "classnames";
 import { IoIosLogOut } from "react-icons/io";
-import LogoWhite from "../../../assets/logo_white";
+import LogoWhite from "../../../assets/logos/logo_white";
+import ShortedLogo from "../../../assets/logos/shorted_logo";
 import LogoutModal from "../LogoutModal/LogoutModal";
 
 export default function SideBar() {
@@ -49,20 +50,19 @@ export default function SideBar() {
   return (
     <>
       <div 
-        className={`bg-gradient-to-b from-[#1a1a1a] to-[#252525] p-4 flex flex-col text-white transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'} border-r border-neutral-800 shadow-lg overflow-y-auto`}
+        className={`bg-gradient-to-b from-[#1a1a1a] to-[#252525] p-4 flex flex-col text-white transition-all duration-300 ease-in-out ${isCollapsed ? 'w-24' : 'w-64'} border-r border-neutral-800 shadow-lg overflow-y-auto`}
       >
         {/* Logo and collapse button */}
         <div className="flex items-center justify-between mb-8 px-1">
-          {!isCollapsed ? (
-            <LogoWhite />
-          ) : (
-            <div className="bg-yellow-500 h-10 w-10 rounded-lg flex items-center justify-center text-black font-bold text-xl mx-auto shadow-md">
-              V
-            </div>
+          {!isCollapsed && (
+            // <div className="w-full h-8 flex items-center">
+            //   <LogoWhite />
+            // </div>
+            <div></div>
           )}
           <button 
             onClick={() => setIsCollapsed(!isCollapsed)} 
-            className={`text-neutral-400 hover:text-white transition-colors ${isCollapsed ? 'mx-auto mt-4' : ''}`}
+            className={`text-neutral-400 hover:text-white transition-colors ${isCollapsed ? 'mx-auto' : ''}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -122,12 +122,18 @@ export default function SideBar() {
               'flex items-center gap-3 p-3 rounded-xl hover:bg-neutral-700/50 transition-all cursor-pointer',
               isCollapsed ? 'justify-center' : ''
             )}>
-              <div className="bg-yellow-100 text-yellow-600 h-10 w-10 rounded-full flex items-center justify-center font-medium text-sm">
+              <div
+                className={classNames(
+                  'bg-yellow-100 text-yellow-600 flex items-center justify-center font-medium text-sm overflow-hidden rounded-full',
+                  isCollapsed ? 'h-12 w-12' : 'h-10 w-10'
+                )}
+                style={{ flexShrink: 0 }} // Prevents the circle from collapsing
+              >
                 {currentUser.profileImage ? (
                   <img 
                     src={currentUser.profileImage} 
                     alt={currentUser.name} 
-                    className="h-10 w-10 rounded-full object-cover"
+                    className="rounded-full object-cover h-full w-full"
                   />
                 ) : (
                   currentUser.name?.charAt(0).toUpperCase()

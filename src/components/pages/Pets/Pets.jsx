@@ -247,7 +247,7 @@ const PetsPage = () => {
 
       {/* Add modals */}
       <PetDetailsModal
-        isOpen={isDetailsModalOpen}
+        show={isDetailsModalOpen} // Changed from isOpen to show to match component prop
         onClose={() => setIsDetailsModalOpen(false)}
         pet={selectedPet}
       />

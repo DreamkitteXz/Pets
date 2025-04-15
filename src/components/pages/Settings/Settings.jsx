@@ -194,16 +194,6 @@ const Settings = () => {
                     />
                     <span className="ml-2 text-gray-700">Veterinário</span>
                   </label>
-                  <label className="flex items-center">
-                    <input 
-                      type="radio" 
-                      name="role"
-                      checked={role === 'tutor'} 
-                      onChange={() => setRole('tutor')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                    />
-                    <span className="ml-2 text-gray-700">Tutor de Pet</span>
-                  </label>
                 </div>
               </div>
             </div>

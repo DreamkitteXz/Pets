@@ -9,7 +9,7 @@ import {
   sendEmailVerification
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
-import LogoBlack from '../../../../assets/logo_black';
+import LogoBlack from '../../../../assets/logos/logo_black';
 import AuthBackground from '../assets/auth_background.svg';
 
 const db = getFirestore();

@@ -4,7 +4,7 @@ import { auth, db } from "../../../config/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import LogoBlack from "../../../assets/logo_black";
+import LogoBlack from "../../../assets/logos/logo_black";
 import LogoutModal from "../LogoutModal/LogoutModal";
 
 export default function Header() {
@@ -159,7 +159,7 @@ export default function Header() {
                   <p className="text-sm font-medium text-neutral-900">{currentUser.name}</p>
                   <p className="text-xs text-neutral-500">{currentUser.email}</p>
                 </div>
-                <a href="#" className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
+{/*                <a href="#" className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
                   <CiUser className="mr-2" /> Meu Perfil
                 </a>
                 <a href="#" className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
@@ -170,7 +170,7 @@ export default function Header() {
                 </a>
                 <a href="#" className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
                   <CiSettings className="mr-2" /> Configurações
-                </a>
+                </a>*/}
                 <div className="border-t my-1"></div>
                 <a 
                   onClick={handleLogoutClick} 

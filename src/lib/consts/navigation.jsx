@@ -6,18 +6,19 @@ import {TbVaccine}  from 'react-icons/tb'
 import {MdOutlinePets,MdDashboard} from 'react-icons/md'
 
 export const DASHBOARD_SIDEBAR_LINKS = [
-	{
-		key: 'dashboard',
-		label: 'Dashboard',
-		path: '/',
-		icon: <MdDashboard />
-	},
-	{
-		key: 'pets',
-		label: 'Pets',
-		path: '/pets',
-		icon: <MdOutlinePets />
-	},
+	// Temporarily hidden
+	// {
+	// 	key: 'dashboard',
+	// 	label: 'Dashboard',
+	// 	path: '/',
+	// 	icon: <MdDashboard />
+	// },
+	// {
+	// 	key: 'pets',
+	// 	label: 'Pets',
+	// 	path: '/pets',
+	// 	icon: <MdOutlinePets />
+	// },
 	{
 		key: 'vacinas',
 		label: 'Vacinas',

@@ -93,7 +93,7 @@ const firestoreSchema = {
       },
 
       // Updated validation status
-      status: ['pending', 'vetApproved', 'vetRejected', 'tutorApproved', 'tutorRejected', 'fullyApproved', 'rejected'],
+      status: ['pending', 'vetApproved', 'vetRejected', 'tutorApproved', 'tutorRejected', 'approved', 'rejected'],
       validationDetails: {
         vetValidation: {
           status: String,

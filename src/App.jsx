@@ -43,7 +43,7 @@ const App = () => {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               {/* Dashboard */}
-              <Route path="/" element={<Dashboard />} />
+              {/*<Route path="/" element={<Dashboard />} />*/}
               
               {/* Pets */}
               <Route path="/pets">
@@ -66,6 +66,7 @@ const App = () => {
           {/* Error Routes */}
           <Route path="/404" element={<NotFound />} />
           <Route path="*" element={<Navigate to="/404" replace />} />
+          <Route path="/" element={<Navigate to="/vacinas" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

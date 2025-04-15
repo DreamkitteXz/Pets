@@ -465,6 +465,22 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
                       </div>
                     </div>
                   </div>
+
+                  {/* GOVBR Sign Section */}
+                  <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CiCircleCheck className="text-blue-600" size={20} />
+                      <h4 className="font-medium text-blue-700">Assinar Documento</h4>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Utilize o GOVBR para assinar digitalmente este documento.
+                    </p>
+                    <button
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                    >
+                      Assinar com GOVBR
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
