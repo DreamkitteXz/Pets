@@ -1,0 +1,292 @@
+{
+  "types": {
+    "dog": {
+      "icon": "pets",
+      "color": "blue",
+      "races": {
+        "beagle": {
+          "icon": "pets",
+          "color": "brown",
+          "gender": {
+            "male": {
+              "imageKey": "beagleMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "medium",
+                "furType": "short",
+                "temperament": "friendly"
+              }
+            },
+            "female": {
+              "imageKey": "beagleFemaleImage",
+              "vaccineIcon": "vaccines",
+              "raceSpecificTraits": {
+                "size": "medium",
+                "furType": "short",
+                "temperament": "friendly"
+              }
+            }
+          }
+        },
+        "pinscher": {
+          "icon": "pets",
+          "color": "black",
+          "gender": {
+            "male": {
+              "imageKey": "pinscherMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "small",
+                "furType": "short",
+                "temperament": "active"
+              }
+            },
+            "female": {
+              "imageKey": "pinscherFemaleImage",
+              "vaccineIcon": "vaccines",
+              "raceSpecificTraits": {
+                "size": "small",
+                "furType": "short",
+                "temperament": "active"
+              }
+            }
+          }
+        },
+        "retriever": {
+          "icon": "pets",
+          "color": "golden",
+          "gender": {
+            "male": {
+              "imageKey": "goldenRetrieverMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "medium",
+                "furType": "short",
+                "temperament": "active"
+              }
+            },
+            "female": {
+              "imageKey": "goldenRetrieverFemaleImage",
+              "vaccineIcon": "vaccines",
+              "raceSpecificTraits": {
+                "size": "medium",
+                "furType": "short",
+                "temperament": "active"
+              }
+            }
+          }
+        },
+        "boxer": {
+          "icon": "pets",
+          "color": "brown",
+          "gender": {
+            "male": {
+              "imageKey": "boxerMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "large",
+                "furType": "short",
+                "temperament": "energetic"
+              }
+            }
+          }
+        },
+        "bulldog": {
+          "icon": "pets",
+          "color": "brown",
+          "gender": {
+            "male": {
+              "imageKey": "bulldogMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "medium",
+                "furType": "short",
+                "temperament": "docile"
+              }
+            }
+          }
+        },
+        "chihuahua": {
+          "icon": "pets",
+          "color": "brown",
+          "gender": {
+            "male": {
+              "imageKey": "chihuahuaMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "small",
+                "furType": "short",
+                "temperament": "alert"
+              }
+            }
+          }
+        },
+        "dachshund": {
+          "icon": "pets",
+          "color": "brown",
+          "gender": {
+            "male": {
+              "imageKey": "dachshundMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "small",
+                "furType": "short",
+                "temperament": "lively"
+              }
+            }
+          }
+        },
+        "german_sheperd": {
+          "icon": "pets",
+          "color": "brown",
+          "gender": {
+            "male": {
+              "imageKey": "germanSheperdMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "large",
+                "furType": "medium",
+                "temperament": "intelligent"
+              }
+            }
+          }
+        },
+        "husky": {
+          "icon": "pets",
+          "color": "brown",
+          "gender": {
+            "male": {
+              "imageKey": "huskyMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "large",
+                "furType": "long",
+                "temperament": "friendly"
+              }
+            }
+          }
+        },
+        "maltese": {
+          "icon": "pets",
+          "color": "white",
+          "gender": {
+            "male": {
+              "imageKey": "malteseMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "small",
+                "furType": "long",
+                "temperament": "gentle"
+              }
+            }
+          }
+        },
+        "pitbull": {
+          "icon": "pets",
+          "color": "brown",
+          "gender": {
+            "male": {
+              "imageKey": "pitbullMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "medium",
+                "furType": "short",
+                "temperament": "confident"
+              }
+            }
+          }
+        },
+        "poodle": {
+          "icon": "pets",
+          "color": "white",
+          "gender": {
+            "male": {
+              "imageKey": "poodleMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "medium",
+                "furType": "curly",
+                "temperament": "active"
+              }
+            }
+          }
+        },
+        "pug": {
+          "icon": "pets",
+          "color": "brown",
+          "gender": {
+            "male": {
+              "imageKey": "pugMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "small",
+                "furType": "short",
+                "temperament": "charming"
+              }
+            }
+          }
+        },
+        "rotweiller": {
+          "icon": "pets",
+          "color": "black",
+          "gender": {
+            "male": {
+              "imageKey": "rotweillerMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "large",
+                "furType": "short",
+                "temperament": "loyal"
+              }
+            }
+          }
+        },
+        "zwergspitz": {
+          "icon": "pets",
+          "color": "orange",
+          "gender": {
+            "male": {
+              "imageKey": "zwergspitzMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "small",
+                "furType": "long",
+                "temperament": "playful"
+              }
+            }
+          }
+        }
+      }
+    },
+    "cat": {
+      "icon": "catching_pokemon",
+      "color": "orange",
+      "races": {
+        "somali": {
+          "icon": "catching_pokemon",
+          "color": "orange",
+          "gender": {
+            "male": {
+              "imageKey": "somaliMaleImage",
+              "vaccineIcon": "medical_services",
+              "raceSpecificTraits": {
+                "size": "medium",
+                "furType": "long",
+                "temperament": "playful"
+              }
+            },
+            "female": {
+              "imageKey": "somaliFemaleImage",
+              "vaccineIcon": "vaccines",
+              "raceSpecificTraits": {
+                "size": "medium",
+                "furType": "long",
+                "temperament": "playful"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -2,14 +2,25 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pet_app/models/vacinas.dart';
-import 'package:pet_app/models/pets.dart';
+import 'package:pet_app/models/vaccine_model.dart';
+import 'package:pet_app/models/pet_model.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:intl/intl.dart';
 
 class VaccineCardGenerator {
   static Future<String> generateVaccineCard(
       Pets pet, List<Vacinas> vaccines) async {
+    print('Generating vaccine card for pet:');
+    print('ID: ${pet.id}');
+    print('Name: ${pet.name}');
+    print('Species: ${pet.species}');
+    print('Breed: ${pet.breed}');
+    print('Gender: ${pet.gender}');
+    print('Birth Date: ${pet.birthDate}');
+    print('Chip Number: ${pet.chipNumber}');
+    print('Owner Name: ${pet.ownerName}');
+    print('Owner Contact: ${pet.ownerId}');
+    // Add more fields if necessary
     final PdfDocument document = PdfDocument();
     document.pageSettings.margins.all = 40;
 
@@ -30,7 +41,7 @@ class VaccineCardGenerator {
 
     // Title
     page.graphics.drawString(
-      'Pet Vaccine Card',
+      'Cartão de Vacinação do Pet',
       titleFont,
       brush: PdfSolidBrush(iosBlue),
       bounds: Rect.fromLTWH(0, yPosition, pageSize.width, 30),
@@ -38,18 +49,18 @@ class VaccineCardGenerator {
     yPosition += 50;
 
     // Pet Information Section
-    _addSectionHeader(page, 'Pet Details', yPosition, headerFont, iosBlue);
+    _addSectionHeader(page, 'Detalhes do Pet', yPosition, headerFont, iosBlue);
     yPosition += 30;
 
     // Pet details in iOS style
     Map<String, String> petDetails = {
-      'Name': pet.name ?? 'Not provided',
-      'Species': _capitalizeFirstLetter(pet.species ?? 'Not provided'),
-      'Breed': pet.breed ?? 'Not provided',
-      'Gender': _translateGender(pet.gender ?? 'Not provided'),
-      'Birth Date': _formatDate(pet.birthDate),
-      'Microchip': pet.chipNumber ?? 'Not registered',
-      'Owner': pet.ownerName ?? 'Not provided',
+      'Nome': pet.name ?? 'Não informado',
+      'Espécie': _capitalizeFirstLetter(pet.species ?? 'Não informado'),
+      'Raça': pet.breed ?? 'Não informado',
+      'Gênero': _translateGender(pet.gender ?? 'Não informado'),
+      'Data de Nascimento': _formatDate(pet.birthDate),
+      'Microchip': pet.chipNumber ?? 'Não registrado',
+      'Proprietário': pet.ownerName ?? 'Não informado',
     };
 
     yPosition =
@@ -58,7 +69,7 @@ class VaccineCardGenerator {
 
     // Vaccines Section
     _addSectionHeader(
-        page, 'Vaccination History', yPosition, headerFont, iosBlue);
+        page, 'Histórico de Vacinação', yPosition, headerFont, iosBlue);
     yPosition += 30;
 
     // Filter approved vaccines
@@ -70,7 +81,7 @@ class VaccineCardGenerator {
           normalFont, smallFont, iosBlue, iosBackground);
     } else {
       page.graphics.drawString(
-        'No approved vaccines recorded',
+        'Nenhuma vacina aprovada registrada',
         normalFont,
         brush: PdfSolidBrush(iosGray),
         bounds: Rect.fromLTWH(0, yPosition, pageSize.width, 20),
@@ -78,7 +89,8 @@ class VaccineCardGenerator {
     }
 
     // Save document
-    final String path = await _savePdf(document, pet.name ?? 'vaccine_card');
+    final String path =
+        await _savePdf(document, pet.name ?? 'cartao_vacinacao');
     document.dispose();
     return path;
   }
@@ -122,10 +134,10 @@ class VaccineCardGenerator {
 
     // Set column headers
     final header = grid.headers.add(1)[0];
-    header.cells[0].value = 'Date';
-    header.cells[1].value = 'Vaccine';
-    header.cells[2].value = 'Next Due';
-    header.cells[3].value = 'Veterinarian';
+    header.cells[0].value = 'Data';
+    header.cells[1].value = 'Vacina';
+    header.cells[2].value = 'Próxima Dose';
+    header.cells[3].value = 'Veterinário';
 
     // Add vaccine data
     for (var vaccine in vaccines) {
@@ -154,24 +166,24 @@ class VaccineCardGenerator {
   static String _translateGender(String gender) {
     switch (gender.toLowerCase()) {
       case 'male':
-        return 'Male';
+        return 'Macho';
       case 'female':
-        return 'Female';
+        return 'Fêmea';
       default:
-        return 'Not specified';
+        return 'Não especificado';
     }
   }
 
   static String _formatDate(DateTime? date) {
-    if (date == null) return 'Not set';
-    return DateFormat('MM/dd/yyyy').format(date);
+    if (date == null) return 'Não definido';
+    return DateFormat('dd/MM/yyyy').format(date);
   }
 
   static Future<String> _savePdf(PdfDocument document, String fileName) async {
     final Directory? directory = await getExternalStorageDirectory();
     if (directory == null) throw Exception('Unable to access storage');
 
-    final String path = '${directory.path}/${fileName}_vaccine_card.pdf';
+    final String path = '${directory.path}/${fileName}_cartao_vacinacao.pdf';
     File file = File(path);
     await file.writeAsBytes(await document.save());
     return path;

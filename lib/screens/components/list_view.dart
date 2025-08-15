@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:pet_app/controllers/pet_controller.dart';
-import 'package:pet_app/models/pets.dart';
-import 'package:pet_app/screens/pet_information.dart';
+import 'package:pet_app/controllers/pets/pet_controller.dart';
+import 'package:pet_app/models/pet_model.dart';
+import 'package:pet_app/screens/pets/pet_information.dart';
 
 class PetsList extends StatelessWidget {
   const PetsList({
@@ -12,43 +12,23 @@ class PetsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
+    final petController = PetController();
     return Expanded(
-        child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('pets')
-                .where('ownerId', isEqualTo: userId)
-                .where('status', isEqualTo: 'active')
-                .snapshots(),
-            builder: bringData));
+        child: StreamBuilder<List<Pets>>(
+            stream: petController.petsStreamForCurrentUser(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return CircularProgressIndicator();
+              final pets = snapshot.data!;
+              return bringData(context, pets);
+            }));
   }
 
-  Widget bringData(
-      BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-    if (snapshot.hasError) {
-      print('Error in snapshot: ${snapshot.error}');
-      return const Center(child: Text('Something went wrong'));
-    }
-
-    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-      print('No data available in snapshot');
+  Widget bringData(BuildContext context, List<Pets> pets) {
+    if (pets.isEmpty) {
       return const Center(child: Text('No pets found'));
     }
 
-    List<Pets> listPet = snapshot.data!.docs.map((document) {
-      Map<String, dynamic> data = document.data() as Map<String, dynamic>;
-      // Set the document ID directly in the data
-      data['id'] = document.id;
-      print('Processing pet - Document ID: ${document.id}');
-      return Pets.fromMap(data);
-    }).toList();
-
-    // Verify IDs are set correctly
-    for (var pet in listPet) {
-      print('Loaded pet - ID: ${pet.id}, Name: ${pet.name}');
-    }
-
-    return PetsCard(listPet);
+    return PetsCard(pets);
   }
 
   ListView PetsCard(List<Pets> listPet) {
@@ -84,9 +64,8 @@ class PetsList extends StatelessWidget {
                 child: const Icon(Icons.delete, color: Colors.white),
               ),
               onDismissed: (direction) {
-                //TODO:REMOVE
                 PetController petController = PetController();
-                petController.remove(model);
+                petController.removePet(model);
               },
               child: GestureDetector(
                 onLongPress: (() {

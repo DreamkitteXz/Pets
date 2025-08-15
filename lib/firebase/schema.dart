@@ -190,6 +190,17 @@ class FirestoreSchema {
         }
       };
 
+  // Pet Weights subcollection (inside each pet document)
+  static Map<String, dynamic> petWeight(String weightId) => {
+        weightId: {
+          'weight': double,
+          'date': Timestamp,
+          'notes': String,
+          'createdAt': Timestamp,
+          'updatedAt': Timestamp,
+        }
+      };
+
   // Clinics collection
   static Map<String, dynamic> clinics(String clinicId) => {
         clinicId: {

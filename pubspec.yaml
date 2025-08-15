@@ -76,7 +76,10 @@ dependencies:
   path: ^1.8.3
   percent_indicator: ^4.2.4
   geolocator: ^11.1.0
-
+  fl_chart: ^0.60.0
+  dropdown_search: ^5.0.6
+  async: ^2.11.0
+  
 flutter_native_splash:
   color: "#041A23"
   image: "assets/app/pets_logo.png"
@@ -147,6 +150,49 @@ flutter:
     - lib/screens/assets/docs.svg
     - lib/screens/assets/validado.svg
     - lib/screens/assets/aguardando.svg
+    - assets/config/
+    - assets/images/defaults/
+    - assets/images/defaults/dogs/
+    - assets/images/defaults/dogs/beagle/
+    - assets/images/defaults/dogs/pintcher/
+    - assets/images/defaults/dogs/golden/
+    - assets/images/defaults/cats/
+    - assets/images/defaults/cats/somali/
+    - assets/images/defaults/dogs/beagle/male/
+    - assets/images/defaults/dogs/beagle/female/
+    - assets/images/defaults/dogs/pintcher/male/
+    - assets/images/defaults/dogs/pintcher/female/
+    - assets/images/defaults/dogs/golden/male/
+    - assets/images/defaults/dogs/golden/female/
+    - assets/images/defaults/cats/somali/male/
+    - assets/images/defaults/cats/somali/female/
+    - assets/images/defaults/dogs/boxer/
+    - assets/images/defaults/dogs/boxer/male/
+    - assets/images/defaults/dogs/chihuahua/
+    - assets/images/defaults/dogs/chihuahua/male/
+    - assets/images/defaults/dogs/dachshund/
+    - assets/images/defaults/dogs/dachshund/male/
+    - assets/images/defaults/dogs/german_sheperd/
+    - assets/images/defaults/dogs/german_sheperd/male/
+    - assets/images/defaults/dogs/husky/
+    - assets/images/defaults/dogs/husky/male/
+    - assets/images/defaults/dogs/maltese/
+    - assets/images/defaults/dogs/maltese/male/
+    - assets/images/defaults/dogs/pitbull/
+    - assets/images/defaults/dogs/pitbull/male/
+    - assets/images/defaults/dogs/poodle/
+    - assets/images/defaults/dogs/poodle/male/
+    - assets/images/defaults/dogs/pug/
+    - assets/images/defaults/dogs/pug/male/
+    - assets/images/defaults/dogs/rotweiller/
+    - assets/images/defaults/dogs/rotweiller/male/
+    - assets/images/defaults/dogs/zwergspitz/
+    - assets/images/defaults/dogs/zwergspitz/male/
+    - assets/images/defaults/dogs/bulldog/
+    - assets/images/defaults/dogs/bulldog/male/
+    - assets/config/pet_assets.json
+    - assets/images/pet_owner.png
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

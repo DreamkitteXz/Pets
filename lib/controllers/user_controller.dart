@@ -1,8 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:pet_app/models/user.dart';
+import 'package:pet_app/models/user_model.dart';
 import 'package:pet_app/screens/components/snackbar.dart';
+import 'package:pet_app/repositories/user_repository.dart';
 
 //TODO: VERIFICAR O POR QUÊ DO WARNING DO BUILD CONTEXT NA HORA DE MOSTRAR O SNACK BAR
 
@@ -12,8 +13,16 @@ FirebaseFirestore firebaseDatabase = FirebaseFirestore.instance;
 // usercontroller.dart
 
 class UserController {
-  Future<String?> getCurrentUser() async {
-    return firebaseAuth.currentUser?.uid;
+  final UserRepository _userRepository = UserRepository();
+
+  Future<Users?> getCurrentUser() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+    return await _userRepository.getUserById(user.uid);
+  }
+
+  Future<void> updateUser(String userId, Map<String, dynamic> data) async {
+    await _userRepository.updateUser(userId, data);
   }
 
   Future<bool> createUser(Users user, BuildContext context) async {

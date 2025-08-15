@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pet_app/screens/signup.dart';
+import 'package:pet_app/screens/auth/signup_screen.dart';
 
 class ActionText extends StatelessWidget {
   String text, textAction;

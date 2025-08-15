@@ -1,8 +1,8 @@
 // form_button.dart
 import 'package:flutter/material.dart';
 import 'package:pet_app/controllers/user_controller.dart';
-import 'package:pet_app/models/user.dart';
-import 'package:pet_app/screens/home_screen.dart';
+import 'package:pet_app/models/user_model.dart';
+import 'package:pet_app/screens/main_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class FormButton extends StatelessWidget {

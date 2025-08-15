@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_app/controllers/validacao_controller.dart';
-import 'package:pet_app/screens/home_screen.dart';
-import 'package:pet_app/screens/onboarding.dart';
+import 'package:pet_app/screens/main_screen.dart';
+import 'package:pet_app/screens/onboarding_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:pet_app/services/pet_assets_service.dart';
 
 import 'firebase_options.dart';
 
@@ -12,12 +16,24 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
 
-  //FirebaseFirestore firestore = FirebaseFirestore.instance;
-  //firestore.collection('Só para testar').doc('Estou testando!').set({
-  //  'funcionou?': true,
-  //});
+  // Force portrait orientation
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // Load pet assets configuration
+  try {
+    final String jsonContent =
+        await rootBundle.loadString('assets/config/pet_assets.json');
+    final configuration = json.decode(jsonContent);
+    PetAssetsService.initialize(configuration);
+  } catch (e) {
+    print('Error loading pet assets configuration: $e');
+  }
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
