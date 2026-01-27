@@ -57,13 +57,43 @@ class VaccineRepository {
   }
 
   Future<List<Map<String, dynamic>>> fetchAvailableVaccinesFromApi() async {
-    final response = await http.get(Uri.parse(
-        'https://run.mocky.io/v3/cb845c8e-efb3-4ce6-abda-636552e01a26'));
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      return data.cast<Map<String, dynamic>>();
-    } else {
-      throw Exception('Failed to load vaccines');
+    try {
+      final response = await http.get(Uri.parse(
+          'https://run.mocky.io/v3/cb845c8e-efb3-4ce6-abda-636552e01a26'));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw Exception('Failed to load vaccines');
+      }
+    } catch (e) {
+      // Fallback local list
+      return [
+        {
+          'id': 'vac1',
+          'name': 'V8',
+          'description': 'Vacina múltipla para cães',
+          'species': 'cachorro',
+        },
+        {
+          'id': 'vac2',
+          'name': 'Antirrábica',
+          'description': 'Protege contra raiva',
+          'species': 'cachorro',
+        },
+        {
+          'id': 'vac3',
+          'name': 'Tríplice Felina',
+          'description': 'Protege contra três doenças felinas',
+          'species': 'gato',
+        },
+        {
+          'id': 'vac4',
+          'name': 'Quádrupla Felina',
+          'description': 'Protege contra quatro doenças felinas',
+          'species': 'gato',
+        },
+      ];
     }
   }
 

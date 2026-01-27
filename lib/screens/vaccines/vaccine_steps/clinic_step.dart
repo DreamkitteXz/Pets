@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pet_app/screens/components/text_input_auth.dart';
 
 class ClinicStep extends StatelessWidget {
   final TextEditingController cnpjController;
@@ -19,46 +18,140 @@ class ClinicStep extends StatelessWidget {
     required this.cityController,
   }) : super(key: key);
 
+  // Widget personalizado para campos de texto seguindo o mesmo padrão de design
+  Widget _buildCustomTextField({
+    required String labelText,
+    required TextEditingController controller,
+    String? hintText,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+    bool readOnly = false,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          labelText,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF333333),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          validator: validator,
+          readOnly: readOnly,
+          maxLines: maxLines,
+          style: TextStyle(
+            fontSize: 16,
+            color: readOnly ? Color(0xFF666666) : Color(0xFF333333),
+          ),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: const TextStyle(
+              fontSize: 16,
+              color: Color(0xFF999999),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFFE0E0E0),
+                width: 1.5,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFFE0E0E0),
+                width: 1.5,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFFFBAD36),
+                width: 2.0,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Colors.red,
+                width: 1.5,
+              ),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Colors.red,
+                width: 2.0,
+              ),
+            ),
+            filled: true,
+            fillColor: readOnly ? Color(0xFFF8F8F8) : Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         children: [
-          TextInput(
-            inputTitle: 'CNPJ',
+          _buildCustomTextField(
+            labelText: 'CNPJ',
             controller: cnpjController,
-            textInputType: TextInputType.number,
+            hintText: '00.000.000/0000-00',
+            keyboardType: TextInputType.number,
             readOnly: true,
           ),
-          TextInput(
-            inputTitle: 'Clínica',
+          const SizedBox(height: 20.0),
+          _buildCustomTextField(
+            labelText: 'Clínica',
             controller: clinicController,
-            textInputType: TextInputType.name,
+            hintText: 'Nome da clínica',
+            keyboardType: TextInputType.name,
             readOnly: true,
           ),
-          TextInput(
-            inputTitle: 'Rua',
+          const SizedBox(height: 20.0),
+          _buildCustomTextField(
+            labelText: 'Rua',
             controller: streetController,
-            textInputType: TextInputType.streetAddress,
+            hintText: 'Nome da rua',
+            keyboardType: TextInputType.streetAddress,
             readOnly: true,
           ),
-          TextInput(
-            inputTitle: 'Bairro',
+          const SizedBox(height: 20.0),
+          _buildCustomTextField(
+            labelText: 'Bairro',
             controller: neighborhoodController,
-            textInputType: TextInputType.name,
+            hintText: 'Nome do bairro',
+            keyboardType: TextInputType.name,
             readOnly: true,
           ),
-          TextInput(
-            inputTitle: 'Número',
+          const SizedBox(height: 20.0),
+          _buildCustomTextField(
+            labelText: 'Número',
             controller: numberController,
-            textInputType: TextInputType.number,
+            hintText: 'Número do endereço',
+            keyboardType: TextInputType.number,
             readOnly: true,
           ),
-          TextInput(
-            inputTitle: 'Cidade',
+          const SizedBox(height: 20.0),
+          _buildCustomTextField(
+            labelText: 'Cidade',
             controller: cityController,
-            textInputType: TextInputType.name,
+            hintText: 'Nome da cidade',
+            keyboardType: TextInputType.name,
             readOnly: true,
           ),
         ],

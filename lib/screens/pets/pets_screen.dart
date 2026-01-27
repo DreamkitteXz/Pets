@@ -13,12 +13,29 @@ class PetsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return pets.isEmpty
         ? const Center(child: Text('Nenhum pet cadastrado'))
-        : ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: pets.length,
-            itemBuilder: (context, index) {
-              return PetCard(pet: pets[index]);
-            },
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text(
+                  'Meus Pets',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: pets.length,
+                  itemBuilder: (context, index) {
+                    return PetCard(pet: pets[index]);
+                  },
+                ),
+              ),
+            ],
           );
   }
 }

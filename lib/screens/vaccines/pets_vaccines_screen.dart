@@ -291,15 +291,11 @@ class CardVacinas extends StatelessWidget {
                           child: Center(
                             child: pet.species == 'cachorro'
                                 ? (pet.gender == 'macho'
-                                    ? Image.asset(
-                                        'lib/assets/vacinadogmacho-removebg-preview.png')
-                                    : Image.asset(
-                                        'lib/assets/vacinadog-removebg-preview.png'))
+                                    ? Image.asset('assets/images/vacine.jpeg')
+                                    : Image.asset('assets/images/vacine.jpeg'))
                                 : (pet.gender == 'macho'
-                                    ? Image.asset(
-                                        'lib/assets/catmachovac-removebg-preview.png')
-                                    : Image.asset(
-                                        'lib/assets/catfemeavac-removebg-preview.png')),
+                                    ? Image.asset('assets/images/vacine.jpeg')
+                                    : Image.asset('assets/images/vacine.jpeg')),
                           ),
                         ),
                         const SizedBox(width: 12),

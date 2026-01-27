@@ -9,9 +9,10 @@ import 'package:pet_app/screens/home/home_screen.dart';
 import 'package:pet_app/models/vaccine_model.dart';
 import 'package:pet_app/screens/pets/pets_screen.dart';
 import 'package:pet_app/screens/vaccines/vaccines_screen.dart';
-import 'package:pet_app/screens/vaccines/pets_vaccines_screen.dart';
 import 'package:pet_app/screens/profile/profile_screen.dart';
 import 'package:pet_app/controllers/home/home_screen_controller.dart';
+import 'package:pet_app/controllers/user_controller.dart'; // Adicione esta linha
+import 'package:pet_app/models/user_model.dart'; // adicione o import do model
 
 class HomeScreenPage extends StatefulWidget {
   final User user;
@@ -27,6 +28,7 @@ class HomeScreenPage extends StatefulWidget {
 class _HomeScreenPageState extends State<HomeScreenPage>
     with SingleTickerProviderStateMixin {
   late HomeScreenController _controller;
+  late UserController _userController; // Adicione esta linha
   late TabController _tabController;
   int _selectedIndex = 0;
   late List<Widget> _pages;
@@ -35,6 +37,7 @@ class _HomeScreenPageState extends State<HomeScreenPage>
   @override
   void initState() {
     super.initState();
+    _userController = UserController();
     _controller = HomeScreenController(
         user: widget.user, onLogout: _logout, onUserData: _onUserData);
     _tabController = TabController(length: 2, vsync: this);
@@ -43,8 +46,9 @@ class _HomeScreenPageState extends State<HomeScreenPage>
       Container(),
       growable: false,
     );
+
+    // inicializa sem os dados completos do Firestore (será atualizado em _loadUserData)
     _pages[0] = HomeScreenMainTab(
-      user: widget.user,
       tabControllerBuilder: (controller) => _tabController,
       onShowAllPets: (List<Pets> pets) {
         setState(() {
@@ -52,6 +56,7 @@ class _HomeScreenPageState extends State<HomeScreenPage>
           _selectedIndex = 3;
         });
       },
+      userData: null, // agora passa Users? (null inicialmente)
     );
     _pages[1] = VacinasScreen();
     _pages[2] = AddScreen();
@@ -65,7 +70,35 @@ class _HomeScreenPageState extends State<HomeScreenPage>
         );
       },
     );
-    _controller.getUserData();
+    _loadUserData(); // Adicione esta linha
+  }
+
+  // Adicione este método
+  Future<void> _loadUserData() async {
+    try {
+      final users = await _userController.getCurrentUser();
+      if (users != null) {
+        // Atualiza displayName no Auth (opcional)
+        await widget.user.updateDisplayName(users.name);
+        await widget.user.reload();
+      }
+
+      setState(() {
+        // Recria a página principal passando o objeto Users (pode ser null)
+        _pages[0] = HomeScreenMainTab(
+          tabControllerBuilder: (controller) => _tabController,
+          onShowAllPets: (List<Pets> pets) {
+            setState(() {
+              _pages[3] = PetsScreen(pets: pets);
+              _selectedIndex = 3;
+            });
+          },
+          userData: users, // aqui vai o Users completo do Firestore
+        );
+      });
+    } catch (e) {
+      print('Erro ao carregar dados do usuário: $e');
+    }
   }
 
   void _onUserData(String name) {
@@ -183,27 +216,23 @@ class _HomeScreenPageState extends State<HomeScreenPage>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavBarItem(0, Icons.home_outlined, Icons.home),
-            _buildNavBarItem(1, Icons.assignment_outlined, Icons.assignment),
-            //_buildAddNavBarItem(),
+            _buildNavBarItem(0, Icons.home_outlined, Icons.home, "Home"),
+            _buildNavBarItem(
+                1, Icons.assignment_outlined, Icons.assignment, "Vacinas"),
             FloatingActionButton(
               onPressed: () async {
                 await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const AddPetScreen()),
                 );
-                // Optionally, you can refresh data or set state here if needed
               },
               backgroundColor: const Color(0xFF041A23),
               elevation: 8,
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 24,
-              ),
+              child: const Icon(Icons.add, color: Colors.white, size: 24),
             ),
-            _buildNavBarItem(3, Icons.pets_outlined, Icons.pets),
-            _buildNavBarItem(4, Icons.grid_view_outlined, Icons.grid_view),
+            _buildNavBarItem(3, Icons.pets_outlined, Icons.pets, "Pets"),
+            _buildNavBarItem(
+                4, Icons.grid_view_outlined, Icons.grid_view, "Perfil"),
           ],
         ),
       ),
@@ -241,7 +270,7 @@ class _HomeScreenPageState extends State<HomeScreenPage>
   }
 
   Widget _buildNavBarItem(
-      int index, IconData outlinedIcon, IconData filledIcon) {
+      int index, IconData outlinedIcon, IconData filledIcon, String label) {
     bool isSelected = _selectedIndex == index;
     return InkWell(
       onTap: () async {
@@ -275,12 +304,11 @@ class _HomeScreenPageState extends State<HomeScreenPage>
             color: isSelected ? const Color(0xFF041A23) : Colors.grey,
           ),
           const SizedBox(height: 2),
-          Container(
-            height: 4,
-            width: 4,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isSelected ? const Color(0xFF041A23) : Colors.transparent,
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isSelected ? const Color(0xFF041A23) : Colors.grey,
             ),
           ),
         ],

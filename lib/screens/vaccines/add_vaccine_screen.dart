@@ -12,6 +12,77 @@ import 'package:pet_app/screens/components/snackbar.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// NOVO COMPONENTE: ProgressAppBar
+class ProgressAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final String title;
+  final int currentStep;
+  final int totalSteps;
+  final VoidCallback? onBackPressed;
+  final Color progressColor;
+  final Color inactiveColor;
+
+  const ProgressAppBar({
+    Key? key,
+    required this.title,
+    required this.currentStep,
+    required this.totalSteps,
+    this.onBackPressed,
+    this.progressColor = const Color(0xFFFBAD36),
+    this.inactiveColor = const Color(0xFFE0E0E0),
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(
+          Icons.arrow_back_ios,
+          color: Colors.black54,
+          size: 20,
+        ),
+        onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 18,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      centerTitle: true,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Row(
+            children: List.generate(
+              totalSteps,
+              (index) => Expanded(
+                child: Container(
+                  height: 4,
+                  margin: EdgeInsets.only(
+                    right: index < totalSteps - 1 ? 8 : 0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: index < currentStep ? progressColor : inactiveColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 20);
+}
+
 // ignore: must_be_immutable
 class AddVacPage extends StatefulWidget {
   String petId;
@@ -446,31 +517,42 @@ class _AddVacPageState extends State<AddVacPage> {
     }
   }
 
+  // Função para obter o título dinâmico baseado no passo atual
+  String _getStepTitle() {
+    switch (_currentStep) {
+      case 0:
+        return 'Informações da vacina';
+      case 1:
+        return 'Foto do rótulo';
+      case 2:
+        return 'Dados do veterinário';
+      case 3:
+        return 'Informações da clínica';
+      default:
+        return 'Informações da vacina';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    double progress = (_currentStep + 1) / _buildSteps().length;
-
     return SafeArea(
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF041A23),
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.close, color: Colors.grey),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: LinearPercentIndicator(
-            width: MediaQuery.of(context).size.width - 100,
-            lineHeight: 8.0,
-            percent: progress,
-            backgroundColor: Colors.grey.shade200,
-            progressColor: const Color(0xFF58CC02),
-            barRadius: const Radius.circular(8),
-          ),
+        // SUBSTITUIÇÃO DA APPBAR ANTIGA PELA NOVA ProgressAppBar
+        appBar: ProgressAppBar(
+          title: _getStepTitle(),
+          currentStep: _currentStep + 1, // +1 porque o progresso começa em 1
+          totalSteps: _buildSteps().length,
+          progressColor: const Color(0xFFFBAD36), // Cor especificada
+          onBackPressed: () {
+            if (_currentStep > 0) {
+              setState(() {
+                _currentStep -= 1;
+              });
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
         body: Form(
           // Move Form widget here to wrap all content

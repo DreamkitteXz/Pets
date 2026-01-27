@@ -192,7 +192,7 @@ flutter:
     - assets/images/defaults/dogs/bulldog/male/
     - assets/config/pet_assets.json
     - assets/images/pet_owner.png
-
+    - assets/images/vacine.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

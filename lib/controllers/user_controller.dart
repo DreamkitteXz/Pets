@@ -16,9 +16,29 @@ class UserController {
   final UserRepository _userRepository = UserRepository();
 
   Future<Users?> getCurrentUser() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return null;
-    return await _userRepository.getUserById(user.uid);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return null;
+
+      // Primeiro tenta pelo repositório (usa 'users' e Users.fromMap)
+      final repoUser = await _userRepository.getUserById(user.uid);
+      if (repoUser != null) return repoUser;
+
+      // Fallback: verifica coleção com nome diferente caso exista dados antigos
+      final doc = await FirebaseFirestore.instance
+          .collection('Users') // coleção alternativa encontrada no projeto
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        return Users.fromMap(doc.data() as Map<String, dynamic>);
+      }
+
+      return null;
+    } catch (e) {
+      print('Erro ao buscar usuário: $e');
+      return null;
+    }
   }
 
   Future<void> updateUser(String userId, Map<String, dynamic> data) async {

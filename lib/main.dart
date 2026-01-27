@@ -57,17 +57,18 @@ class RoteadorTelas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder(
-      stream: FirebaseAuth.instance.userChanges(),
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasData) {
-          return HomeScreenPage(user: snapshot.data as User);
-        } else {
-          return const OnBoarding();
+
+        if (snapshot.hasData && snapshot.data != null) {
+          return HomeScreenPage(user: snapshot.data!);
         }
+
+        return const OnBoarding();
       },
     );
   }

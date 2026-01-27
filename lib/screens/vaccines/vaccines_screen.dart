@@ -16,10 +16,19 @@ class VacinasScreen extends StatelessWidget {
       return SafeArea(
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('Vacinas'),
+            title: const Text(
+              'Vacinas',
+              style: TextStyle(
+                  fontFamily: 'Outfit',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 24,
+                  color: Color(0xFF080809)),
+            ),
+            actions: const [],
             backgroundColor: Colors.white,
+            automaticallyImplyLeading: false,
+            centerTitle: true,
             elevation: 0,
-            iconTheme: const IconThemeData(color: Colors.black),
           ),
           body: const Center(child: Text('Usuário não autenticado')),
         ),
@@ -36,16 +45,18 @@ class VacinasScreen extends StatelessWidget {
                 fontFamily: 'Outfit',
                 fontWeight: FontWeight.w600,
                 fontSize: 24,
-                color: Colors.black),
+                color: Color(0xFF080809)),
           ),
+          actions: const [],
           backgroundColor: Colors.white,
+          automaticallyImplyLeading: false,
+          centerTitle: true,
           elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.black),
         ),
         body: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('vaccines')
-              .where('userId', isEqualTo: user.uid)
+              .where('ownerId', isEqualTo: user.uid)
               .snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
@@ -60,6 +71,7 @@ class VacinasScreen extends StatelessWidget {
               data['id'] = doc.id;
               return Vacinas.fromMap(data);
             }).toList();
+
             return ListView.builder(
               itemCount: vacinas.length,
               itemBuilder: (context, index) {
@@ -70,7 +82,6 @@ class VacinasScreen extends StatelessWidget {
                   name: vacina.petName ?? '',
                   species: vacina.petSpecies ?? 'cachorro',
                   gender: vacina.petName ?? 'macho',
-                  // ...add other required fields with defaults if needed...
                 );
                 return CardVacinas(
                   pet: pet,
@@ -142,15 +153,11 @@ class CardVacinas extends StatelessWidget {
                           child: Center(
                             child: pet.species == 'cachorro'
                                 ? (pet.gender == 'macho'
-                                    ? Image.asset(
-                                        'lib/assets/vacinadogmacho-removebg-preview.png')
-                                    : Image.asset(
-                                        'lib/assets/vacinadog-removebg-preview.png'))
+                                    ? Image.asset('assets/images/vacine.jpeg')
+                                    : Image.asset('assets/images/vacine.jpeg'))
                                 : (pet.gender == 'macho'
-                                    ? Image.asset(
-                                        'lib/assets/catmachovac-removebg-preview.png')
-                                    : Image.asset(
-                                        'lib/assets/catfemeavac-removebg-preview.png')),
+                                    ? Image.asset('assets/images/vacine.jpeg')
+                                    : Image.asset('assets/images/vacine.jpeg')),
                           ),
                         ),
                         const SizedBox(width: 12),

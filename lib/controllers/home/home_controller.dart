@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pet_app/models/pet_model.dart';
@@ -35,10 +36,69 @@ class HomeController {
 
     return StreamZip([appointmentsStream, vaccinesStream, dewormingStream])
         .map((snapshots) {
-      // ...merge and process as in your widget, but here in the controller...
-      // Return a List<Map<String, dynamic>> of activities
-      // (copy your merging/filtering logic here)
-      return [];
+      final QuerySnapshot apptsSnap = snapshots[0] as QuerySnapshot;
+      final QuerySnapshot vacsSnap = snapshots[1] as QuerySnapshot;
+      final QuerySnapshot dewsSnap = snapshots[2] as QuerySnapshot;
+
+      final now = DateTime.now();
+      final List<Map<String, dynamic>> activities = [];
+
+      // Appointments
+      for (final doc in apptsSnap.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final Timestamp? ts = data['date'] as Timestamp?;
+        if (ts == null) continue;
+        final DateTime dt = ts.toDate();
+        if (dt.isBefore(now)) continue;
+        activities.add({
+          'type': 'appointment',
+          'title': data['title'] ?? data['service'] ?? 'Consulta',
+          'time': dt,
+          'color': const Color(0xFF4A80F0),
+          'icon': Icons.event,
+          'raw': data,
+        });
+      }
+
+      // Vaccines (filtra nextDueDate > now se existir)
+      for (final doc in vacsSnap.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final Timestamp? ts =
+            (data['nextDueDate'] as Timestamp?) ?? (data['date'] as Timestamp?);
+        if (ts == null) continue;
+        final DateTime dt = ts.toDate();
+        if (dt.isBefore(now)) continue;
+        activities.add({
+          'type': 'vaccine',
+          'title': data['name'] ?? data['vaccineName'] ?? 'Vacina',
+          'time': dt,
+          'color': const Color(0xFF7EC8B3),
+          'icon': Icons.vaccines,
+          'raw': data,
+        });
+      }
+
+      // Deworming
+      for (final doc in dewsSnap.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final Timestamp? ts = data['nextDueDate'] as Timestamp?;
+        if (ts == null) continue;
+        final DateTime dt = ts.toDate();
+        if (dt.isBefore(now)) continue;
+        activities.add({
+          'type': 'deworming',
+          'title': data['name'] ?? 'Vermífugo',
+          'time': dt,
+          'color': const Color(0xFFFFB300),
+          'icon': Icons.event_repeat,
+          'raw': data,
+        });
+      }
+
+      // Ordena por data e limita a 3 itens
+      activities.sort(
+          (a, b) => (a['time'] as DateTime).compareTo(b['time'] as DateTime));
+      return activities.take(3).toList();
     });
   }
 

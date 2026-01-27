@@ -2,21 +2,22 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_app/controllers/pets/pet_controller.dart';
 import 'package:pet_app/models/pet_model.dart';
-import 'package:pet_app/screens/vaccines/add_vaccine_screen.dart';
 import 'package:pet_app/screens/pets/add_pet.dart';
+import 'package:intl/intl.dart';
 
 import 'package:pet_app/services/pet_assets_service.dart';
 import 'package:pet_app/controllers/home/home_controller.dart';
+import 'package:pet_app/models/user_model.dart'; // novo import
 
 class HomeScreenMainTab extends StatelessWidget {
-  final User user;
+  final Users? userData; // novo campo opcional com o model completo
   final TabController Function(TabController) tabControllerBuilder;
   final void Function(List<Pets> pets)? onShowAllPets;
 
   HomeScreenMainTab({
-    required this.user,
     required this.tabControllerBuilder,
     this.onShowAllPets,
+    this.userData, // aceite o Users vindo de fora
     super.key,
   });
 
@@ -25,12 +26,14 @@ class HomeScreenMainTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // usa userData.name com fallback para user.displayName
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeroSection(context),
+          // CustomAppBar espera um username — mantenha compatível
+          CustomAppBar(username: userData?.name ?? 'Usuário'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(
@@ -43,236 +46,6 @@ class HomeScreenMainTab extends StatelessWidget {
                 const SizedBox(height: 28),
                 _buildPetsSection(context),
                 const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeroSection(BuildContext context) {
-    final timeOfDay = DateTime.now().hour;
-    String greeting = 'Bom dia';
-    IconData timeIcon = Icons.wb_sunny_outlined;
-
-    if (timeOfDay >= 12 && timeOfDay < 18) {
-      greeting = 'Boa tarde';
-      timeIcon = Icons.wb_sunny;
-    } else if (timeOfDay >= 18) {
-      greeting = 'Boa noite';
-      timeIcon = Icons.nightlight_round;
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.zero,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1A5D7D), // Azul mais claro
-            Color(0xFF103E54), // Tom médio
-            Color(0xFF072836), // Azul escuro
-          ],
-          stops: [0.0, 0.5, 1.0],
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(40),
-          bottomRight: Radius.circular(40),
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Elementos decorativos melhorados
-          Positioned(
-            top: -50,
-            right: -40,
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.07),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -30,
-            left: -30,
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.07),
-              ),
-            ),
-          ),
-          // Pequenos elementos decorativos adicionais
-          Positioned(
-            top: 70,
-            right: 90,
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 60,
-            left: 80,
-            child: Container(
-              width: 15,
-              height: 15,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
-              ),
-            ),
-          ),
-          // Conteúdo principal
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 55, 24, 35),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          timeIcon,
-                          color: Colors.white70,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          greeting,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        // Ação para perfil do usuário
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.white.withOpacity(0.95),
-                              Colors.white.withOpacity(0.6),
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.25),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Colors.grey[200],
-                          backgroundImage: user.photoURL != null
-                              ? NetworkImage(user.photoURL!)
-                              : null,
-                          child: user.photoURL == null
-                              ? const Icon(Icons.person,
-                                  color: Color(0xFF103E54), size: 28)
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '${user.displayName?.split(' ')[0] ?? "Pet Lover"}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                const SizedBox(height: 22),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.15),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.25),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.pets,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Text(
-                          'O carinho e atenção são essenciais para o bem-estar dos seus pets',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.favorite,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -922,4 +695,126 @@ class HomeScreenMainTab extends StatelessWidget {
       ],
     );
   }
+}
+
+class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final String username;
+  final VoidCallback? onNotificationTap;
+  final VoidCallback? onProfileTap;
+  final String? profileImageUrl; // opcional, se quiser usar imagem no perfil
+
+  const CustomAppBar({
+    super.key,
+    required this.username,
+    this.onNotificationTap,
+    this.onProfileTap,
+    this.profileImageUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final formattedDate = DateFormat(
+      "EEE, d MMMM",
+    ).format(now); // ex: Fri, 15 November
+
+    return Container(
+      padding: const EdgeInsets.only(top: 40, left: 20, right: 20, bottom: 20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFEDE7F6), // Roxinho bem leve (claro)
+            Color(0xFFFAF7F8), // Branco
+          ],
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          /// Parte esquerda (Data + Saudação)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                formattedDate,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "Olá, $username",
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              /// Notificação
+              InkWell(
+                onTap: onNotificationTap,
+                borderRadius: BorderRadius.circular(30),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(
+                      Icons.notifications_none,
+                      size: 28,
+                      color: Colors.black87,
+                    ),
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        height: 14,
+                        width: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+
+              /// Perfil
+              InkWell(
+                onTap: onProfileTap,
+                borderRadius: BorderRadius.circular(25),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.grey[300],
+                  backgroundImage: profileImageUrl != null
+                      ? NetworkImage(profileImageUrl!)
+                      : null,
+                  child: profileImageUrl == null
+                      ? Text(
+                          username.isNotEmpty ? username[0].toUpperCase() : "?",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(100);
 }
