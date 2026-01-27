@@ -25,6 +25,7 @@ import Settings from './components/pages/Settings/Settings';
 // Error Pages
 import NotFound from './components/pages/Error/NotFound';
 import Unauthorized from './components/pages/Error/Unauthorized';
+import PettoHomepage from './components/pages/Homepage/Homepage';
 
 const App = () => {
   return (
@@ -32,6 +33,7 @@ const App = () => {
       <Router>
         <Routes>
           {/* Public Routes */}
+          <Route path="/home" element={<PettoHomepage />} />
           <Route path="/auth" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
@@ -43,7 +45,7 @@ const App = () => {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               {/* Dashboard */}
-              {/*<Route path="/" element={<Dashboard />} />*/}
+              <Route path="" element={<VaccineDetailsModal /> } />
               
               {/* Pets */}
               <Route path="/pets">
