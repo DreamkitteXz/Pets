@@ -7,6 +7,11 @@ import { AlertTriangle } from 'lucide-react';
 const ProfileIncompleteBanner = ({ mode = 'banner' }) => {
   const navigate = useNavigate();
   
+  // COMENTADO: Componente desabilitado - perfil incompleto não é mais verificado
+  // O banner não será exibido em nenhuma situação
+  return null;
+  
+  /*
   if (mode === 'page') {
     return (
       <div className="min-h-screen bg-gradient-to-r from-blue-100 to-teal-50 flex items-center justify-center p-4">
@@ -47,6 +52,7 @@ const ProfileIncompleteBanner = ({ mode = 'banner' }) => {
       </div>
     </div>
   );
+  */
 };
 
 export default ProfileIncompleteBanner;

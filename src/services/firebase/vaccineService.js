@@ -10,7 +10,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from './firebaseConfig.js';
+import { db, storage } from '../../config/firebase';
 
 export const vaccineService = {
   // Get all vaccines with optional filters

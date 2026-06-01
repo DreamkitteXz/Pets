@@ -16,7 +16,6 @@ export function usePets() {
         // Create a query where veterinarians array contains current user's ID
         const q = query(petsRef, where('veterinarians', 'array-contains', user.uid));
         const querySnapshot = await getDocs(q);
-        console.log(user.uid);
         const petsData = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
