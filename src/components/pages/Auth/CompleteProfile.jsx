@@ -172,12 +172,14 @@ const CompleteProfile = () => {
       if (!user) throw new Error('No authenticated user found');
 
       const userRef = doc(db, "users", user.uid);
+      // COMENTADO: profileCompleted removido da atualização
+      // A aplicação agora permite acesso completo sem verificar este campo
       await updateDoc(userRef, {
         ...formData,
         role: 'veterinarian',
         updatedAt: new Date().toISOString(),
-        status: 'active',
-        profileCompleted: true
+        status: 'active'
+        // profileCompleted: true
       });
 
       setSuccess('Profile completed successfully! Redirecting to dashboard...');

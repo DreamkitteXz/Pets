@@ -1,4 +1,5 @@
 import { db } from '../../config/firebase';
+import logger from '../../utils/logger';
 import { 
   collection, 
   addDoc, 
@@ -17,7 +18,7 @@ export const notificationService = {
         createdAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error sending notification:', error);
+      logger.error('Error sending notification:', error);
     }
   }
 };

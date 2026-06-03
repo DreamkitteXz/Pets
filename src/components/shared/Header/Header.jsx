@@ -1,190 +1,186 @@
-import React, { useState, useEffect } from "react";
-import { CiBellOn, CiSettings, CiLogout, CiUser, CiBookmark, CiChat1 } from "react-icons/ci";
+import React, { useState, useEffect, useRef } from "react";
+import { Bell, Search, ChevronDown, User, Bookmark, MessageCircle, Settings, LogOut } from "lucide-react";
 import { auth, db } from "../../../config/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import LogoBlack from "../../../assets/logos/logo_black";
 import LogoutModal from "../LogoutModal/LogoutModal";
 
 export default function Header() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showDevMessage, setShowDevMessage] = useState(false);
+  const [showDevToast, setShowDevToast] = useState(false);
+  const menuRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          setCurrentUser(userDoc.data());
-        }
+        if (userDoc.exists()) setCurrentUser(userDoc.data());
       }
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
-  const handleLogoutClick = () => {
-    setShowLogoutModal(true);
-    setShowProfileMenu(false);
+  // Close menu on outside click
+  useEffect(() => {
+    const handle = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setShowProfileMenu(false); };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  const handleLogoutClick = () => { setShowLogoutModal(true); setShowProfileMenu(false); };
+  const handleLogoutConfirm = async () => {
+    try { await signOut(auth); navigate("/auth"); }
+    catch (e) { console.error(e); }
+    finally { setShowLogoutModal(false); }
   };
 
-  const handleLogoutConfirm = async () => {
-    try {
-      await signOut(auth);
-      navigate("/auth");
-    } catch (error) {
-      console.error("Error signing out: ", error);
-    } finally {
-      setShowLogoutModal(false);
-    }
-  };
+  const unreadCount = 2;
 
   const handleNotificationClick = () => {
-    setShowDevMessage(true);
-    setTimeout(() => setShowDevMessage(false), 3000);
+    setShowDevToast(true);
+    setTimeout(() => setShowDevToast(false), 3000);
   };
-
-  // Sample notifications
-  const notifications = [
-    { id: 1, message: "New patient registered: Milo (Golden Retriever)", time: "10 mins ago", read: false },
-    { id: 2, message: "Appointment rescheduled: Luna with Dr. Johnson", time: "1 hour ago", read: false },
-    { id: 3, message: "Lab results available for Charlie", time: "3 hours ago", read: true },
-    { id: 4, message: "Medication reminder: Rocky needs follow-up", time: "Yesterday", read: true }
-  ];
-  
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <>
-      <div className="bg-white h-16 px-6 flex justify-between items-center border-b border-neutral-200 shadow-sm">
-        {/* Left side - Logo */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="flex flex-col">
-              <span className="text-neutral-900 font-bold text-lg leading-none">Pets</span>
-              <span className="text-neutral-500 text-xs leading-none">Sistema de Gerenciamento</span>
-            </div>
-          </div>
+      {/* Dev toast */}
+      {showDevToast && (
+        <div className="fixed bottom-6 right-6 z-[100] text-white text-sm px-4 py-2.5 rounded-[12px] fade-in-up"
+          style={{ background: '#1C1C1E', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+          🚧 Sistema de notificações em desenvolvimento
         </div>
-        
-        {/* Right side - Search, Notifications and Profile */}
-        <div className="flex items-center gap-4">
-          {/* Search bar */}
-          <div className="hidden md:block">
-            <div className="relative">
-              <input 
-                type="text" 
-                placeholder="Buscar..." 
-                className="bg-neutral-100 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 w-64 pl-10"
-              />
-              <span className="absolute left-3 top-2.5 text-neutral-400">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
-            </div>
+      )}
+
+      <header
+        className="h-[60px] flex-shrink-0 flex items-center justify-between px-6 sticky top-0 z-30"
+        style={{
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          background: 'var(--header-bg)',
+          borderBottom: '1px solid var(--separator)',
+        }}
+      >
+        {/* Left — brand */}
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-[17px]" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+            Pets
+          </span>
+          <span className="text-[13px]" style={{ color: 'var(--text-tertiary)' }}>Veterinário</span>
+        </div>
+
+        {/* Right — search + bell + profile */}
+        <div className="flex items-center gap-2">
+
+          {/* Search */}
+          <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-[10px] w-52"
+            style={{ background: 'var(--header-search-bg)' }}>
+            <Search size={14} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              className="bg-transparent border-none outline-none text-[15px] w-full placeholder:text-[--apple-gray-2]"
+              style={{ color: 'var(--text-primary)' }}
+            />
           </div>
-          
-          {/* Notification Bell */}
-          <div className="relative">
-            <button 
-              className="flex items-center justify-center h-10 w-10 rounded-xl hover:bg-neutral-100 relative transition-colors"
-              onClick={handleNotificationClick}
-            >
-              <CiBellOn size={24} className="text-neutral-600" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-            
-            {/* Development Message Toast */}
-            {showDevMessage && (
-              <div className="absolute right-0 mt-2 w-64 bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg shadow-lg z-20">
-                🚧 Sistema de notificações em desenvolvimento
-              </div>
+
+          {/* Bell */}
+          <button
+            onClick={handleNotificationClick}
+            className="relative w-9 h-9 rounded-[10px] flex items-center justify-center transition-all duration-150"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.12)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <Bell size={20} strokeWidth={1.5} />
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+                style={{ background: 'var(--apple-red)' }} />
             )}
-          </div>
-          
-          {/* Profile - Updated with real data */}
-          <div className="relative pl-4 border-l border-neutral-200">
-            {!loading && currentUser && (
-              <div 
-                className="flex items-center cursor-pointer group"
+          </button>
+
+          {/* Profile */}
+          {!loading && currentUser && (
+            <div className="relative" ref={menuRef}>
+              <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-[10px] transition-all duration-150"
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.12)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
-                <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-yellow-100 text-yellow-600 mr-2 group-hover:bg-yellow-200 transition-colors">
-                  {currentUser.profileImage ? (
-                    <img 
-                      src={currentUser.profileImage} 
-                      alt={currentUser.name} 
-                      className="h-10 w-10 rounded-xl object-cover"
-                    />
-                  ) : (
-                    <CiUser size={24} />
-                  )}
-                </div>
-                <div className="flex flex-col mr-2 hidden md:block">
-                  <span className="text-sm font-medium text-neutral-900">
-                    {currentUser.name}
-                  </span>
-                  <span className="text-xs ml-2 text-neutral-500">
-                    {currentUser.role === 'veterinarian' ? `${currentUser.crmv} - Veterinário` : 'Tutor'}
-                  </span>
-                </div>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className={`h-4 w-4 text-neutral-400 transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center font-semibold text-[12px] text-white flex-shrink-0"
+                  style={{ background: 'var(--apple-blue)' }}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            )}
+                  {currentUser.name?.charAt(0).toUpperCase() || 'V'}
+                </div>
+                <span className="hidden md:block text-[14px] font-medium max-w-[120px] truncate" style={{ color: 'var(--text-primary)' }}>
+                  {currentUser.name?.split(' ')[0]}
+                </span>
+                <ChevronDown size={14} strokeWidth={2} style={{ color: 'var(--text-tertiary)', transform: showProfileMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </button>
 
-            {/* Profile Dropdown - Updated with real data */}
-            {showProfileMenu && currentUser && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg py-1 z-10 border">
-                <div className="px-4 py-3 border-b">
-                  <p className="text-sm font-medium text-neutral-900">{currentUser.name}</p>
-                  <p className="text-xs text-neutral-500">{currentUser.email}</p>
-                </div>
-{/*                <a href="#" className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
-                  <CiUser className="mr-2" /> Meu Perfil
-                </a>
-                <a href="#" className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
-                  <CiBookmark className="mr-2" /> Meus Pacientes
-                </a>
-                <a href="#" className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
-                  <CiChat1 className="mr-2" /> Mensagens
-                </a>
-                <a href="#" className="flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
-                  <CiSettings className="mr-2" /> Configurações
-                </a>*/}
-                <div className="border-t my-1"></div>
-                <a 
-                  onClick={handleLogoutClick} 
-                  className="flex items-center px-4 py-2 text-sm text-red-500 hover:bg-red-50 cursor-pointer"
+              {/* Dropdown */}
+              {showProfileMenu && (
+                <div
+                  className="absolute right-0 mt-2 w-[220px] rounded-[14px] py-1 z-50 overflow-hidden fade-in-up"
+                  style={{
+                    background: 'var(--surface-elevated)',
+                    boxShadow: '0 8px 40px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
+                    animationDuration: '0.2s',
+                  }}
                 >
-                  <CiLogout className="mr-2" /> Sair
-                </a>
-              </div>
-            )}
-          </div>
+                  {/* User header */}
+                  <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--separator)' }}>
+                    <p className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>{currentUser.name}</p>
+                    <p className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>{currentUser.email}</p>
+                  </div>
+
+                  {/* Menu items */}
+                  {[
+                    { icon: User, label: 'Meu Perfil', to: '/profile' },
+                    { icon: Bookmark, label: 'Meus Pacientes', to: '/pets' },
+                    { icon: MessageCircle, label: 'Mensagens', to: null },
+                    { icon: Settings, label: 'Configurações', to: '/settings' },
+                  ].map(({ icon: Icon, label, to }) => (
+                    <button
+                      key={label}
+                      onClick={() => { setShowProfileMenu(false); if (to) navigate(to); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100"
+                      style={{ color: 'var(--text-primary)', fontSize: '15px' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.08)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <Icon size={16} strokeWidth={1.5} style={{ color: 'var(--apple-blue)', flexShrink: 0 }} />
+                      {label}
+                    </button>
+                  ))}
+
+                  <div style={{ borderTop: '1px solid var(--separator)', marginTop: '4px', paddingTop: '4px' }}>
+                    <button
+                      onClick={handleLogoutClick}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100"
+                      style={{ color: 'var(--apple-red)', fontSize: '15px' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,59,48,0.06)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <LogOut size={16} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+                      Sair
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </div>
+      </header>
 
-      <LogoutModal 
+      <LogoutModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
         onConfirm={handleLogoutConfirm}

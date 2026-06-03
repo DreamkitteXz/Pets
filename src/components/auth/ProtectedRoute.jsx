@@ -1,24 +1,16 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import LimitedAccessWrapper from '../pages/Auth/LimitedAccessWrapper';
+import LoadingScreen from '../ui/LoadingScreen';
 
-const ProtectedRoute = ({ limitedView }) => {
+const ProtectedRoute = () => {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return <div>Loading...</div>; // Or a loading spinner
-  }
+  if (loading) return <LoadingScreen message="Carregando..." />;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!user.emailVerified) return <Navigate to="/verify-email" replace />;
 
-  if (!user) {
-    return <Navigate to="/auth" />;
-  }
-
-  return (
-    <LimitedAccessWrapper limitedView={limitedView}>
-      <Outlet />
-    </LimitedAccessWrapper>
-  );
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

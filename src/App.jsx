@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/shared/Layout/Layout';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Auth Pages
@@ -25,11 +26,12 @@ import Settings from './components/pages/Settings/Settings';
 // Error Pages
 import NotFound from './components/pages/Error/NotFound';
 import Unauthorized from './components/pages/Error/Unauthorized';
-import PettoHomepage from './components/pages/Homepage/Homepage';
+import PettoHomepage from './components/pages/Landing/landing';
 
 const App = () => {
   return (
     <AuthProvider>
+      <ThemeProvider>
       <Router>
         <Routes>
           {/* Public Routes */}
@@ -39,7 +41,8 @@ const App = () => {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<EmailVerification />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
-          <Route path="/complete-profile" element={<CompleteProfile />} />
+          {/* COMENTADO: Rota de complete-profile desabilitada */}
+          {/* <Route path="/complete-profile" element={<CompleteProfile />} /> */}
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
@@ -71,6 +74,7 @@ const App = () => {
           <Route path="/" element={<Navigate to="/vacinas" replace />} />
         </Routes>
       </Router>
+      </ThemeProvider>
     </AuthProvider>
   );
 };

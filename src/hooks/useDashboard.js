@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import logger from '../utils/logger';
 
 export function useDashboard() {
   const [dashboardData, setDashboardData] = useState(null);
@@ -69,7 +70,7 @@ export function useDashboard() {
         
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching dashboard data:', err);
+        logger.error('Error fetching dashboard data:', err);
         setError(err);
         setLoading(false);
       }

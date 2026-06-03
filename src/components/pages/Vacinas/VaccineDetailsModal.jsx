@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CiCircleCheck, CiCircleRemove, CiCircleAlert } from "react-icons/ci";
 import { IoClose, IoInformationCircle } from "react-icons/io5";
-import { doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
-import { db } from '../../../config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../../config/firebase';
 import { useAuth } from '../../../context/AuthContext';
+import logger from '../../../utils/logger';
+
+const updateVaccineStatusFn = httpsCallable(functions, 'updateVaccineStatus', { timeout: 15000 });
 
 const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
   const { user } = useAuth();
@@ -95,26 +99,17 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
 
     setIsValidating(true);
     try {
-      const vaccineRef = doc(db, 'vaccines', vaccine.id);
-      const validationDetails = {
-        status: isApproved ? 'approved' : 'rejected',
-        validatedAt: Timestamp.now(),
-        validatedBy: user.uid,
-        validatedByName: currentUser.name || 'Unknown',
-        validatedByCrmv: currentUser.crmv || 'Unknown',
-        notes: validationNote,
-        rejectionReason: isApproved ? '' : rejectionReason
-      };
-
-      await updateDoc(vaccineRef, {
-        'validationDetails.vetValidation': validationDetails,
-        updatedAt: Timestamp.now()
+      await updateVaccineStatusFn({
+        vaccineId:       vaccine.id,
+        isApproved,
+        notes:           validationNote,
+        rejectionReason: isApproved ? '' : rejectionReason,
       });
 
       onClose();
     } catch (error) {
-      console.error('Error validating vaccine:', error);
-      alert('Erro ao validar vacina. Tente novamente.');
+      logger.error('Error validating vaccine:', error);
+      alert(error?.message || 'Erro ao validar vacina. Tente novamente.');
     } finally {
       setIsValidating(false);
     }

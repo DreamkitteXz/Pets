@@ -1,13 +1,57 @@
 import React, { useState } from 'react';
-import { CiSearch, CiFilter, CiCircleCheck, CiCircleRemove, CiCircleAlert } from "react-icons/ci";
+import { Search, Filter, CheckCircle, Clock, XCircle, ClipboardList } from 'lucide-react';
 import VaccineDetailsModal from './VaccineDetailsModal';
 import VaccineDeleteModal from './VaccineDeleteModal';
 import VaccineEditModal from './VaccineEditModal';
 import useVetVaccines from '../../../hooks/useVetVaccines';
 
+// ── Status config ──────────────────────────────────────────────────────────
+const STATUS_CFG = {
+  approved:  { label: 'Aprovado',  bg: 'rgba(52,199,89,0.12)',  text: 'var(--apple-green)', dot: 'var(--apple-green)',  icon: CheckCircle },
+  rejected:  { label: 'Rejeitado', bg: 'rgba(255,59,48,0.10)',  text: 'var(--apple-red)',   dot: 'var(--apple-red)',    icon: XCircle     },
+  pending:   { label: 'Pendente',  bg: 'rgba(255,149,0,0.12)', text: 'var(--apple-orange)', dot: 'var(--apple-orange)', icon: Clock       },
+  vetApproved: { label: 'Aprovado Vet', bg: 'rgba(88,86,214,0.10)', text: 'var(--apple-indigo)', dot: 'var(--apple-indigo)', icon: CheckCircle },
+};
+
+const StatusBadge = ({ status }) => {
+  const cfg = STATUS_CFG[status] || { label: status || '—', bg: 'rgba(142,142,147,0.1)', text: 'var(--apple-gray-1)', dot: 'var(--apple-gray-3)', icon: Clock };
+  const Icon = cfg.icon;
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium" style={{ background: cfg.bg, color: cfg.text }}>
+      <Icon size={11} strokeWidth={2} />
+      {cfg.label}
+    </span>
+  );
+};
+
+const formatDate = (date) => {
+  if (!date) return '—';
+  if (typeof date === 'string') return date;
+  if (date?.toDate instanceof Function) return date.toDate().toLocaleDateString('pt-BR');
+  if (date instanceof Date) return date.toLocaleDateString('pt-BR');
+  if (date?.seconds) return new Date(date.seconds * 1000).toLocaleDateString('pt-BR');
+  return '—';
+};
+
+// ── KPI stat card ──────────────────────────────────────────────────────────
+const KpiCard = ({ label, value, accentColor, icon: Icon, delay }) => (
+  <div
+    className="fade-in-up rounded-[16px] p-5 flex items-center justify-between"
+    style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: `${delay}ms` }}
+  >
+    <div>
+      <div className="text-[28px] font-bold leading-none" style={{ color: accentColor, letterSpacing: '-0.02em' }}>{value}</div>
+      <div className="text-[13px] mt-1" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+    </div>
+    <div className="w-10 h-10 rounded-[12px] flex items-center justify-center flex-shrink-0" style={{ background: `${accentColor}18` }}>
+      <Icon size={20} strokeWidth={1.5} style={{ color: accentColor }} />
+    </div>
+  </div>
+);
+
+// ── Page ──────────────────────────────────────────────────────────────────
 const VaccinePage = () => {
   const { vaccines, loading } = useVetVaccines();
-  // Change default filter to 'all'
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVaccine, setSelectedVaccine] = useState(null);
@@ -15,292 +59,170 @@ const VaccinePage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const formatDate = (date) => {
-    if (!date) return 'N/A';
-    // Handle string dates
-    if (typeof date === 'string') return date;
-    // Handle Firestore Timestamp
-    if (date?.toDate instanceof Function) return date.toDate().toLocaleDateString();
-    // Handle regular Date objects
-    if (date instanceof Date) return date.toLocaleDateString();
-    // Handle Timestamp-like objects
-    if (date?.seconds) return new Date(date.seconds * 1000).toLocaleDateString();
-    return 'Invalid Date';
-  };
-
   const filteredVaccines = vaccines
-    .filter(vaccine => {
-      const isStatusMatch = filterStatus === 'all' || vaccine.status === filterStatus;
-      console.log('Vaccine status:', vaccine.status, 'Filter status:', filterStatus, 'Match:', isStatusMatch);
-      return isStatusMatch;
-    })
-    .filter(vaccine => {
+    .filter(v => filterStatus === 'all' || v.status === filterStatus)
+    .filter(v => {
       if (!searchTerm) return true;
-      const searchTermLower = searchTerm.toLowerCase();
-      const isMatch = vaccine.petName?.toLowerCase().includes(searchTermLower) ||
-        vaccine.id?.toLowerCase().includes(searchTermLower) ||
-        vaccine.ownerName?.toLowerCase().includes(searchTermLower) ||
-        vaccine.name?.toLowerCase().includes(searchTermLower);
-      console.log('Search term match:', isMatch);
-      return isMatch;
+      const q = searchTerm.toLowerCase();
+      return v.petName?.toLowerCase().includes(q) ||
+        v.id?.toLowerCase().includes(q) ||
+        v.ownerName?.toLowerCase().includes(q) ||
+        v.name?.toLowerCase().includes(q);
     });
 
-  // Debug logs after declaration
-  console.log('Vaccines in component:', vaccines);
-  console.log('Filtered vaccines:', filteredVaccines);
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'approved':
-        return <CiCircleCheck className="text-green-600" size={20} />;
-      case 'rejected':
-        return <CiCircleRemove className="text-red-600" size={20} />;
-      case 'pending':
-        return <CiCircleAlert className="text-yellow-600" size={20} />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'approved':
-        return <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Aprovado</span>;
-      case 'rejected':
-        return <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Rejeitado</span>;
-      case 'pending':
-        return <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Pendente</span>;
-      default:
-        return null;
-    }
-  };
-
-  const handleViewDetails = (vaccine) => {
-    setSelectedVaccine(vaccine);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedVaccine(null);
-  };
-
-  const handleDeleteClick = (vaccine) => {
-    setSelectedVaccine(vaccine);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleDelete = (vaccineId) => {
-    console.log('Deleting vaccine:', vaccineId);
-  };
-
-  const handleEditClick = (vaccine) => {
-    setSelectedVaccine(vaccine);
-    setIsEditModalOpen(true);
-  };
-
-  const handleSaveEdit = (updatedVaccine) => {
-    console.log('Saving updated vaccine:', updatedVaccine);
-  };
-
   return (
-    <div className="container mx-auto p-6">
+    <div className="min-h-full font-sf">
+
+      {/* ── Page header ─────────────────────────────────────────────────── */}
+      <div className="mb-6 fade-in-up">
+        <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          Vacinas
+        </h1>
+        <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+          Revise e valide os registros de vacinação associados ao seu CRMV.
+        </p>
+      </div>
+
       {loading ? (
-        <div>Loading...</div>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-8 h-8 rounded-full border-2 border-transparent animate-spin"
+            style={{ borderTopColor: 'var(--apple-blue)' }} />
+        </div>
       ) : (
         <>
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Validação de Vacinas</h1>
-            <p className="text-gray-600">
-              Revise e valide os registros de vacinação associados ao seu registro CRMV. 
-              Todas as vacinas administradas requerem validação para garantir conformidade com os padrões regulatórios e manter registros de saúde precisos.
-            </p>
+          {/* ── KPI cards ──────────────────────────────────────────────── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <KpiCard label="Total" value={vaccines.length} accentColor="var(--apple-blue)" icon={ClipboardList} delay={50} />
+            <KpiCard label="Pendentes" value={vaccines.filter(v => v.status === 'pending').length} accentColor="var(--apple-orange)" icon={Clock} delay={100} />
+            <KpiCard label="Aprovados" value={vaccines.filter(v => v.status === 'approved' || v.status === 'vetApproved').length} accentColor="var(--apple-green)" icon={CheckCircle} delay={150} />
+            <KpiCard label="Rejeitados" value={vaccines.filter(v => v.status === 'rejected').length} accentColor="var(--apple-red)" icon={XCircle} delay={200} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Total de Registros</div>
-                  <div className="text-2xl font-bold">{vaccines.length}</div>
-                </div>
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </div>
-              </div>
+          {/* ── Search + filter bar ──────────────────────────────────────── */}
+          <div
+            className="fade-in-up flex flex-wrap items-center gap-3 mb-4 p-4 rounded-[16px]"
+            style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: '250ms' }}
+          >
+            <div className="flex items-center gap-2 flex-1 min-w-[180px] px-3 py-2 rounded-[10px]"
+              style={{ background: 'var(--surface-secondary)' }}>
+              <Search size={14} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Buscar por pet, tutor ou vacina..."
+                className="bg-transparent border-none outline-none flex-1"
+                style={{ fontSize: '15px', color: 'var(--text-primary)' }}
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
             </div>
-            
-            <div className="bg-white p-4 rounded-lg shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Pendentes</div>
-                  <div className="text-2xl font-bold">{vaccines.filter(v => v.status === 'pending').length}</div>
-                </div>
-                <div className="bg-yellow-100 p-2 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-[10px]" style={{ background: 'var(--surface-secondary)' }}>
+              <Filter size={14} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
+              <select
+                className="bg-transparent border-none outline-none"
+                style={{ fontSize: '15px', color: 'var(--text-primary)' }}
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+              >
+                <option value="all">Todos</option>
+                <option value="pending">Pendente</option>
+                <option value="approved">Aprovado</option>
+                <option value="vetApproved">Aprovado Vet</option>
+                <option value="rejected">Rejeitado</option>
+              </select>
             </div>
-            
-            <div className="bg-white p-4 rounded-lg shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Aprovados</div>
-                  <div className="text-2xl font-bold">{vaccines.filter(v => v.status === 'approved').length}</div>
-                </div>
-                <div className="bg-green-100 p-2 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-lg shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Rejeitados</div>
-                  <div className="text-2xl font-bold">{vaccines.filter(v => v.status === 'rejected').length}</div>
-                </div>
-                <div className="bg-red-100 p-2 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
+            <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
+              {filteredVaccines.length} de {vaccines.length}
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <CiSearch className="text-gray-400" />
+          {/* ── Table ────────────────────────────────────────────────────── */}
+          <div
+            className="fade-in-up rounded-[16px] overflow-hidden"
+            style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: '300ms' }}
+          >
+            {filteredVaccines.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
+                  <ClipboardList size={28} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Buscar vacinas..."
-                  className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <p className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>
+                  {vaccines.length === 0 ? 'Nenhuma vacina registrada' : 'Nenhum resultado'}
+                </p>
+                <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+                  {vaccines.length === 0 ? 'Os registros de vacinas aparecerão aqui.' : 'Tente outros filtros.'}
+                </p>
               </div>
-              
-              <div className="flex items-center bg-white rounded-lg shadow-sm p-2 border">
-                <CiFilter className="text-gray-500 mr-2" size={18} />
-                <select 
-                  className="border-none bg-transparent focus:outline-none text-sm"
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <option value="all">Todos os Status</option>
-                  <option value="pending">Pendente</option>
-                  <option value="approved">Aprovado</option>
-                  <option value="rejected">Rejeitado</option>
-                </select>
-              </div>
-              
-              <span className="text-sm text-gray-500">
-                Mostrando {filteredVaccines.length} de {vaccines.length} registros
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ID / Data
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Pet / Proprietário
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Detalhes da Vacina
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      CRMV / Veterinário
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredVaccines.map((vaccine) => (
-                    <tr key={vaccine.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{vaccine.id}</div>
-                        <div className="text-sm text-gray-500">
-                          {formatDate(vaccine.administrationDate)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{vaccine.petName}</div>
-                        <div className="text-sm text-gray-500">{vaccine.ownerName}</div>
-                        {console.log('Pet Name:', vaccine.petName, 'Owner Name:', vaccine.ownerName)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{vaccine.name}</div>
-                        <div className="text-sm text-gray-500">Lote: {vaccine.batchNumber}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{vaccine.crmvNumber}</div>
-                        <div className="text-sm text-gray-500">{vaccine.veterinarianName}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          {getStatusIcon(vaccine.status)}
-                          <span className="ml-2">{getStatusBadge(vaccine.status)}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button 
-                          className="text-blue-600 hover:text-blue-900 font-medium text-sm mr-3"
-                          onClick={() => handleViewDetails(vaccine)}
-                        >
-                          Ver Detalhes
-                        </button>
-                      </td>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr style={{ background: 'rgba(116,116,128,0.06)', borderBottom: '1px solid var(--separator)' }}>
+                      {['Data / ID', 'Pet · Tutor', 'Vacina', 'CRMV', 'Status', 'Ações'].map(h => (
+                        <th key={h} className="text-left font-semibold uppercase"
+                          style={{ padding: '10px 20px', fontSize: '11px', letterSpacing: '0.06em', color: 'var(--text-secondary)', border: 'none', background: 'transparent' }}>
+                          {h}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div>
-            <VaccineDetailsModal 
-              isOpen={isModalOpen}
-              onClose={handleCloseModal}
-              vaccine={selectedVaccine}
-            />
-
-            <VaccineDeleteModal 
-              isOpen={isDeleteModalOpen}
-              onClose={() => setIsDeleteModalOpen(false)}
-              vaccine={selectedVaccine}
-              onDelete={handleDelete}
-            />
-
-            <VaccineEditModal 
-              isOpen={isEditModalOpen}
-              onClose={() => setIsEditModalOpen(false)}
-              vaccine={selectedVaccine}
-              onSave={handleSaveEdit}
-            />
+                  </thead>
+                  <tbody>
+                    {filteredVaccines.map((vaccine, i) => {
+                      const isLast = i === filteredVaccines.length - 1;
+                      return (
+                        <tr
+                          key={vaccine.id}
+                          className="fade-in-up transition-colors duration-100"
+                          style={{ borderBottom: isLast ? 'none' : '1px solid var(--separator)', animationDelay: `${300 + i * 25}ms` }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.04)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <td style={{ padding: '14px 20px', border: 'none' }}>
+                            <div className="font-medium" style={{ fontSize: '13px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                              {vaccine.id?.substring(0, 8)}…
+                            </div>
+                            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{formatDate(vaccine.administrationDate)}</div>
+                          </td>
+                          <td style={{ padding: '14px 20px', border: 'none' }}>
+                            <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{vaccine.petName || '—'}</div>
+                            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{vaccine.ownerName || '—'}</div>
+                          </td>
+                          <td style={{ padding: '14px 20px', border: 'none' }}>
+                            <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{vaccine.name || '—'}</div>
+                            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Lote: {vaccine.batchNumber || '—'}</div>
+                          </td>
+                          <td style={{ padding: '14px 20px', border: 'none' }}>
+                            <div className="font-medium" style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{vaccine.crmvNumber || '—'}</div>
+                            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{vaccine.veterinarianName || '—'}</div>
+                          </td>
+                          <td style={{ padding: '14px 20px', border: 'none' }}>
+                            <StatusBadge status={vaccine.status} />
+                          </td>
+                          <td style={{ padding: '14px 20px', border: 'none' }}>
+                            <button
+                              onClick={() => { setSelectedVaccine(vaccine); setIsModalOpen(true); }}
+                              className="font-medium transition-opacity duration-100"
+                              style={{ fontSize: '15px', color: 'var(--apple-blue)' }}
+                              onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+                              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                            >
+                              Ver
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </>
       )}
+
+      {/* Modals */}
+      <VaccineDetailsModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setSelectedVaccine(null); }} vaccine={selectedVaccine} />
+      <VaccineDeleteModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} vaccine={selectedVaccine} onDelete={() => {}} />
+      <VaccineEditModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} vaccine={selectedVaccine} onSave={() => {}} />
     </div>
   );
 };

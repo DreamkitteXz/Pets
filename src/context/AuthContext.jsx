@@ -1,40 +1,61 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import {
+  signInWithEmail,
+  signUpWithEmail,
+  signInWithGoogle,
+  signOut,
+  sendPasswordReset,
+  resendVerificationEmail,
+} from '../services/firebase/authService';
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('Auth state initializing...'); // Debug log
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('Auth state changed:', user ? 'logged in' : 'logged out'); // Debug log
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+
+      if (firebaseUser) {
+        try {
+          const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+          setUserProfile(snap.exists() ? snap.data() : null);
+        } catch {
+          setUserProfile(null);
+        }
+      } else {
+        setUserProfile(null);
+      }
+
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
   const value = {
     user,
+    userProfile,
     loading,
+    signIn: signInWithEmail,
+    signUp: signUpWithEmail,
+    signInWithGoogle,
+    signOut,
+    sendPasswordReset,
+    resendVerificationEmail,
   };
-
-  console.log('AuthProvider rendering, loading:', loading); // Debug log
-
-  console.log('value:', value); // Debug log
 
   return (
     <AuthContext.Provider value={value}>

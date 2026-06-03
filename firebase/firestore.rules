@@ -34,5 +34,21 @@ service cloud.firestore {
       
       // Additional validation can be added here
     }
+
+    // Pets collection rules
+    match /pets/{petId} {
+      allow read: if isAuth() && request.auth.uid in resource.data.veterinarians;
+      allow create: if isAuth();
+      allow update: if isAuth() && request.auth.uid in resource.data.veterinarians;
+      allow delete: if false; // Prevent deletion
+    }
+
+    // Appointments collection rules
+    match /appointments/{appointmentId} {
+      allow read: if isAuth() && request.auth.uid == resource.data.veterinarianId;
+      allow create: if isAuth();
+      allow update: if isAuth() && request.auth.uid == resource.data.veterinarianId;
+      allow delete: if isAuth() && request.auth.uid == resource.data.veterinarianId;
+    }
   }
 }

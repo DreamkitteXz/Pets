@@ -1,263 +1,266 @@
 import React, { useState } from 'react';
-import { CiFilter } from "react-icons/ci";
+import { Search, Filter, Heart, CheckCircle, Clock, XCircle, Syringe } from 'lucide-react';
 import PetDetailsModal from './PetDetailsModal';
 import PetEditModal from './PetEditModal';
 import { usePets } from '../../../hooks/usePets';
-import { useAuth } from '../../../context/AuthContext'; // Correct import path
+import { useAuth } from '../../../context/AuthContext';
 
+// ── Status config ──────────────────────────────────────────────────────────
+const STATUS_CFG = {
+  validated:          { label: 'Validado',            bg: 'rgba(52,199,89,0.12)',  text: 'var(--apple-green)', dot: 'var(--apple-green)' },
+  'waiting validation':{ label: 'Aguardando',         bg: 'rgba(255,149,0,0.12)', text: 'var(--apple-orange)', dot: 'var(--apple-orange)' },
+  recused:            { label: 'Recusado',             bg: 'rgba(255,59,48,0.10)', text: 'var(--apple-red)',    dot: 'var(--apple-red)' },
+};
+
+const StatusBadge = ({ status }) => {
+  const cfg = STATUS_CFG[status] || { label: status || 'Desconhecido', bg: 'rgba(142,142,147,0.12)', text: 'var(--apple-gray-1)', dot: 'var(--apple-gray-1)' };
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium" style={{ background: cfg.bg, color: cfg.text }}>
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.dot }} />
+      {cfg.label}
+    </span>
+  );
+};
+
+// ── Helper functions (unchanged logic) ────────────────────────────────────
+const getNextVaccineDate = (pet) => {
+  if (!pet.vaccines || pet.vaccines.length === 0) return null;
+  const upcoming = pet.vaccines
+    .filter(v => v.nextDate && new Date(v.nextDate) > new Date())
+    .sort((a, b) => new Date(a.nextDate) - new Date(b.nextDate));
+  if (upcoming.length === 0) return null;
+  const d = upcoming[0];
+  return `${d.name}: ${new Date(d.nextDate).toLocaleDateString('pt-BR')}`;
+};
+
+const getPetAge = (birthDate) => {
+  if (!birthDate) return '—';
+  const birth = new Date(birthDate);
+  const ageInMonths = (new Date().getFullYear() - birth.getFullYear()) * 12 + (new Date().getMonth() - birth.getMonth());
+  if (ageInMonths < 12) return `${ageInMonths} ${ageInMonths === 1 ? 'mês' : 'meses'}`;
+  const years = Math.floor(ageInMonths / 12);
+  return `${years} ${years === 1 ? 'ano' : 'anos'}`;
+};
+
+// ── KPI stat card ──────────────────────────────────────────────────────────
+const KpiCard = ({ label, value, subtext, accentColor, icon: Icon, delay }) => (
+  <div
+    className="fade-in-up rounded-[16px] p-5 flex flex-col gap-3"
+    style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: `${delay}ms` }}
+  >
+    <div className="flex items-center justify-between">
+      <div className="w-9 h-9 rounded-[10px] flex items-center justify-center" style={{ background: `${accentColor}18` }}>
+        <Icon size={18} strokeWidth={1.5} style={{ color: accentColor }} />
+      </div>
+    </div>
+    <div>
+      <div className="text-[30px] font-bold leading-none" style={{ color: accentColor, letterSpacing: '-0.02em' }}>{value}</div>
+      <div className="text-[14px] font-medium mt-1" style={{ color: 'var(--text-primary)' }}>{label}</div>
+      <div className="text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{subtext}</div>
+    </div>
+  </div>
+);
+
+// ── Page ──────────────────────────────────────────────────────────────────
 const PetsPage = () => {
   const [filterStatus, setFilterStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedPet, setSelectedPet] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  
-  const { pets, loading, error } = usePets();
-  const { user } = useAuth(); // Ensure useAuth is used within AuthProvider
-  const userId = user?.id; // Extract userId from user object
 
-  // Early return for loading state
+  const { pets, loading, error } = usePets();
+  const { user } = useAuth();
+  const userId = user?.id;
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 rounded-full border-2 border-transparent border-t-[--apple-blue] animate-spin"
+          style={{ borderTopColor: 'var(--apple-blue)' }} />
       </div>
     );
   }
 
-  // Early return for error state
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-red-500">Error loading pets: {error.message}</div>
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <XCircle size={32} strokeWidth={1.5} style={{ color: 'var(--apple-red)' }} />
+        <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>Erro ao carregar pets: {error.message}</p>
       </div>
     );
   }
 
-  // Ensure pets is always an array
   const petsArray = Array.isArray(pets) ? pets : [];
-
-  // Filter pets based on status
-  const filteredPets = filterStatus === 'all' 
-    ? petsArray 
-    : petsArray.filter(pet => pet.status === filterStatus);
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'validated':
-        return 'text-green-600 bg-green-100';
-      case 'waiting validation':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'recused':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getNextVaccineDate = (pet) => {
-    if (!pet.vaccines || pet.vaccines.length === 0) return 'Sem vacinas';
-    
-    const upcomingVaccines = pet.vaccines
-      .filter(v => v.nextDate && new Date(v.nextDate) > new Date())
-      .sort((a, b) => new Date(a.nextDate) - new Date(b.nextDate));
-    
-    if (upcomingVaccines.length === 0) return 'Todas as vacinas em dia';
-    
-    const nextVaccine = upcomingVaccines[0];
-    return `${nextVaccine.name}: ${new Date(nextVaccine.nextDate).toLocaleDateString('pt-BR')}`;
-  };
-
-  const getPetAge = (birthDate) => {
-    const birth = new Date(birthDate);
-    const now = new Date();
-    const ageInMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
-    
-    if (ageInMonths < 12) {
-      return `${ageInMonths} ${ageInMonths === 1 ? 'mês' : 'meses'}`;
-    }
-    
-    const ageInYears = Math.floor(ageInMonths / 12);
-    return `${ageInYears} ${ageInYears === 1 ? 'ano' : 'anos'}`;
-  };
-
-  const handleViewPet = (pet) => {
-    setSelectedPet(pet);
-    setIsDetailsModalOpen(true);
-  };
-
-  const handleEditPet = (pet) => {
-    setSelectedPet(pet);
-    setIsEditModalOpen(true);
-  };
-
-  const handleSavePet = (updatedPet) => {
-    // Here you would typically update the pet data in your backend
-    console.log('Saving updated pet:', updatedPet);
-  };
-
-  const getUserVaccinesCount = (pet, userId) => {
-    return pet.vaccines?.filter(vaccine => vaccine.ownerId === userId).length || 0;
-  };
+  const filteredPets = petsArray
+    .filter(p => filterStatus === 'all' || p.status === filterStatus)
+    .filter(p => {
+      if (!searchTerm) return true;
+      const q = searchTerm.toLowerCase();
+      return p.name?.toLowerCase().includes(q) || p.species?.toLowerCase().includes(q) || p.owner?.toLowerCase().includes(q);
+    });
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Gerenciamento de Pets</h1>
-        <p className="text-gray-600">
-          Acompanhe o status de vacinação, próximas consultas e informações de saúde dos pets. 
-          Use os filtros para encontrar rapidamente os pets com base em seu status de vacinação.
+    <div className="min-h-full font-sf">
+
+      {/* ── Page header ─────────────────────────────────────────────────── */}
+      <div className="mb-6 fade-in-up">
+        <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          Pacientes
+        </h1>
+        <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+          {petsArray.length} pet{petsArray.length !== 1 ? 's' : ''} cadastrado{petsArray.length !== 1 ? 's' : ''}
         </p>
       </div>
 
-      {/* Filters and Actions */}
-      <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-white rounded-lg shadow-sm p-2 border">
-            <CiFilter className="text-gray-500 mr-2" size={18} />
-            <select 
-              className="border-none bg-transparent focus:outline-none text-sm"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="all">Todos os Status</option>
-              <option value="validated">Validado</option>
-              <option value="waiting validation">Aguardando Validação</option>
-              <option value="recused">Recusado</option>
-            </select>
-          </div>
-          
-          <span className="text-sm text-gray-500">
-            Mostrando {filteredPets.length} de {petsArray.length} pets
-          </span>
-        </div>
+      {/* ── KPI cards ────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <KpiCard label="Validados" value={petsArray.filter(p => p.status === 'validated').length}
+          subtext="com vacinação completa" accentColor="var(--apple-green)" icon={CheckCircle} delay={50} />
+        <KpiCard label="Aguardando" value={petsArray.filter(p => p.status === 'waiting validation').length}
+          subtext="precisam de revisão" accentColor="var(--apple-orange)" icon={Clock} delay={100} />
+        <KpiCard label="Recusados" value={petsArray.filter(p => p.status === 'recused').length}
+          subtext="com problemas" accentColor="var(--apple-red)" icon={XCircle} delay={150} />
+        <KpiCard label="Total" value={petsArray.length}
+          subtext="pets cadastrados" accentColor="var(--apple-blue)" icon={Heart} delay={200} />
       </div>
 
-      {/* Pets Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* ── Search + filter bar ───────────────────────────────────────────── */}
+      <div
+        className="fade-in-up flex flex-wrap items-center gap-3 mb-4 p-4 rounded-[16px]"
+        style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: '250ms' }}
+      >
+        {/* Search */}
+        <div className="flex items-center gap-2 flex-1 min-w-[180px] px-3 py-2 rounded-[10px]"
+          style={{ background: 'var(--surface-secondary)' }}>
+          <Search size={14} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+          <input
+            type="text"
+            placeholder="Buscar por nome, espécie ou tutor..."
+            className="bg-transparent border-none outline-none flex-1"
+            style={{ fontSize: '15px', color: 'var(--text-primary)' }}
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {/* Filter */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-[10px]"
+          style={{ background: 'var(--surface-secondary)' }}>
+          <Filter size={14} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
+          <select
+            className="bg-transparent border-none outline-none"
+            style={{ fontSize: '15px', color: 'var(--text-primary)' }}
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+          >
+            <option value="all">Todos os Status</option>
+            <option value="validated">Validado</option>
+            <option value="waiting validation">Aguardando Validação</option>
+            <option value="recused">Recusado</option>
+          </select>
+        </div>
+
+        <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
+          {filteredPets.length} de {petsArray.length}
+        </span>
+      </div>
+
+      {/* ── Pets table ────────────────────────────────────────────────────── */}
+      <div
+        className="fade-in-up rounded-[16px] overflow-hidden"
+        style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: '300ms' }}
+      >
         {petsArray.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">
-            Nenhum pet encontrado.
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
+              <Heart size={28} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
+            </div>
+            <p className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>Nenhum paciente ainda</p>
+            <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Os pets cadastrados aparecerão aqui.</p>
+          </div>
+        ) : filteredPets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-2">
+            <p className="font-medium" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>Nenhum resultado</p>
+            <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Tente outros filtros ou termos de busca.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pet
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Proprietário
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status da Vacina
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Próxima Vacina
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ações
-                  </th>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr style={{ background: 'rgba(116,116,128,0.06)', borderBottom: '1px solid var(--separator)' }}>
+                  {['Pet', 'Tutor', 'Status', 'Próxima Vacina', 'Ações'].map(h => (
+                    <th key={h} className="text-left font-semibold uppercase"
+                      style={{ padding: '10px 20px', fontSize: '11px', letterSpacing: '0.06em', color: 'var(--text-secondary)', border: 'none', background: 'transparent' }}>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredPets.map((pet) => (
-                  <tr key={pet.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                          {pet.species === 'Dog' ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14z" />
-                            </svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
-                            </svg>
-                          )}
+              <tbody>
+                {filteredPets.map((pet, i) => {
+                  const isLast = i === filteredPets.length - 1;
+                  const nextVaccine = getNextVaccineDate(pet);
+                  return (
+                    <tr
+                      key={pet.id}
+                      className="fade-in-up transition-colors duration-100"
+                      style={{ borderBottom: isLast ? 'none' : '1px solid var(--separator)', animationDelay: `${300 + i * 30}ms` }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.04)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '14px 20px', border: 'none' }}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center font-semibold text-[13px] flex-shrink-0"
+                            style={{ background: 'rgba(0,122,255,0.1)', color: 'var(--apple-blue)' }}>
+                            {pet.name?.[0]?.toUpperCase() || '?'}
+                          </div>
+                          <div>
+                            <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{pet.name}</div>
+                            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{pet.species}{pet.breed ? ` · ${pet.breed}` : ''} · {getPetAge(pet.birthDate)}</div>
+                          </div>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{pet.name}</div>
-                          <div className="text-sm text-gray-500">{pet.species} • {pet.breed} • {getPetAge(pet.birthDate)}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{pet.owner}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(pet.status)}`}>
-                        {pet.status?.charAt(0).toUpperCase() + pet.status?.slice(1)}
-                      </span>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {getUserVaccinesCount(pet, userId)} vacinas registradas
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {getNextVaccineDate(pet)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                        onClick={() => handleViewPet(pet)}
-                      >
-                        Visualizar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td style={{ padding: '14px 20px', border: 'none', fontSize: '15px', color: 'var(--text-primary)' }}>
+                        {pet.owner || '—'}
+                      </td>
+                      <td style={{ padding: '14px 20px', border: 'none' }}>
+                        <StatusBadge status={pet.status} />
+                      </td>
+                      <td style={{ padding: '14px 20px', border: 'none', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                        {nextVaccine ? (
+                          <div className="flex items-center gap-1.5">
+                            <Syringe size={13} strokeWidth={1.5} style={{ color: 'var(--apple-orange)', flexShrink: 0 }} />
+                            {nextVaccine}
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-tertiary)' }}>Em dia</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 20px', border: 'none' }}>
+                        <button
+                          onClick={() => { setSelectedPet(pet); setIsDetailsModalOpen(true); }}
+                          className="font-medium transition-colors duration-100"
+                          style={{ fontSize: '15px', color: 'var(--apple-blue)' }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+                          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                        >
+                          Ver
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Vaccination Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8">
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
-          <div className="text-green-600 text-lg font-semibold">Validados</div>
-          <div className="text-3xl font-bold mt-1">
-            {petsArray.filter(pet => pet.status === 'validated').length}
-          </div>
-          <div className="text-sm text-gray-500 mt-1">pets com vacinação completa</div>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
-          <div className="text-yellow-600 text-lg font-semibold">Aguardando Validação</div>
-          <div className="text-3xl font-bold mt-1">
-            {petsArray.filter(pet => pet.status === 'waiting validation').length}
-          </div>
-          <div className="text-sm text-gray-500 mt-1">pets precisam de revisão</div>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
-          <div className="text-red-600 text-lg font-semibold">Recusados</div>
-          <div className="text-3xl font-bold mt-1">
-            {petsArray.filter(pet => pet.status === 'recused').length}
-          </div>
-          <div className="text-sm text-gray-500 mt-1">pets com problemas na vacinação</div>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
-          <div className="text-blue-600 text-lg font-semibold">Vence Este Mês</div>
-          <div className="text-3xl font-bold mt-1">3</div>
-          <div className="text-sm text-gray-500 mt-1">pets precisam de vacinação em breve</div>
-        </div>
-      </div>
-
-      {/* Add modals */}
-      <PetDetailsModal
-        show={isDetailsModalOpen} // Changed from isOpen to show to match component prop
-        onClose={() => setIsDetailsModalOpen(false)}
-        pet={selectedPet}
-      />
-
-      <PetEditModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        pet={selectedPet}
-        onSave={handleSavePet}
-      />
+      {/* Modals */}
+      <PetDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} pet={selectedPet} />
+      <PetEditModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} pet={selectedPet} onSave={() => {}} />
     </div>
   );
 };

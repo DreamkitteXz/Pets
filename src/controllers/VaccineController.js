@@ -1,63 +1,54 @@
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../config/firebase';
 import { vaccineService } from '../services/firebase/vaccineService';
-import { notificationService } from '../services/firebase/notificationService';
+
+const createVaccineRecordFn = httpsCallable(functions, 'createVaccineRecord', { timeout: 20000 });
 
 export class VaccineController {
-  async createVaccineRecord(vaccineData) {
+  async createVaccineRecord(vaccineData, labelImage) {
     try {
-      // Format the data according to the new schema
+      // Upload image first (client-side Storage write) to get URL, then send
+      // data to Cloud Function for server-side CPF/CRMV validation and Firestore write.
+      let imageUrl = null;
+      if (labelImage) {
+        // EXIF stripping + upload is handled inside vaccineService.uploadLabelImage
+        imageUrl = await vaccineService.uploadLabelImage(labelImage);
+      }
+
       const formattedData = {
-        petId: vaccineData.petId,
-        ownerId: vaccineData.ownerId,
-        name: vaccineData.vacina,
-        manufacturer: vaccineData.farmaceutica,
-        batchNumber: vaccineData.lote,
-        expirationDate: new Date(vaccineData.dataValidade),
-        administrationDate: new Date(vaccineData.dataAplicacao),
-        nextDueDate: new Date(vaccineData.proximaAplicacao),
-        petWeight: parseFloat(vaccineData.pesoAplicacao),
+        petId:              vaccineData.petId,
+        ownerId:            vaccineData.ownerId,
+        name:               vaccineData.vacina,
+        manufacturer:       vaccineData.farmaceutica,
+        batchNumber:        vaccineData.lote,
+        expirationDate:     vaccineData.dataValidade,
+        administrationDate: vaccineData.dataAplicacao,
+        nextDueDate:        vaccineData.proximaAplicacao,
+        petWeight:          parseFloat(vaccineData.pesoAplicacao),
+        cpf:                vaccineData.cpf       || '',
+        crmv:               vaccineData.crmv      || '',
         clinic: {
-          name: vaccineData.clinica,
-          cnpj: vaccineData.cnpj,
+          name:    vaccineData.clinica,
+          cnpj:    vaccineData.cnpj,
           address: {
-            street: vaccineData.rua,
+            street:       vaccineData.rua,
             neighborhood: vaccineData.bairro,
-            number: vaccineData.numero,
-            city: vaccineData.cidade
-          }
+            number:       vaccineData.numero,
+            city:         vaccineData.cidade,
+          },
         },
         veterinarian: {
           name: vaccineData.nomeVet,
-          crmv: vaccineData.crmv
+          crmv: vaccineData.crmv,
         },
-        labelImage: vaccineData.imagemRotulo,
-        notes: vaccineData.observacoes
+        labelImage: imageUrl,
+        notes:      vaccineData.observacoes || '',
       };
 
-      // Create vaccine record
-      const vaccineId = await vaccineService.createVaccine(formattedData);
-      
-      return vaccineId;
+      const { data } = await createVaccineRecordFn({ vaccineData: formattedData });
+      return data.id;
     } catch (error) {
-      throw new Error('Error creating vaccine record: ' + error.message);
-    }
-  }
-
-  async validateVaccine(vaccineId, validationData, validatorId) {
-    try {
-      await vaccineService.validateVaccine(vaccineId, validationData, validatorId);
-      
-      // Get vaccine details to get owner ID
-      const vaccineDoc = await getDoc(doc(db, 'vaccines', vaccineId));
-      const vaccineData = vaccineDoc.data();
-      
-      // Send notification to owner
-      await notificationService.sendVaccineValidationNotification(
-        vaccineData.ownerId,
-        vaccineId,
-        validationData.status
-      );
-    } catch (error) {
-      throw new Error('Error validating vaccine: ' + error.message);
+      throw new Error('Erro ao criar registro de vacina: ' + (error.message || error));
     }
   }
 }

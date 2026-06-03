@@ -1,504 +1,385 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../../../hooks/useUser';
+import { useTheme } from '../../../context/ThemeContext';
+import { User, MapPin, Stethoscope, Sliders, ChevronRight } from 'lucide-react';
 
+// ── Apple-style input ──────────────────────────────────────────────────────
+const Field = ({ label, children }) => (
+  <div>
+    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+const Input = ({ ...props }) => (
+  <input
+    {...props}
+    className="w-full outline-none transition-shadow duration-200"
+    style={{
+      background: 'var(--surface-secondary)',
+      borderRadius: '10px',
+      padding: '12px 14px',
+      fontSize: '15px',
+      color: 'var(--text-primary)',
+      border: 'none',
+    }}
+    onFocus={e => e.currentTarget.style.boxShadow = `0 0 0 3px rgba(0,122,255,0.25)`}
+    onBlur={e => e.currentTarget.style.boxShadow = 'none'}
+  />
+);
+
+const SelectInput = ({ children, ...props }) => (
+  <select
+    {...props}
+    className="w-full outline-none transition-shadow duration-200"
+    style={{
+      background: 'var(--surface-secondary)',
+      borderRadius: '10px',
+      padding: '12px 14px',
+      fontSize: '15px',
+      color: 'var(--text-primary)',
+      border: 'none',
+      appearance: 'none',
+    }}
+    onFocus={e => e.currentTarget.style.boxShadow = `0 0 0 3px rgba(0,122,255,0.25)`}
+    onBlur={e => e.currentTarget.style.boxShadow = 'none'}
+  >
+    {children}
+  </select>
+);
+
+// ── Apple Toggle ───────────────────────────────────────────────────────────
+const Toggle = ({ checked, onChange, name }) => (
+  <label className="apple-toggle cursor-pointer">
+    <input type="checkbox" name={name} checked={checked} onChange={onChange} />
+    <div className="apple-toggle__track">
+      <div className="apple-toggle__thumb" />
+    </div>
+  </label>
+);
+
+// ── Toggle row in system settings ──────────────────────────────────────────
+const ToggleRow = ({ label, sublabel, name, checked, onChange, isLast }) => (
+  <div
+    className="flex items-center justify-between px-5"
+    style={{
+      paddingTop: '14px',
+      paddingBottom: '14px',
+      borderBottom: isLast ? 'none' : '1px solid var(--separator)',
+    }}
+  >
+    <div>
+      <div style={{ fontSize: '15px', color: 'var(--text-primary)', fontWeight: '400' }}>{label}</div>
+      {sublabel && <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>{sublabel}</div>}
+    </div>
+    <Toggle name={name} checked={checked} onChange={onChange} />
+  </div>
+);
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+const TABS = [
+  { id: 'profile',      label: 'Perfil',     icon: User },
+  { id: 'address',      label: 'Endereço',   icon: MapPin },
+  { id: 'professional', label: 'Profissional', icon: Stethoscope },
+  { id: 'system',       label: 'Sistema',    icon: Sliders },
+];
+
+// ── Page ──────────────────────────────────────────────────────────────────
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const { userData, loading, updateUserData } = useUser();
+  const { setDark } = useTheme();
   const [role, setRole] = useState('veterinarian');
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    cpf: '',
-    street: '',
-    number: '',
-    complement: '',
-    neighborhood: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    crmv: '',
-    specialties: [],
-    yearsOfExperience: 0,
-    clinicId: '',
-    notifications: false,
-    darkMode: false,
-    language: 'pt-BR',
-    twoFactorAuth: false
+    name: '', email: '', phone: '', cpf: '',
+    street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '',
+    crmv: '', specialties: [], yearsOfExperience: 0, clinicId: '',
+    notifications: false, darkMode: false, language: 'pt-BR', twoFactorAuth: false,
   });
 
-  // Update formData when userData changes
   useEffect(() => {
     if (userData) {
       setFormData({
-        name: userData.name || '',
-        email: userData.email || '',
-        phone: userData.phone || '',
-        cpf: userData.cpf || '',
-        street: userData.address?.street || '',
-        number: userData.address?.number || '',
-        complement: userData.address?.complement || '',
-        neighborhood: userData.address?.neighborhood || '',
-        city: userData.address?.city || '',
-        state: userData.address?.state || '',
-        zipCode: userData.address?.zipCode || '',
-        crmv: userData.crmv || '',
-        specialties: userData.specialties || [],
-        yearsOfExperience: userData.yearsOfExperience || 0,
-        clinicId: userData.clinicId || '',
-        notifications: userData.notifications || false,
-        darkMode: userData.darkMode || false,
-        language: userData.language || 'pt-BR',
-        twoFactorAuth: userData.twoFactorAuth || false
+        name: userData.name || '', email: userData.email || '', phone: userData.phone || '', cpf: userData.cpf || '',
+        street: userData.address?.street || '', number: userData.address?.number || '',
+        complement: userData.address?.complement || '', neighborhood: userData.address?.neighborhood || '',
+        city: userData.address?.city || '', state: userData.address?.state || '', zipCode: userData.address?.zipCode || '',
+        crmv: userData.crmv || '', specialties: userData.specialties || [],
+        yearsOfExperience: userData.yearsOfExperience || 0, clinicId: userData.clinicId || '',
+        notifications: userData.notifications || false, darkMode: userData.darkMode || false,
+        language: userData.language || 'pt-BR', twoFactorAuth: userData.twoFactorAuth || false,
       });
       setRole(userData.role || 'veterinarian');
     }
   }, [userData]);
-  
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    });
+    const newValue = type === 'checkbox' ? checked : value;
+    setFormData(prev => ({ ...prev, [name]: newValue }));
+    // Apply dark mode instantly — no need to wait for Firestore save
+    if (name === 'darkMode') setDark(newValue);
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const success = await updateUserData(formData);
-    if (success) {
-      alert('Configurações salvas com sucesso!');
-    } else {
-      alert('Erro ao salvar configurações. Tente novamente.');
-    }
+    if (success) alert('Configurações salvas com sucesso!');
+    else alert('Erro ao salvar. Tente novamente.');
   };
 
   if (loading) {
-    return <div className="container mx-auto p-6">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 rounded-full border-2 border-transparent animate-spin" style={{ borderTopColor: 'var(--apple-blue)' }} />
+      </div>
+    );
   }
 
+  const activeTabLabel = TABS.find(t => t.id === activeTab)?.label || '';
+
   return (
-    <div className="container mx-auto p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Configurações</h1>
-      
-      {/* Tabs */}
-      <div className="flex mb-6 border-b border-gray-200">
-        <button 
-          className={`py-2 px-4 font-medium ${activeTab === 'profile' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('profile')}
-        >
-          Perfil
-        </button>
-        <button 
-          className={`py-2 px-4 font-medium ${activeTab === 'address' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('address')}
-        >
-          Endereço
-        </button>
-        <button 
-          className={`py-2 px-4 font-medium ${activeTab === 'professional' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('professional')}
-        >
-          {role === 'veterinarian' ? 'Profissional' : 'Informações do Pet'}
-        </button>
-        <button 
-          className={`py-2 px-4 font-medium ${activeTab === 'system' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-          onClick={() => setActiveTab('system')}
-        >
-          Sistema
-        </button>
+    <div className="min-h-full font-sf">
+
+      {/* Page header */}
+      <div className="mb-6 fade-in-up">
+        <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          Configurações
+        </h1>
       </div>
-      
-      <div className="bg-white rounded-lg shadow p-6">
-        <form onSubmit={handleSubmit}>
-          
-          {/* Profile Settings */}
-          {activeTab === 'profile' && (
-            <div className="space-y-6">
-              <div className="flex items-center space-x-6 mb-6">
-                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-                  <span className="text-3xl text-gray-500">
-                    {formData.name.split(' ').map(n => n[0]).join('')}
-                  </span>
-                </div>
-                <div>
-                  <button type="button" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                    Enviar Foto
-                  </button>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nome
-                  </label>
-                  <input 
-                    type="text" 
-                    name="name" 
-                    value={formData.name} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    E-mail
-                  </label>
-                  <input 
-                    type="email" 
-                    name="email" 
-                    value={formData.email} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Telefone
-                  </label>
-                  <input 
-                    type="text" 
-                    name="phone" 
-                    value={formData.phone} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    CPF
-                  </label>
-                  <input 
-                    type="text" 
-                    name="cpf" 
-                    value={formData.cpf} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo de Conta
-                </label>
-                <div className="flex space-x-4">
-                  <label className="flex items-center">
-                    <input 
-                      type="radio" 
-                      name="role"
-                      checked={role === 'veterinarian'} 
-                      onChange={() => setRole('veterinarian')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                    />
-                    <span className="ml-2 text-gray-700">Veterinário</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Address Settings */}
-          {activeTab === 'address' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Rua
-                  </label>
-                  <input 
-                    type="text" 
-                    name="street" 
-                    value={formData.street} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Número
-                    </label>
-                    <input 
-                      type="text" 
-                      name="number" 
-                      value={formData.number} 
-                      onChange={handleChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Complemento
-                    </label>
-                    <input 
-                      type="text" 
-                      name="complement" 
-                      value={formData.complement} 
-                      onChange={handleChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bairro
-                  </label>
-                  <input 
-                    type="text" 
-                    name="neighborhood" 
-                    value={formData.neighborhood} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    CEP
-                  </label>
-                  <input 
-                    type="text" 
-                    name="zipCode" 
-                    value={formData.zipCode} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cidade
-                  </label>
-                  <input 
-                    type="text" 
-                    name="city" 
-                    value={formData.city} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Estado
-                  </label>
-                  <select 
-                    name="state" 
-                    value={formData.state} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+
+      <div className="flex gap-6 items-start">
+
+        {/* ── Sidebar tabs ──────────────────────────────────────────────── */}
+        <div
+          className="fade-in-up rounded-[16px] overflow-hidden w-[200px] flex-shrink-0 hidden md:block"
+          style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: '50ms' }}
+        >
+          {TABS.map(({ id, label, icon: Icon }, i) => {
+            const isActive = activeTab === id;
+            const isLast = i === TABS.length - 1;
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className="w-full flex items-center gap-3 px-4 transition-colors duration-100"
+                style={{
+                  padding: '12px 16px',
+                  borderBottom: isLast ? 'none' : '1px solid var(--separator)',
+                  background: isActive ? 'rgba(0,122,255,0.08)' : 'transparent',
+                  color: isActive ? 'var(--apple-blue)' : 'var(--text-primary)',
+                  fontSize: '15px',
+                  fontWeight: isActive ? '600' : '400',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(116,116,128,0.06)'; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <Icon size={16} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+                {label}
+                {isActive && <ChevronRight size={14} strokeWidth={2} style={{ marginLeft: 'auto', opacity: 0.5 }} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Mobile tabs ──────────────────────────────────────────────── */}
+        <div className="md:hidden flex gap-1 mb-4 p-1 rounded-[12px] w-full"
+          style={{ background: 'var(--surface-secondary)' }}>
+          {TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className="flex-1 py-1.5 rounded-[8px] text-[13px] font-medium transition-all duration-150"
+              style={{
+                background: activeTab === id ? 'var(--surface-primary)' : 'transparent',
+                color: activeTab === id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                boxShadow: activeTab === id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Form content ─────────────────────────────────────────────── */}
+        <div className="fade-in-up flex-1 min-w-0" style={{ animationDelay: '100ms' }}>
+          <form onSubmit={handleSubmit}>
+
+            {/* Section header */}
+            <p className="font-semibold mb-4 md:hidden" style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {activeTabLabel}
+            </p>
+
+            {/* ── Profile tab ─────────────────────────────────────────── */}
+            {activeTab === 'profile' && (
+              <div className="space-y-4">
+                {/* Avatar */}
+                <div
+                  className="rounded-[16px] p-6 flex items-center gap-5"
+                  style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+                >
+                  <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center font-bold text-[28px] text-white flex-shrink-0"
+                    style={{ background: 'var(--apple-blue)' }}
                   >
-                    <option value="AC">AC</option>
-                    <option value="AL">AL</option>
-                    <option value="SP">SP</option>
-                    <option value="RJ">RJ</option>
-                    <option value="MG">MG</option>
-                    {/* Add other Brazilian states */}
-                  </select>
+                    {formData.name?.[0]?.toUpperCase() || 'V'}
+                  </div>
+                  <div>
+                    <p className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>{formData.name || 'Seu nome'}</p>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>{formData.email}</p>
+                    <button type="button" className="mt-3 font-medium transition-opacity duration-150"
+                      style={{ fontSize: '15px', color: 'var(--apple-blue)' }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                      Enviar foto
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Professional/Pet Settings */}
-          {activeTab === 'professional' && role === 'veterinarian' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    CRMV
-                  </label>
-                  <input 
-                    type="text" 
-                    name="crmv" 
-                    value={formData.crmv} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
+
+                {/* Fields */}
+                <div
+                  className="rounded-[16px] p-5 grid grid-cols-1 md:grid-cols-2 gap-4"
+                  style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+                >
+                  <Field label="Nome completo"><Input type="text" name="name" value={formData.name} onChange={handleChange} /></Field>
+                  <Field label="E-mail"><Input type="email" name="email" value={formData.email} onChange={handleChange} /></Field>
+                  <Field label="Telefone"><Input type="text" name="phone" value={formData.phone} onChange={handleChange} /></Field>
+                  <Field label="CPF"><Input type="text" name="cpf" value={formData.cpf} onChange={handleChange} /></Field>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Anos de Experiência
-                  </label>
-                  <input 
-                    type="number" 
-                    name="yearsOfExperience" 
-                    value={formData.yearsOfExperience} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Especialidades
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {['Dermatology', 'Surgery', 'Cardiology', 'Oncology', 'Neurology', 'Orthopedics'].map(specialty => (
-                      <label key={specialty} className="flex items-center p-2 border rounded-md">
-                        <input 
-                          type="checkbox" 
-                          checked={formData.specialties.includes(specialty)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData({
-                                ...formData,
-                                specialties: [...formData.specialties, specialty]
-                              });
-                            } else {
-                              setFormData({
-                                ...formData,
-                                specialties: formData.specialties.filter(s => s !== specialty)
-                              });
-                            }
-                          }}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">{specialty}</span>
+
+                {/* Role */}
+                <div className="rounded-[16px] p-5" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                  <p className="font-semibold mb-3" style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo de Conta</p>
+                  <div className="flex gap-3">
+                    {['veterinarian', 'tutor'].map(r => (
+                      <label key={r} className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="role" checked={role === r} onChange={() => setRole(r)}
+                          className="accent-[--apple-blue]" style={{ accentColor: 'var(--apple-blue)' }} />
+                        <span style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{r === 'veterinarian' ? 'Veterinário' : 'Tutor de Pet'}</span>
                       </label>
                     ))}
                   </div>
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ID da Clínica
-                  </label>
-                  <input 
-                    type="text" 
-                    name="clinicId" 
-                    value={formData.clinicId} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
               </div>
-            </div>
-          )}
-          
-          {activeTab === 'professional' && role === 'tutor' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Contato de Emergência</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nome
+            )}
+
+            {/* ── Address tab ─────────────────────────────────────────── */}
+            {activeTab === 'address' && (
+              <div
+                className="rounded-[16px] p-5 grid grid-cols-1 md:grid-cols-2 gap-4"
+                style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+              >
+                <Field label="Rua"><Input type="text" name="street" value={formData.street} onChange={handleChange} /></Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Número"><Input type="text" name="number" value={formData.number} onChange={handleChange} /></Field>
+                  <Field label="Complemento"><Input type="text" name="complement" value={formData.complement} onChange={handleChange} /></Field>
+                </div>
+                <Field label="Bairro"><Input type="text" name="neighborhood" value={formData.neighborhood} onChange={handleChange} /></Field>
+                <Field label="CEP"><Input type="text" name="zipCode" value={formData.zipCode} onChange={handleChange} /></Field>
+                <Field label="Cidade"><Input type="text" name="city" value={formData.city} onChange={handleChange} /></Field>
+                <Field label="Estado">
+                  <SelectInput name="state" value={formData.state} onChange={handleChange}>
+                    {['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </SelectInput>
+                </Field>
+              </div>
+            )}
+
+            {/* ── Professional tab ─────────────────────────────────────── */}
+            {activeTab === 'professional' && role === 'veterinarian' && (
+              <div className="space-y-4">
+                <div
+                  className="rounded-[16px] p-5 grid grid-cols-1 md:grid-cols-2 gap-4"
+                  style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+                >
+                  <Field label="CRMV"><Input type="text" name="crmv" value={formData.crmv} onChange={handleChange} /></Field>
+                  <Field label="Anos de Experiência"><Input type="number" name="yearsOfExperience" value={formData.yearsOfExperience} onChange={handleChange} /></Field>
+                  <Field label="ID da Clínica"><Input type="text" name="clinicId" value={formData.clinicId} onChange={handleChange} /></Field>
+                </div>
+
+                <div className="rounded-[16px] p-5" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                  <p className="font-semibold mb-3" style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Especialidades</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {['Dermatology', 'Surgery', 'Cardiology', 'Oncology', 'Neurology', 'Orthopedics'].map(s => (
+                      <label key={s} className="flex items-center gap-2 cursor-pointer p-3 rounded-[10px] transition-colors duration-100"
+                        style={{ background: formData.specialties.includes(s) ? 'rgba(0,122,255,0.1)' : 'var(--surface-secondary)' }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.specialties.includes(s)}
+                          onChange={e => setFormData(prev => ({
+                            ...prev,
+                            specialties: e.target.checked ? [...prev.specialties, s] : prev.specialties.filter(x => x !== s),
+                          }))}
+                          style={{ accentColor: 'var(--apple-blue)' }}
+                        />
+                        <span style={{ fontSize: '14px', color: formData.specialties.includes(s) ? 'var(--apple-blue)' : 'var(--text-primary)' }}>{s}</span>
                       </label>
-                      <input 
-                        type="text" 
-                        name="emergencyContactName" 
-                        value={formData.emergencyContactName} 
-                        onChange={handleChange}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Telefone
-                      </label>
-                      <input 
-                        type="text" 
-                        name="emergencyContactPhone" 
-                        value={formData.emergencyContactPhone} 
-                        onChange={handleChange}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Relação
-                      </label>
-                      <input 
-                        type="text" 
-                        name="emergencyContactRelationship" 
-                        value={formData.emergencyContactRelationship} 
-                        onChange={handleChange}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-          
-          {/* System Settings */}
-          {activeTab === 'system' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-6">
-                <div>
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      name="notifications" 
-                      checked={formData.notifications} 
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Ativar Notificações</span>
-                  </label>
-                </div>
-                <div>
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      name="darkMode" 
-                      checked={formData.darkMode} 
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Modo Escuro</span>
-                  </label>
-                </div>
-                <div>
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      name="twoFactorAuth" 
-                      checked={formData.twoFactorAuth} 
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Ativar Autenticação em Dois Fatores</span>
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Idioma
-                  </label>
-                  <select 
-                    name="language" 
-                    value={formData.language} 
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="pt-BR">Português (Brasil)</option>
-                    <option value="en-US">English (US)</option>
-                    <option value="es-ES">Español</option>
-                  </select>
+            )}
+
+            {activeTab === 'professional' && role === 'tutor' && (
+              <div className="rounded-[16px] p-5 space-y-4" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <p className="font-semibold" style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Contato de Emergência</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Nome"><Input type="text" name="emergencyContactName" value={formData.emergencyContactName || ''} onChange={handleChange} /></Field>
+                  <Field label="Telefone"><Input type="text" name="emergencyContactPhone" value={formData.emergencyContactPhone || ''} onChange={handleChange} /></Field>
+                  <Field label="Relação"><Input type="text" name="emergencyContactRelationship" value={formData.emergencyContactRelationship || ''} onChange={handleChange} /></Field>
                 </div>
               </div>
+            )}
+
+            {/* ── System tab ───────────────────────────────────────────── */}
+            {activeTab === 'system' && (
+              <div className="space-y-4">
+                <div className="rounded-[16px] overflow-hidden" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                  <ToggleRow label="Notificações" sublabel="Receba alertas de vacinação e consultas" name="notifications" checked={formData.notifications} onChange={handleChange} />
+                  <ToggleRow label="Modo Escuro" sublabel="Aparência escura para a interface" name="darkMode" checked={formData.darkMode} onChange={handleChange} />
+                  <ToggleRow label="Autenticação em 2 Fatores" sublabel="Segurança adicional no login" name="twoFactorAuth" checked={formData.twoFactorAuth} onChange={handleChange} isLast />
+                </div>
+
+                <div className="rounded-[16px] p-5" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                  <Field label="Idioma">
+                    <SelectInput name="language" value={formData.language} onChange={handleChange}>
+                      <option value="pt-BR">Português (Brasil)</option>
+                      <option value="en-US">English (US)</option>
+                      <option value="es-ES">Español</option>
+                    </SelectInput>
+                  </Field>
+                </div>
+              </div>
+            )}
+
+            {/* ── Action buttons ────────────────────────────────────────── */}
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                className="px-5 py-2.5 rounded-[10px] font-medium transition-all duration-150 active:scale-[0.97]"
+                style={{ background: 'var(--surface-secondary)', color: 'var(--text-primary)', fontSize: '15px' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--apple-gray-5)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-secondary)'}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 rounded-[10px] font-semibold text-white transition-all duration-150 active:scale-[0.97]"
+                style={{ background: 'var(--apple-blue)', fontSize: '15px', boxShadow: '0 4px 12px rgba(0,122,255,0.3)' }}
+                onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.08)'}
+                onMouseLeave={e => e.currentTarget.style.filter = 'none'}
+              >
+                Salvar
+              </button>
             </div>
-          )}
-          
-          {/* Form Buttons */}
-          <div className="mt-6 flex items-center justify-end space-x-4">
-            <button 
-              type="button" 
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              onClick={() => {
-                // Reset form logic here
-              }}
-            >
-              Cancelar
-            </button>
-            <button 
-              type="submit" 
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Salvar Alterações
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
