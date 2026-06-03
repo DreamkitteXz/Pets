@@ -11,8 +11,22 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
+import logger from '../../utils/logger';
+import imageCompression from 'browser-image-compression';
 
 export const vaccineService = {
+  // Upload label image with EXIF stripping — returns download URL
+  async uploadLabelImage(labelImage) {
+    const stripped = await imageCompression(labelImage, {
+      maxSizeMB: 4,
+      useWebWorker: true,
+      fileType: 'image/jpeg',
+    });
+    const storageRef = ref(storage, `vaccine-labels/${Date.now()}_${labelImage.name}`);
+    await uploadBytes(storageRef, stripped);
+    return getDownloadURL(storageRef);
+  },
+
   // Get all vaccines with optional filters
   async getVaccines(filters = {}) {
     try {
@@ -34,7 +48,7 @@ export const vaccineService = {
         ...doc.data()
       }));
     } catch (error) {
-      console.error('Error fetching vaccines:', error);
+      logger.error('Error fetching vaccines:', error);
       throw error;
     }
   },
@@ -45,9 +59,7 @@ export const vaccineService = {
       // Upload image if provided
       let imageUrl = null;
       if (labelImage) {
-        const storageRef = ref(storage, `vaccine-labels/${Date.now()}_${labelImage.name}`);
-        await uploadBytes(storageRef, labelImage);
-        imageUrl = await getDownloadURL(storageRef);
+        imageUrl = await vaccineService.uploadLabelImage(labelImage);
       }
 
       const vaccineRef = collection(db, 'vaccines');
@@ -62,7 +74,7 @@ export const vaccineService = {
       const docRef = await addDoc(vaccineRef, newVaccine);
       return docRef.id;
     } catch (error) {
-      console.error('Error creating vaccine:', error);
+      logger.error('Error creating vaccine:', error);
       throw error;
     }
   },
@@ -82,7 +94,7 @@ export const vaccineService = {
         updatedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating vaccine:', error);
+      logger.error('Error updating vaccine:', error);
       throw error;
     }
   },
@@ -92,7 +104,7 @@ export const vaccineService = {
     try {
       await deleteDoc(doc(db, 'vaccines', vaccineId));
     } catch (error) {
-      console.error('Error deleting vaccine:', error);
+      logger.error('Error deleting vaccine:', error);
       throw error;
     }
   }

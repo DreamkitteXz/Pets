@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import logger from '../utils/logger';
 
 const useVetVaccines = () => {
   const { user } = useAuth();
@@ -33,7 +34,7 @@ const useVetVaccines = () => {
         setVaccines(vaccinesData);
         setError(null);
       } catch (error) {
-        console.error("Error fetching vaccines:", error);
+        logger.error("Error fetching vaccines:", error);
         setError(error.message);
       } finally {
         if (isMounted) {

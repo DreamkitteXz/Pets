@@ -18,9 +18,9 @@ const Layout = () => {
     );
 
   return (
-    <div className="h-screen flex bg-gray-100">
+    <div className="h-screen flex" style={{ background: 'var(--surface-grouped)' }}>
       <SideBar />
-      <div className="flex-1 flex flex-col overflow-auto">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header currentRoute={currentRoute} />
         <main className="flex-1 p-6 overflow-auto">
           <Outlet />

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/shared/Layout/Layout';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Auth Pages
@@ -30,6 +31,7 @@ import PettoHomepage from './components/pages/Landing/landing';
 const App = () => {
   return (
     <AuthProvider>
+      <ThemeProvider>
       <Router>
         <Routes>
           {/* Public Routes */}
@@ -71,6 +73,7 @@ const App = () => {
           <Route path="*" element={<Navigate to="/404" replace />} />
         </Routes>
       </Router>
+      </ThemeProvider>
     </AuthProvider>
   );
 };

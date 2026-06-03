@@ -2,10 +2,14 @@ import React from 'react';
 
 const LoadingScreen = ({ message = 'Carregando...' }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-light">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-dark mx-auto mb-4" />
-        <p className="text-gray-500 text-sm">{message}</p>
+    <div className="min-h-screen flex items-center justify-center font-sf"
+      style={{ background: 'var(--surface-grouped)' }}>
+      <div className="flex flex-col items-center gap-4">
+        <div
+          className="w-10 h-10 rounded-full border-2 border-transparent animate-spin"
+          style={{ borderTopColor: 'var(--apple-blue)' }}
+        />
+        <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>{message}</p>
       </div>
     </div>
   );

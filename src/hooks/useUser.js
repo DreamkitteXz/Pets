@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { useAuth } from '../context/AuthContext'; // Update import path
+import { useAuth } from '../context/AuthContext';
+import logger from '../utils/logger';
 
 export function useUser() {
   const [userData, setUserData] = useState(null);
@@ -19,7 +20,7 @@ export function useUser() {
         }
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching user data:', err);
+        logger.error('Error fetching user data:', err);
         setError(err);
         setLoading(false);
       }
@@ -35,7 +36,7 @@ export function useUser() {
       setUserData(prev => ({ ...prev, ...newData }));
       return true;
     } catch (err) {
-      console.error('Error updating user data:', err);
+      logger.error('Error updating user data:', err);
       setError(err);
       return false;
     }

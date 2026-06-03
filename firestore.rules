@@ -8,9 +8,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Users — each user can only read/write their own profile.
+    // Users — each user can only read/write their own profile and notifications.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /notifications/{notificationId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Pets — readable by owner or any assigned veterinarian.

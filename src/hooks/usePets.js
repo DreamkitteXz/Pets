@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import logger from '../utils/logger';
 
 export function usePets() {
   const [pets, setPets] = useState([]);
@@ -27,7 +28,7 @@ export function usePets() {
         setPets(petsData);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching pets:', err);
+        logger.error('Error fetching pets:', err);
         setError(err);
         setLoading(false);
       }

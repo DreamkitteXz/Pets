@@ -1,147 +1,309 @@
 import React, { useState } from 'react';
 import { useDashboard } from '../../../hooks/useDashboard';
-import Table from '../../tables/Table';
+import { useAuth } from '../../../context/AuthContext';
 import { formatDate } from '../../../utils/formatters';
 import LoadingScreen from '../../ui/LoadingScreen';
+import { Heart, Calendar, AlertTriangle, Clock } from 'lucide-react';
 
+// ── Status badges — opacity-based colors work in light & dark mode ─────────
+const STATUS = {
+  healthy:    { label: 'Saudável',      bgColor: 'rgba(52,199,89,0.14)',  textColor: 'var(--apple-green)', dotColor: 'var(--apple-green)' },
+  recovering: { label: 'Recuperação',   bgColor: 'rgba(255,149,0,0.14)',  textColor: 'var(--apple-orange)', dotColor: 'var(--apple-orange)' },
+  treatment:  { label: 'Em Tratamento', bgColor: 'rgba(10,132,255,0.14)', textColor: 'var(--apple-blue)',   dotColor: 'var(--apple-blue)' },
+  critical:   { label: 'Crítico',       bgColor: 'rgba(255,59,48,0.14)',  textColor: 'var(--apple-red)',    dotColor: 'var(--apple-red)' },
+};
+
+const StatusBadge = ({ status }) => {
+  const s = STATUS[status] || {
+    label: status || '—',
+    bgColor: 'rgba(142,142,147,0.14)',
+    textColor: 'var(--text-secondary)',
+    dotColor: 'var(--apple-gray-2)',
+  };
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+      style={{ background: s.bgColor, color: s.textColor }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: s.dotColor }} />
+      {s.label}
+    </span>
+  );
+};
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { dashboardData, loading, error } = useDashboard();
-  const [showDevMessage, setShowDevMessage] = useState(false);
+  const { userProfile } = useAuth();
+  const [showDevToast, setShowDevToast] = useState(false);
 
   if (loading) return <LoadingScreen />;
-  if (error) return <div>Erro ao carregar dados do dashboard</div>;
+  if (error) return (
+    <div className="flex items-center justify-center h-64">
+      <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Erro ao carregar dados do dashboard.</p>
+    </div>
+  );
   if (!dashboardData) return null;
 
-  const columns = [
-    { key: 'name', header: 'Nome do Pet' },
-    { key: 'species', header: 'Espécie' },
-    { key: 'breed', header: 'Raça' },
-    { 
-      key: 'birthDate', 
-      header: 'Idade',
-      render: (date) => {
-        const years = date ? Math.floor((new Date() - new Date(date)) / (1000 * 60 * 60 * 24 * 365)) : 0;
-        return `${years} anos`;
-      }
-    },
-    { key: 'ownerName', header: 'Tutor' },
-    { 
-      key: 'lastVisit', 
-      header: 'Última Visita',
-      render: (date) => date ? formatDate(date) : 'N/A'
-    },
-    { 
-      key: 'status', 
-      header: 'Status',
-      render: (value) => {
-        const statusColors = {
-          'healthy': 'text-green-500',
-          'recovering': 'text-yellow-500',
-          'treatment': 'text-blue-500',
-          'critical': 'text-red-500'
-        };
-        const statusText = {
-          'healthy': 'Saudável',
-          'recovering': 'Em Recuperação',
-          'treatment': 'Em Tratamento',
-          'critical': 'Crítico'
-        };
-        return <span className={`font-medium ${statusColors[value] || ''}`}>
-          {statusText[value] || value}
-        </span>;
-      }
-    }
-  ];
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  const firstName = userProfile?.name?.split(' ')[0];
 
-  const handleConsultationClick = () => {
-    setShowDevMessage(true);
-    setTimeout(() => setShowDevMessage(false), 3000);
+  const todayLabel = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  }).format(new Date());
+
+  const hasCritical = dashboardData.criticalCases > 0;
+
+  // Shared card style — uses surface token so it adapts to dark mode
+  const cardStyle = {
+    background: 'var(--surface-grouped-secondary)',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
   };
 
   return (
-    <div className="container mx-auto p-4">
-      {/* Development Message Toast */}
-      {showDevMessage && (
-        <div className="fixed bottom-4 right-4 bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg shadow-lg z-20">
+    <div className="min-h-full font-sf">
+
+      {/* Dev toast */}
+      {showDevToast && (
+        <div
+          className="fixed bottom-6 right-6 z-50 text-sm px-4 py-2.5 rounded-[12px] fade-in-up"
+          style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)', boxShadow: '0 8px 24px rgba(0,0,0,0.2), 0 0 0 1px var(--separator)' }}
+        >
           🚧 Sistema de consultas em desenvolvimento
         </div>
       )}
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Dashboard Veterinário</h1>
-        <p className="text-gray-600 mb-6">
-          Monitore seus pacientes, consultas e casos críticos.
+      {/* ── Page header ─────────────────────────────────────────────────── */}
+      <div className="mb-7 fade-in-up">
+        <p
+          className="text-[11px] font-semibold uppercase tracking-[0.1em] mb-1 capitalize"
+          style={{ color: 'var(--text-tertiary)' }}
+        >
+          {todayLabel}
+        </p>
+        <h1
+          className="text-[26px] font-semibold leading-tight"
+          style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}
+        >
+          {greeting}{firstName ? `, ${firstName}` : ''} 👋
+        </h1>
+        <p className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          Resumo dos seus pacientes e agenda de hoje.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-lg font-semibold mb-2">Pacientes Totais</h2>
-          <div className="text-blue-500 font-medium text-2xl">
-            {dashboardData.totalPets}
-          </div>
-          <p className="text-gray-500">Pets cadastrados</p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-lg font-semibold mb-2">Consultas Hoje</h2>
-          <div className="text-blue-500 font-medium text-2xl">
-            {dashboardData.todayAppointments.length}
-          </div>
-          <p className="text-gray-500">Agendadas para hoje</p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-lg font-semibold mb-2">Casos Críticos</h2>
-          <div className="text-red-500 font-medium text-2xl">
-            {dashboardData.criticalCases}
-          </div>
-          <p className="text-gray-500">Necessitam atenção</p>
-        </div>
-      </div>
+      {/* ── Bento grid ──────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-12 gap-5">
 
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Pacientes Recentes</h2>
-        <Table 
-          columns={columns} 
-          data={dashboardData.recentPets} 
-          rowKey="id" 
-        />
-      </div>
+        {/* ── KPI 1 — Pacientes Totais (dark hero — looks good in both modes) */}
+        <div
+          className="col-span-12 md:col-span-4 fade-in-up rounded-[20px] overflow-hidden relative p-6 flex flex-col justify-between min-h-[152px]"
+          style={{
+            animationDelay: '50ms',
+            background: 'linear-gradient(135deg, #023047 0%, #033c5c 100%)',
+            boxShadow: '0 8px 32px -8px rgba(2,48,71,0.35)',
+          }}
+        >
+          <div className="absolute inset-0 pointer-events-none" style={{ mixBlendMode: 'plus-lighter', opacity: 0.18, background: 'radial-gradient(ellipse 80% 60% at 90% 10%, #3bade6 0%, transparent 70%)' }} />
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="w-9 h-9 rounded-[10px] bg-white/10 flex items-center justify-center">
+              <Heart size={18} strokeWidth={1.5} className="text-white" />
+            </div>
+            <span className="text-[10px] font-semibold text-white/40 uppercase tracking-[0.1em]">Pacientes</span>
+          </div>
+          <div className="relative z-10 mt-3">
+            <div className="text-[44px] font-bold tracking-[-0.03em] text-white leading-none">{dashboardData.totalPets}</div>
+            <div className="text-sm text-white/55 mt-1">pets cadastrados</div>
+          </div>
+        </div>
 
-      {dashboardData.todayAppointments.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6 relative">
-          <div className="absolute inset-0 bg-gray-50/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
-            <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-lg text-sm">
-              🚧 Em desenvolvimento
+        {/* ── KPI 2 — Consultas Hoje ──────────────────────────────────── */}
+        <div
+          className="col-span-12 md:col-span-4 fade-in-up rounded-[20px] p-6 flex flex-col justify-between min-h-[152px] hover:scale-[1.01] transition-all duration-200"
+          style={{ animationDelay: '100ms', ...cardStyle }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-9 h-9 rounded-[10px] flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
+              <Calendar size={18} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
+            </div>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--text-tertiary)' }}>Hoje</span>
+          </div>
+          <div className="mt-3">
+            <div className="text-[44px] font-bold tracking-[-0.03em] leading-none" style={{ color: 'var(--apple-blue)' }}>
+              {dashboardData.todayAppointments.length}
+            </div>
+            <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>consultas agendadas</div>
+          </div>
+        </div>
+
+        {/* ── KPI 3 — Casos Críticos ──────────────────────────────────── */}
+        <div
+          className="col-span-12 md:col-span-4 fade-in-up rounded-[20px] p-6 flex flex-col justify-between min-h-[152px] hover:scale-[1.01] transition-all duration-200"
+          style={{
+            animationDelay: '150ms',
+            background: hasCritical ? 'rgba(255,59,48,0.08)' : 'var(--surface-grouped-secondary)',
+            boxShadow: hasCritical ? '0 2px 16px rgba(255,59,48,0.12)' : '0 1px 4px rgba(0,0,0,0.08)',
+            border: `1px solid ${hasCritical ? 'rgba(255,59,48,0.2)' : 'var(--separator)'}`,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-9 h-9 rounded-[10px] flex items-center justify-center"
+              style={{ background: hasCritical ? 'rgba(255,59,48,0.12)' : 'rgba(142,142,147,0.1)' }}>
+              <AlertTriangle size={18} strokeWidth={1.5} style={{ color: hasCritical ? 'var(--apple-red)' : 'var(--text-tertiary)' }} />
+            </div>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]"
+              style={{ color: hasCritical ? 'var(--apple-red)' : 'var(--text-tertiary)' }}>
+              Atenção
             </span>
           </div>
-          <h2 className="text-xl font-semibold mb-4">Consultas de Hoje</h2>
-          <div className="space-y-4">
-            {dashboardData.todayAppointments.map(appointment => (
-              <div 
-                key={appointment.id} 
-                className="flex items-center justify-between border-b pb-4 cursor-pointer hover:bg-gray-50 transition-colors p-2 rounded"
-                onClick={handleConsultationClick}
-              >
-                <div>
-                  <h3 className="font-medium">{appointment.petName}</h3>
-                  <p className="text-gray-500">{formatDate(appointment.date)}</p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-sm ${
-                  appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                  appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {appointment.status === 'scheduled' ? 'Agendada' :
-                   appointment.status === 'completed' ? 'Concluída' :
-                   'Cancelada'}
-                </span>
-              </div>
-            ))}
+          <div className="mt-3">
+            <div className="text-[44px] font-bold tracking-[-0.03em] leading-none"
+              style={{ color: hasCritical ? 'var(--apple-red)' : 'var(--text-primary)' }}>
+              {dashboardData.criticalCases}
+            </div>
+            <div className="text-sm mt-1" style={{ color: hasCritical ? 'var(--apple-red)' : 'var(--text-secondary)', opacity: hasCritical ? 0.8 : 1 }}>
+              {hasCritical ? 'necessitam atenção urgente' : 'nenhum caso crítico'}
+            </div>
           </div>
         </div>
-      )}
+
+        {/* ── Pacientes Recentes ── col-span-12 ───────────────────────── */}
+        <div
+          className="col-span-12 fade-in-up rounded-[20px] overflow-hidden"
+          style={{ animationDelay: '200ms', ...cardStyle }}
+        >
+          <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--separator)' }}>
+            <div>
+              <h2 className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>
+                Pacientes Recentes
+              </h2>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                {dashboardData.recentPets.length} paciente{dashboardData.recentPets.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+          </div>
+
+          {dashboardData.recentPets.length === 0 ? (
+            <div className="px-6 py-14 flex flex-col items-center justify-center gap-2">
+              <Heart size={28} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Nenhum paciente cadastrado ainda.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr style={{ background: 'var(--surface-secondary)', borderBottom: '1px solid var(--separator)' }}>
+                    {['Nome do Pet', 'Espécie', 'Raça', 'Idade', 'Tutor', 'Última Visita', 'Status'].map(h => (
+                      <th
+                        key={h}
+                        className="text-left text-[11px] font-semibold uppercase tracking-[0.07em]"
+                        style={{ padding: '10px 24px', border: 'none', background: 'transparent', color: 'var(--text-tertiary)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboardData.recentPets.map((pet, i) => {
+                    const age = pet.birthDate
+                      ? Math.floor((Date.now() - new Date(pet.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365))
+                      : null;
+                    const isLast = i === dashboardData.recentPets.length - 1;
+                    return (
+                      <tr
+                        key={pet.id}
+                        className="fade-in-up"
+                        style={{ animationDelay: `${220 + i * 35}ms`, borderBottom: isLast ? 'none' : '1px solid var(--separator)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(142,142,147,0.06)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <td style={{ padding: '12px 24px', border: 'none' }}>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
+                              style={{ background: 'rgba(0,122,255,0.1)' }}>
+                              <span className="text-xs font-semibold" style={{ color: 'var(--apple-blue)' }}>
+                                {pet.name?.[0]?.toUpperCase() || '?'}
+                              </span>
+                            </div>
+                            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{pet.name}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 24px', border: 'none' }}>
+                          <span className="text-sm capitalize" style={{ color: 'var(--text-secondary)' }}>{pet.species || '—'}</span>
+                        </td>
+                        <td style={{ padding: '12px 24px', border: 'none' }}>
+                          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{pet.breed || '—'}</span>
+                        </td>
+                        <td style={{ padding: '12px 24px', border: 'none' }}>
+                          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{age !== null ? `${age} ano${age !== 1 ? 's' : ''}` : '—'}</span>
+                        </td>
+                        <td style={{ padding: '12px 24px', border: 'none' }}>
+                          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{pet.ownerName || '—'}</span>
+                        </td>
+                        <td style={{ padding: '12px 24px', border: 'none' }}>
+                          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{pet.lastVisit ? formatDate(pet.lastVisit) : '—'}</span>
+                        </td>
+                        <td style={{ padding: '12px 24px', border: 'none' }}>
+                          <StatusBadge status={pet.status} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* ── Consultas de Hoje (in development) ── col-span-12 ────────── */}
+        {dashboardData.todayAppointments.length > 0 && (
+          <div
+            className="col-span-12 fade-in-up rounded-[20px] overflow-hidden relative"
+            style={{ animationDelay: '260ms', ...cardStyle }}
+          >
+            {/* Frosted overlay */}
+            <div
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2"
+              style={{ backdropFilter: 'blur(3px)', background: 'rgba(var(--surface-grouped-secondary-rgb, 255,255,255), 0.75)' }}
+            >
+              <Clock size={20} strokeWidth={1.5} style={{ color: 'var(--text-secondary)' }} />
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Consultas de Hoje</p>
+              <span
+                className="text-xs px-3 py-1 rounded-full"
+                style={{ color: 'var(--text-tertiary)', background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.2)' }}
+              >
+                Em desenvolvimento
+              </span>
+            </div>
+
+            <div className="px-6 py-5" style={{ borderBottom: '1px solid var(--separator)' }}>
+              <h2 className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>Consultas de Hoje</h2>
+            </div>
+            <div>
+              {dashboardData.todayAppointments.slice(0, 3).map((apt, i) => (
+                <div
+                  key={apt.id}
+                  className="px-6 py-4 flex items-center justify-between cursor-pointer"
+                  style={{ borderBottom: i < 2 ? '1px solid var(--separator)' : 'none' }}
+                  onClick={() => { setShowDevToast(true); setTimeout(() => setShowDevToast(false), 3000); }}
+                >
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{apt.petName}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{apt.date ? formatDate(apt.date) : '—'}</p>
+                  </div>
+                  <span className="text-xs px-2.5 py-1 rounded-full font-medium"
+                    style={{ background: 'rgba(0,122,255,0.1)', color: 'var(--apple-blue)' }}>
+                    {apt.status === 'scheduled' ? 'Agendada' : apt.status === 'completed' ? 'Concluída' : 'Cancelada'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 };
