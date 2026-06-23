@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { DASHBOARD_SIDEBAR_BOTTOM_LINKS, DASHBOARD_SIDEBAR_LINKS } from "../../../lib/consts/navigation";
+import { DASHBOARD_SIDEBAR_BOTTOM_LINKS, DASHBOARD_SIDEBAR_LINKS, TUTOR_SIDEBAR_LINKS } from "../../../lib/consts/navigation";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { auth, db } from "../../../config/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { LogOut, ChevronLeft } from "lucide-react";
-import LogoWhite from "../../../assets/logo_white";
+import LogoWhite from "../../../assets/logos/logo_white";
 import LogoutModal from "../LogoutModal/LogoutModal";
 
 export default function SideBar() {
@@ -45,11 +45,12 @@ export default function SideBar() {
       >
         {/* Logo + collapse */}
         <div className="flex items-center justify-between h-[60px] px-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(84,84,88,0.25)' }}>
-          {!isCollapsed && (
+          {/* TODO: re-adicionar logo */}
+          {/* {!isCollapsed && (
             <div className="overflow-hidden">
               <LogoWhite />
             </div>
-          )}
+          )} */}
           {isCollapsed && (
             <div
               className="w-9 h-9 rounded-[10px] flex items-center justify-center font-bold text-base mx-auto"
@@ -73,9 +74,9 @@ export default function SideBar() {
           </button>
         </div>
 
-        {/* Main nav */}
+        {/* Main nav — links depend on the user's role */}
         <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-          {DASHBOARD_SIDEBAR_LINKS.map((item) => (
+          {(currentUser?.role === 'tutor' ? TUTOR_SIDEBAR_LINKS : DASHBOARD_SIDEBAR_LINKS).map((item) => (
             <SideBarLink key={item.key} item={item} isCollapsed={isCollapsed} />
           ))}
         </nav>

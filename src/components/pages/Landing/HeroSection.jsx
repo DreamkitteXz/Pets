@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
-// ─── Figma Assets (refreshed 2026-05-28) ─────────────────────────────────────
-const BLOB_MASK   = 'https://www.figma.com/api/mcp/asset/7b2dc2f0-44a6-42c6-8a45-b240e3490072'; // Vector3
-const BLOB_FILL   = 'https://www.figma.com/api/mcp/asset/5453bccb-c215-4eaa-9a24-e85454e0ffe0'; // Vector4
-const CORNER_DECO = 'https://www.figma.com/api/mcp/asset/783c46f3-cdd6-4932-9640-3ec797a83d84'; // Vector15
-const WAVE_BTM    = 'https://www.figma.com/api/mcp/asset/cfbba83f-83e7-4fc8-970c-85c3908986d2'; // Vector14
-const PAW_MAIN    = 'https://www.figma.com/api/mcp/asset/26de43f1-0663-4de9-8ec5-050aac0221ef'; // IconPatinha
-const PAW_1       = 'https://www.figma.com/api/mcp/asset/6204ee55-3961-4e79-bde7-8eb897db45d0'; // IconPatinha1
+// ─── Assets locais (public/assets/landing/) ──────────────────────────────────
+const BLOB_MASK   = '/assets/landing/blob_mask.svg';
+const BLOB_FILL   = '/assets/landing/blob_fill.png';
+const CORNER_DECO = '/assets/landing/corner_deco.svg';
+const WAVE_BTM    = '/assets/landing/hero_wave.svg';
+const PAW_MAIN    = '/assets/landing/icon_patinha.svg';
+const PAW_1       = '/assets/landing/icon_patinha1.svg';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // "Pets." split for staggered letter reveal

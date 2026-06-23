@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react';
-import LogoBlack from '../../../assets/logo_black';
+import LogoBlack from '../../../assets/logos/logo_black';
 import AuthBackground from './assets/auth_background.svg';
 import { resetPassword } from '../../../services/firebase/authService';
 

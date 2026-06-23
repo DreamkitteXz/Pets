@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
-import { Search, Filter, Heart, CheckCircle, Clock, XCircle, Syringe } from 'lucide-react';
-import PetDetailsModal from './PetDetailsModal';
-import PetEditModal from './PetEditModal';
+import { useNavigate } from 'react-router-dom';
+import { Search, Filter, Heart, CheckCircle, XCircle, Syringe, CalendarClock } from 'lucide-react';
 import { usePets } from '../../../hooks/usePets';
-import { useAuth } from '../../../context/AuthContext';
+import { usePatientStats } from '../../../hooks/usePatientStats';
 
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS_CFG = {
-  validated:          { label: 'Validado',            bg: 'rgba(52,199,89,0.12)',  text: 'var(--apple-green)', dot: 'var(--apple-green)' },
-  'waiting validation':{ label: 'Aguardando',         bg: 'rgba(255,149,0,0.12)', text: 'var(--apple-orange)', dot: 'var(--apple-orange)' },
-  recused:            { label: 'Recusado',             bg: 'rgba(255,59,48,0.10)', text: 'var(--apple-red)',    dot: 'var(--apple-red)' },
+  active:   { label: 'Ativo',   bg: 'rgba(52,199,89,0.12)',   text: 'var(--apple-green)', dot: 'var(--apple-green)' },
+  inactive: { label: 'Inativo', bg: 'rgba(142,142,147,0.12)', text: 'var(--apple-gray-1)', dot: 'var(--apple-gray-1)' },
 };
 
 const StatusBadge = ({ status }) => {
@@ -22,7 +20,7 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-// ── Helper functions (unchanged logic) ────────────────────────────────────
+// ── Helper functions ───────────────────────────────────────────────────────
 const getNextVaccineDate = (pet) => {
   if (!pet.vaccines || pet.vaccines.length === 0) return null;
   const upcoming = pet.vaccines
@@ -35,7 +33,7 @@ const getNextVaccineDate = (pet) => {
 
 const getPetAge = (birthDate) => {
   if (!birthDate) return '—';
-  const birth = new Date(birthDate);
+  const birth = birthDate?.toDate instanceof Function ? birthDate.toDate() : new Date(birthDate);
   const ageInMonths = (new Date().getFullYear() - birth.getFullYear()) * 12 + (new Date().getMonth() - birth.getMonth());
   if (ageInMonths < 12) return `${ageInMonths} ${ageInMonths === 1 ? 'mês' : 'meses'}`;
   const years = Math.floor(ageInMonths / 12);
@@ -63,15 +61,12 @@ const KpiCard = ({ label, value, subtext, accentColor, icon: Icon, delay }) => (
 
 // ── Page ──────────────────────────────────────────────────────────────────
 const PetsPage = () => {
+  const navigate = useNavigate();
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedPet, setSelectedPet] = useState(null);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const { pets, loading, error } = usePets();
-  const { user } = useAuth();
-  const userId = user?.id;
+  const { stats } = usePatientStats();
 
   if (loading) {
     return (
@@ -92,12 +87,14 @@ const PetsPage = () => {
   }
 
   const petsArray = Array.isArray(pets) ? pets : [];
+  const activeCount = petsArray.filter(p => p.status === 'active').length;
   const filteredPets = petsArray
     .filter(p => filterStatus === 'all' || p.status === filterStatus)
     .filter(p => {
       if (!searchTerm) return true;
       const q = searchTerm.toLowerCase();
-      return p.name?.toLowerCase().includes(q) || p.species?.toLowerCase().includes(q) || p.owner?.toLowerCase().includes(q);
+      return p.name?.toLowerCase().includes(q) || p.species?.toLowerCase().includes(q) ||
+        p.ownerName?.toLowerCase().includes(q) || p.owner?.toLowerCase().includes(q);
     });
 
   return (
@@ -106,23 +103,23 @@ const PetsPage = () => {
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="mb-6 fade-in-up">
         <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Pacientes
+          Meus Pacientes
         </h1>
         <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-          {petsArray.length} pet{petsArray.length !== 1 ? 's' : ''} cadastrado{petsArray.length !== 1 ? 's' : ''}
+          {petsArray.length} pet{petsArray.length !== 1 ? 's' : ''} sob seus cuidados
         </p>
       </div>
 
       {/* ── KPI cards ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <KpiCard label="Validados" value={petsArray.filter(p => p.status === 'validated').length}
-          subtext="com vacinação completa" accentColor="var(--apple-green)" icon={CheckCircle} delay={50} />
-        <KpiCard label="Aguardando" value={petsArray.filter(p => p.status === 'waiting validation').length}
-          subtext="precisam de revisão" accentColor="var(--apple-orange)" icon={Clock} delay={100} />
-        <KpiCard label="Recusados" value={petsArray.filter(p => p.status === 'recused').length}
-          subtext="com problemas" accentColor="var(--apple-red)" icon={XCircle} delay={150} />
-        <KpiCard label="Total" value={petsArray.length}
-          subtext="pets cadastrados" accentColor="var(--apple-blue)" icon={Heart} delay={200} />
+        <KpiCard label="Total de Pacientes" value={petsArray.length}
+          subtext="sob seus cuidados" accentColor="var(--apple-blue)" icon={Heart} delay={50} />
+        <KpiCard label="Pacientes Ativos" value={activeCount}
+          subtext="em acompanhamento" accentColor="var(--apple-green)" icon={CheckCircle} delay={100} />
+        <KpiCard label="Vacinas Próximas" value={stats.upcomingVaccines}
+          subtext="próximos 30 dias" accentColor="var(--apple-orange)" icon={Syringe} delay={150} />
+        <KpiCard label="Consultas Recentes" value={stats.recentConsultations}
+          subtext="últimos 30 dias" accentColor="var(--apple-indigo)" icon={CalendarClock} delay={200} />
       </div>
 
       {/* ── Search + filter bar ───────────────────────────────────────────── */}
@@ -155,9 +152,8 @@ const PetsPage = () => {
             onChange={e => setFilterStatus(e.target.value)}
           >
             <option value="all">Todos os Status</option>
-            <option value="validated">Validado</option>
-            <option value="waiting validation">Aguardando Validação</option>
-            <option value="recused">Recusado</option>
+            <option value="active">Ativos</option>
+            <option value="inactive">Inativos</option>
           </select>
         </div>
 
@@ -205,8 +201,9 @@ const PetsPage = () => {
                   return (
                     <tr
                       key={pet.id}
-                      className="fade-in-up transition-colors duration-100"
+                      className="fade-in-up transition-colors duration-100 cursor-pointer"
                       style={{ borderBottom: isLast ? 'none' : '1px solid var(--separator)', animationDelay: `${300 + i * 30}ms` }}
+                      onClick={() => navigate(`/pets/${pet.id}`)}
                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.04)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
@@ -223,7 +220,7 @@ const PetsPage = () => {
                         </div>
                       </td>
                       <td style={{ padding: '14px 20px', border: 'none', fontSize: '15px', color: 'var(--text-primary)' }}>
-                        {pet.owner || '—'}
+                        {pet.ownerName || pet.owner || '—'}
                       </td>
                       <td style={{ padding: '14px 20px', border: 'none' }}>
                         <StatusBadge status={pet.status} />
@@ -240,13 +237,13 @@ const PetsPage = () => {
                       </td>
                       <td style={{ padding: '14px 20px', border: 'none' }}>
                         <button
-                          onClick={() => { setSelectedPet(pet); setIsDetailsModalOpen(true); }}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/pets/${pet.id}`); }}
                           className="font-medium transition-colors duration-100"
                           style={{ fontSize: '15px', color: 'var(--apple-blue)' }}
                           onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
                           onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                         >
-                          Ver
+                          Ver prontuário
                         </button>
                       </td>
                     </tr>
@@ -257,10 +254,6 @@ const PetsPage = () => {
           </div>
         )}
       </div>
-
-      {/* Modals */}
-      <PetDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} pet={selectedPet} />
-      <PetEditModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} pet={selectedPet} onSave={() => {}} />
     </div>
   );
 };

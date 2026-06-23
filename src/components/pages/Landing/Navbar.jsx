@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
 
 const NAV_LINKS = [
   { label: 'Funcionalidades', href: '#servicos' },
@@ -10,6 +11,8 @@ const NAV_LINKS = [
 const Navbar = () => {
   const [scrolled, setScrolled]   = useState(false);
   const [activeLink, setActiveLink] = useState(null);
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 30);
@@ -100,6 +103,8 @@ const Navbar = () => {
         {/* Auth buttons */}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
           <button
+            disabled={loading}
+            onClick={() => navigate(user ? '/vacinas' : '/auth')}
             style={{
               fontFamily: 'system-ui, -apple-system, Roboto, sans-serif',
               fontWeight: 500,
@@ -115,10 +120,11 @@ const Navbar = () => {
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)',
-              cursor: 'pointer',
+              cursor: loading ? 'default' : 'pointer',
+              opacity: loading ? 0.6 : 1,
               transition: 'background 0.2s, transform 0.15s, box-shadow 0.2s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,232,228,0.9)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = 'rgba(220,232,228,0.9)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(240,244,243,0.8)'; e.currentTarget.style.transform = 'translateY(0)'; }}
           >
             Entrar

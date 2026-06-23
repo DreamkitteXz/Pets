@@ -33,6 +33,8 @@ export async function signUpWithEmail(email, password, name) {
       name,
       createdAt: new Date().toISOString(),
       emailVerified: false,
+      profileCompleted: false,
+      status: 'pending',
     });
 
     // Try OTP-based verification (requires Functions deployed).
@@ -64,6 +66,8 @@ export async function signInWithGoogle() {
         photoURL: user.photoURL || '',
         createdAt: new Date().toISOString(),
         emailVerified: true,
+        profileCompleted: false,
+        status: 'pending',
       });
     }
 

@@ -71,7 +71,9 @@ export default function Header() {
           <span className="font-semibold text-[17px]" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
             Pets
           </span>
-          <span className="text-[13px]" style={{ color: 'var(--text-tertiary)' }}>Veterinário</span>
+          <span className="text-[13px]" style={{ color: 'var(--text-tertiary)' }}>
+            {currentUser?.role === 'tutor' ? 'Tutor' : 'Veterinário'}
+          </span>
         </div>
 
         {/* Right — search + bell + profile */}
@@ -144,7 +146,9 @@ export default function Header() {
                   {/* Menu items */}
                   {[
                     { icon: User, label: 'Meu Perfil', to: '/profile' },
-                    { icon: Bookmark, label: 'Meus Pacientes', to: '/pets' },
+                    currentUser?.role === 'tutor'
+                      ? { icon: Bookmark, label: 'Meus Pets', to: '/meus-pets' }
+                      : { icon: Bookmark, label: 'Meus Pacientes', to: '/pets' },
                     { icon: MessageCircle, label: 'Mensagens', to: null },
                     { icon: Settings, label: 'Configurações', to: '/settings' },
                   ].map(({ icon: Icon, label, to }) => (

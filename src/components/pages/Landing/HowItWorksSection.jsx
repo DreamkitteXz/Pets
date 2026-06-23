@@ -1,29 +1,23 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import useScrollReveal from '../../../hooks/useScrollReveal';
 
-// ─── Figma Assets (refreshed 2026-05-28) ──────────────────────────────────────
+// ─── Assets locais (public/assets/landing/) ──────────────────────────────────
+const WAVE_TOP  = '/assets/landing/about_wave.svg';
+const DASH_WAVE = '/assets/landing/dash_wave.svg';
 
-// Subtle dashed arc that introduces the section (Frame 31:604)
-const WAVE_TOP  = 'https://www.figma.com/api/mcp/asset/694a4215-11cc-40ec-9552-62b89b4bc493';
+const PAW_A = '/assets/landing/icon_patinha2.svg';
+const PAW_B = '/assets/landing/icon_patinha3.svg';
+const PAW_C = '/assets/landing/icon_patinha4.svg';
+const PAW_D = '/assets/landing/icon_patinha5.svg';
+const PAW_E = '/assets/landing/icon_patinha6.svg';
+const PAW_F = '/assets/landing/icon_patinha7.svg';
 
-// Dashed wavy arc behind all 5 pet bubbles (Vector13, 1927×674px)
-const DASH_WAVE = 'https://www.figma.com/api/mcp/asset/9f1d5bd8-5fd5-41bf-ba7c-b687d6239708';
-
-// Paw prints — 6 tint variants
-const PAW_A = 'https://www.figma.com/api/mcp/asset/91704d76-b261-4446-ae32-c934a54d1389'; // IconPatinha2
-const PAW_B = 'https://www.figma.com/api/mcp/asset/80119cf7-ee0f-485f-a046-e7bf277492db'; // IconPatinha3
-const PAW_C = 'https://www.figma.com/api/mcp/asset/dda6cc8f-4d88-4f20-9374-a0aa2c2e1f9f'; // IconPatinha4
-const PAW_D = 'https://www.figma.com/api/mcp/asset/2112c3f6-0f5e-4246-893f-353d251a56db'; // IconPatinha5
-const PAW_E = 'https://www.figma.com/api/mcp/asset/8cff3f6d-60ab-4fbc-b7bb-c07a042ba98a'; // IconPatinha6
-const PAW_F = 'https://www.figma.com/api/mcp/asset/3133c7a3-7bda-4e75-aca1-1877bc783296'; // IconPatinha7
-
-// Pet bubble composites — one per step, left-to-right Figma order
 const PET_IMAGES = [
-  'https://www.figma.com/api/mcp/asset/a0c3dff1-8bab-4d28-947a-15fb46ec716f', // Step 1 — Siamese (blue)
-  'https://www.figma.com/api/mcp/asset/5d849a05-03f9-4c61-962f-6bb8d94c7382', // Step 2 — Boxer (teal)
-  'https://www.figma.com/api/mcp/asset/c6f838e5-19c8-4a30-8e2a-ef628d85e343', // Step 3 — Border Collie (navy)
-  'https://www.figma.com/api/mcp/asset/1309e246-b67d-4d72-8b59-c918896d9b03', // Step 4 — Tabby (amber)
-  'https://www.figma.com/api/mcp/asset/7a4e05e4-bbb8-4328-8138-b2d43d28e6e5', // Step 5 — Golden (orange)
+  '/assets/landing/step1.png',
+  '/assets/landing/step2.png',
+  '/assets/landing/step3.png',
+  '/assets/landing/step4.png',
+  '/assets/landing/step5.png',
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 

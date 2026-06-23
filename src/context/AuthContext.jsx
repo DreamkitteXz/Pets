@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { auth, db } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -23,6 +23,22 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Re-fetch the Firestore profile for the current user. Used after onboarding
+  // so routing/sidebar pick up the freshly-set role without a full reload.
+  const refreshProfile = useCallback(async () => {
+    const current = auth.currentUser;
+    if (!current) { setUserProfile(null); return null; }
+    try {
+      const snap = await getDoc(doc(db, 'users', current.uid));
+      const data = snap.exists() ? snap.data() : null;
+      setUserProfile(data);
+      return data;
+    } catch {
+      setUserProfile(null);
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -49,6 +65,7 @@ export const AuthProvider = ({ children }) => {
     user,
     userProfile,
     loading,
+    refreshProfile,
     signIn: signInWithEmail,
     signUp: signUpWithEmail,
     signInWithGoogle,

@@ -1,12 +1,12 @@
 import React from 'react';
 import useScrollReveal from '../../../hooks/useScrollReveal';
 
-// ─── Figma Assets (refreshed 2026-05-28) ──────────────────────────────────────
-const BLOB_BG  = 'https://www.figma.com/api/mcp/asset/731b981b-563f-4454-bbdf-53e753a439d9'; // Vector5
-const BEAGLE   = 'https://www.figma.com/api/mcp/asset/75bf258d-094d-491c-afad-b36c58c7b3ae'; // Vector6
-const WAVE_BTM = 'https://www.figma.com/api/mcp/asset/8916fea4-051e-418f-88c7-b31a69c3a2fc'; // Vector16
-const PAW_1    = 'https://www.figma.com/api/mcp/asset/6204ee55-3961-4e79-bde7-8eb897db45d0'; // IconPatinha1
-const PAW_MAIN = 'https://www.figma.com/api/mcp/asset/26de43f1-0663-4de9-8ec5-050aac0221ef'; // IconPatinha
+// ─── Assets locais (public/assets/landing/) ──────────────────────────────────
+const BLOB_BG  = '/assets/landing/about_blob.svg';
+const BEAGLE   = '/assets/landing/beagle.png';
+const WAVE_BTM = '/assets/landing/about_wave.svg';
+const PAW_1    = '/assets/landing/icon_patinha1.svg';
+const PAW_MAIN = '/assets/landing/icon_patinha.svg';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PAW_TRAIL = [

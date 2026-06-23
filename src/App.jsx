@@ -4,20 +4,29 @@ import Layout from './components/shared/Layout/Layout';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import RoleRoute from './components/auth/RoleRoute';
+import ProfileGate from './components/auth/ProfileGate';
+import RoleRedirect from './components/auth/RoleRedirect';
 
 // Auth Pages
 import Login from './components/pages/Auth/Login/Auth';
-import CompleteProfile from './components/pages/Auth/CompleteProfile';
 import EmailVerification from './components/pages/Auth/EmailVerification';
 import ForgotPassword from './components/pages/Auth/ForgotPassword';
 import ResetPassword from './components/pages/Auth/ResetPassword';
 
-// Main Features
-import Dashboard from './components/pages/Dashboard/Dashboard';
+// Veterinarian Features
 import Pets from './components/pages/Pets/Pets';
-import PetDetailsModal from './components/pages/Pets/PetDetailsModal';
+import PetRecord from './components/pages/PetRecord/PetRecord';
 import Vaccines from './components/pages/Vacinas/Vacinas';
 import VaccineDetailsModal from './components/pages/Vacinas/VaccineDetailsModal';
+import Clinicas from './components/pages/Clinicas/Clinicas';
+import Chat from './components/pages/Chat/Chat';
+import Dashboard from './components/pages/Dashboard/Dashboard';
+
+// Tutor Features
+import TutorHome from './components/pages/Tutor/TutorHome';
+import TutorPets from './components/pages/Tutor/TutorPets';
+import TutorVaccines from './components/pages/Tutor/TutorVaccines';
 
 // Profile & Settings
 import Profile from './components/pages/Profile/Profile';
@@ -41,37 +50,50 @@ const App = () => {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<EmailVerification />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
-          {/* COMENTADO: Rota de complete-profile desabilitada */}
-          {/* <Route path="/complete-profile" element={<CompleteProfile />} /> */}
+          <Route path="/" element={<Navigate to="/home" replace />} />
 
-          {/* Protected Routes */}
+          {/* Protected Routes — auth + email verified + onboarding complete */}
           <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              {/* Dashboard */}
-              <Route path="" element={<VaccineDetailsModal /> } />
-              
-              {/* Pets */}
-              <Route path="/pets">
-                <Route index element={<Pets />} />
-                <Route path=":petId" element={<PetDetailsModal />} />
+            <Route element={<ProfileGate />}>
+              <Route element={<Layout />}>
+                {/* Authenticated entry — redirects to each role's home */}
+                <Route path="/app" element={<RoleRedirect />} />
+
+                {/* Veterinarian-only routes */}
+                <Route element={<RoleRoute requiredRole="veterinarian" />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/pets">
+                    <Route index element={<Pets />} />
+                    <Route path=":petId" element={<PetRecord />} />
+                  </Route>
+                  <Route path="/vacinas">
+                    <Route index element={<Vaccines />} />
+                    <Route path=":vaccineId" element={<VaccineDetailsModal />} />
+                  </Route>
+                  <Route path="/clinicas" element={<Clinicas />} />
+                  <Route path="/chat" element={<Chat />} />
+                </Route>
+
+                {/* Tutor-only routes */}
+                <Route element={<RoleRoute requiredRole="tutor" />}>
+                  <Route path="/inicio" element={<TutorHome />} />
+                  <Route path="/meus-pets">
+                    <Route index element={<TutorPets />} />
+                    <Route path=":petId" element={<PetRecord />} />
+                  </Route>
+                  <Route path="/minhas-vacinas" element={<TutorVaccines />} />
+                </Route>
+
+                {/* Any authenticated, onboarded user */}
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
               </Route>
-              
-              {/* Vaccines */}
-              <Route path="/vacinas">
-                <Route index element={<Vaccines />} />
-                <Route path=":vaccineId" element={<VaccineDetailsModal />} />
-              </Route>
-              
-              {/* Profile & Settings */}
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<Settings />} />
             </Route>
           </Route>
 
           {/* Error Routes */}
           <Route path="/404" element={<NotFound />} />
           <Route path="*" element={<Navigate to="/404" replace />} />
-          <Route path="/" element={<Navigate to="/vacinas" replace />} />
         </Routes>
       </Router>
       </ThemeProvider>
