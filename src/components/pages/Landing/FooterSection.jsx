@@ -118,14 +118,13 @@ const FooterSection = () => (
           </div>
           <span
             style={{
-              fontFamily: 'Inter, sans-serif',
-              fontStyle: 'italic',
-              fontWeight: 500,
+              fontFamily: 'SF Pro Display',
+              fontWeight: 600,
               fontSize: '18px',
               color: '#f0f4f3',
             }}
           >
-            Logo
+            Pets
           </span>
         </div>
 
@@ -204,7 +203,7 @@ const FooterSection = () => (
                 height: '42px',
                 paddingLeft: '24px',
                 paddingRight: '24px',
-                borderRadius: '6px',
+                borderRadius: '10px',
                 background: '#f0f4f3',
                 color: '#032b43',
                 border: 'none',
@@ -214,7 +213,7 @@ const FooterSection = () => (
               onMouseEnter={e => { e.currentTarget.style.background = '#dce8e4'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#f0f4f3'; e.currentTarget.style.transform = 'translateY(0)'; }}
             >
-              Criar conta grátis
+              Criar conta
             </button>
           </Link>
           <Link to="/auth">
@@ -227,7 +226,7 @@ const FooterSection = () => (
                 height: '42px',
                 paddingLeft: '24px',
                 paddingRight: '24px',
-                borderRadius: '6px',
+                borderRadius: '10px',
                 background: 'transparent',
                 color: 'rgba(240,244,243,0.6)',
                 border: '1px solid rgba(240,244,243,0.18)',
@@ -237,7 +236,7 @@ const FooterSection = () => (
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(240,244,243,0.38)'; e.currentTarget.style.color = '#f0f4f3'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(240,244,243,0.18)'; e.currentTarget.style.color = 'rgba(240,244,243,0.6)'; e.currentTarget.style.transform = 'translateY(0)'; }}
             >
-              Fazer login
+              Entrar
             </button>
           </Link>
         </div>
@@ -260,7 +259,7 @@ const FooterSection = () => (
           color: 'rgba(240,244,243,0.3)',
         }}
       >
-        © {new Date().getFullYear()} Pet Platform. Todos os direitos reservados.
+        © {new Date().getFullYear()} Pets. Todos os direitos reservados.
       </p>
       <p
         style={{

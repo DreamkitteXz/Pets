@@ -2,16 +2,9 @@ import { useState, useEffect } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import { toDate } from '../utils/dates';
 
 const DAY = 24 * 60 * 60 * 1000;
-
-const toDate = (v) => {
-  if (!v) return null;
-  if (v.toDate instanceof Function) return v.toDate();
-  if (v.seconds) return new Date(v.seconds * 1000);
-  if (v instanceof Date) return v;
-  return new Date(v);
-};
 
 /**
  * Aggregated metrics for the "Meus Pacientes" page cards.

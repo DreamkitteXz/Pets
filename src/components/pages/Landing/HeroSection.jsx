@@ -49,10 +49,10 @@ const HeroSection = () => {
     height: '50px',
     paddingLeft: '28px',
     paddingRight: '28px',
-    borderRadius: '14px',
+    borderRadius: '10px',
     border: 'none',
     cursor: 'pointer',
-    fontFamily: 'system-ui, -apple-system, Roboto, sans-serif',
+    fontFamily: 'SF Pro Display',
     fontSize: '15px',
     fontWeight: 500,
     letterSpacing: '-0.015em',
@@ -151,7 +151,7 @@ const HeroSection = () => {
         {/* Title — letter-by-letter reveal */}
         <h1
           className="leading-none"
-          style={{ fontFamily: '"Alfa Slab One", serif', fontSize: 'clamp(56px, 4.17vw, 80px)' }}
+          style={{ fontFamily: 'SF Pro Display', fontWeight: 800, letterSpacing: '-0.03em', fontSize: 'clamp(56px, 4.17vw, 80px)' }}
           aria-label="Pets."
         >
           {TITLE_CHARS.map((char, i) => (

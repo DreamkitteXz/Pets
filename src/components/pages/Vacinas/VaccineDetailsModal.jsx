@@ -1,13 +1,61 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CiCircleCheck, CiCircleRemove, CiCircleAlert } from "react-icons/ci";
-import { IoClose, IoInformationCircle } from "react-icons/io5";
+import { X, Info, MapPin, Maximize2, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../../config/firebase';
 import { useAuth } from '../../../context/AuthContext';
 import logger from '../../../utils/logger';
+import { normalizeStatus } from '../../../utils/vaccineStatus';
+import { toDate } from '../../../utils/dates';
 
 const updateVaccineStatusFn = httpsCallable(functions, 'updateVaccineStatus', { timeout: 15000 });
+
+// ── Status → display (eixo único: pending | approved | rejected) ─────────────
+const STATUS_CFG = {
+  pending:  { label: 'Pendente',  color: 'var(--apple-orange)', bg: 'rgba(255,149,0,0.12)', icon: Clock },
+  approved: { label: 'Aprovado',  color: 'var(--apple-green)',  bg: 'rgba(52,199,89,0.12)', icon: CheckCircle },
+  rejected: { label: 'Rejeitado', color: 'var(--apple-red)',    bg: 'rgba(255,59,48,0.10)', icon: XCircle },
+};
+
+// ── Shared styles / small presentational helpers ─────────────────────────────
+const inputStyle = {
+  width: '100%',
+  background: 'var(--surface-secondary)',
+  borderRadius: '10px',
+  padding: '12px 14px',
+  fontSize: '15px',
+  color: 'var(--text-primary)',
+  border: 'none',
+  outline: 'none',
+};
+
+const StatusBadge = ({ status }) => {
+  const cfg = STATUS_CFG[normalizeStatus(status)] || { label: status || '—', color: 'var(--apple-gray-1)', bg: 'rgba(142,142,147,0.12)', icon: Clock };
+  const Icon = cfg.icon;
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium" style={{ background: cfg.bg, color: cfg.color }}>
+      <Icon size={11} strokeWidth={2} />
+      {cfg.label}
+    </span>
+  );
+};
+
+const InfoItem = ({ label, value }) => (
+  <div>
+    <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)' }}>{label}</div>
+    <div className="mt-0.5" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{value || '—'}</div>
+  </div>
+);
+
+const Section = ({ title, action, children }) => (
+  <div className="rounded-[14px] p-5" style={{ background: 'var(--surface-secondary)' }}>
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{title}</h3>
+      {action}
+    </div>
+    {children}
+  </div>
+);
 
 const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
   const { user } = useAuth();
@@ -58,40 +106,17 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
 
   if (!isOpen || !vaccine || !currentUser) return null;
 
-  const formatDate = (date) => {
-    if (!date) return 'N/A';
-    const formatToDDMMYYYY = (dateObj) => {
-      const day = String(dateObj.getDate()).padStart(2, '0');
-      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const year = dateObj.getFullYear();
-      return `${day}/${month}/${year}`;
-    };
-    // Handle string dates
-    if (typeof date === 'string') return date;
-    // Handle Firestore Timestamp
-    if (date?.toDate instanceof Function) return formatToDDMMYYYY(date.toDate());
-    // Handle regular Date objects
-    if (date instanceof Date) return formatToDDMMYYYY(date);
-    // Handle Timestamp-like objects
-    if (date?.seconds) return formatToDDMMYYYY(new Date(date.seconds * 1000));
-    // Handle specific timestamp format
-    if (typeof date === 'object' && date.seconds && date.nanoseconds) {
-      return formatToDDMMYYYY(new Date(date.seconds * 1000));
-    }
-    return 'Invalid Date';
-  };
+  // Contrato único de validação: validationDetails.vetValidation.* (formato aninhado).
+  const vetVal = vaccine.validationDetails?.vetValidation || {};
+  const showValidationInfo = ['approved', 'rejected'].includes(normalizeStatus(vaccine.status));
+  const canValidate = !vetVal.status || vetVal.status === 'pending';
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'approved':
-        return <CiCircleCheck className="text-green-600" size={24} />;
-      case 'rejected':
-        return <CiCircleRemove className="text-red-600" size={24} />;
-      case 'pending':
-        return <CiCircleAlert className="text-yellow-600" size={24} />;
-      default:
-        return null;
-    }
+  const formatDate = (date) => {
+    const d = toDate(date);
+    if (!d) return 'N/A';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}/${d.getFullYear()}`;
   };
 
   const handleValidation = async (isApproved) => {
@@ -122,375 +147,317 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sf"
+      style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+    >
+      {/* ── Image viewer (fullscreen) ─────────────────────────────────────── */}
       {isImageViewerOpen && (
         <div
           id="image-viewer-overlay"
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]"
+          className="fixed inset-0 flex items-center justify-center z-[60]"
+          style={{ background: 'rgba(0,0,0,0.85)' }}
           onClick={handleImageViewerClose}
         >
           <div className="relative max-w-4xl mx-auto">
-            <button 
+            <button
               onClick={() => setIsImageViewerOpen(false)}
-              className="absolute -top-10 right-0 text-white hover:text-gray-300"
+              className="absolute -top-11 right-0 transition-opacity duration-150"
+              style={{ color: '#fff' }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
             >
-              <IoClose size={30} />
+              <X size={28} strokeWidth={2} />
             </button>
             <img
               src={vaccine.labelImage}
               alt="Rótulo da vacina"
-              className="max-h-[80vh] w-auto object-contain transform transition-transform duration-300 hover:scale-125"
+              className="max-h-[80vh] w-auto object-contain rounded-[12px]"
             />
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">Detalhes da Vacina</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-              <IoClose size={24} />
-            </button>
+      {/* ── Main card ─────────────────────────────────────────────────────── */}
+      <div
+        className="fade-in-up w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-[20px]"
+        style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)' }}
+      >
+        {/* Header */}
+        <div
+          className="sticky top-0 z-10 flex items-center justify-between px-7 py-5"
+          style={{ background: 'var(--surface-grouped-secondary)', borderBottom: '1px solid var(--separator)' }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div>
+              <h2 className="font-bold" style={{ fontSize: '22px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                Detalhes da Vacina
+              </h2>
+              <div className="mt-0.5" style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
+                ID: {vaccine.id}
+              </div>
+            </div>
+            <StatusBadge status={vaccine.status} />
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-[8px] p-1.5 transition-colors duration-150 flex-shrink-0"
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-secondary)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <X size={18} strokeWidth={2} style={{ color: 'var(--text-secondary)' }} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-7 py-6 flex flex-col gap-5">
+
+          {/* Label image */}
+          {vaccine?.labelImage && (
+            <Section
+              title="Foto do Rótulo da Vacina"
+              action={vaccine?.labelImageMetadata && (
+                <button
+                  onClick={() => setIsMetadataModalOpen(true)}
+                  className="flex items-center gap-1.5 font-medium transition-opacity duration-150"
+                  style={{ fontSize: '13px', color: 'var(--apple-blue)' }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                >
+                  <Info size={15} strokeWidth={1.75} /> Metadados
+                </button>
+              )}
+            >
+              <button
+                className="relative w-full rounded-[12px] overflow-hidden block"
+                onClick={() => setIsImageViewerOpen(true)}
+                style={{ border: '1px solid var(--separator)' }}
+              >
+                <img
+                  src={vaccine.labelImage}
+                  alt="Rótulo da vacina"
+                  className="w-full h-auto max-h-[300px] object-contain transition-opacity duration-150 hover:opacity-90"
+                />
+                <span
+                  className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full"
+                  style={{ background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: '11px' }}
+                >
+                  <Maximize2 size={11} strokeWidth={2} /> Ampliar
+                </span>
+              </button>
+            </Section>
+          )}
+
+          {/* Pet + Owner */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Section title="Informações do Pet">
+              <div className="grid grid-cols-2 gap-4">
+                <InfoItem label="Nome" value={vaccine.petName} />
+                <InfoItem label="Espécie" value={vaccine.petSpecies} />
+                <InfoItem label="Raça" value={vaccine.petBreed} />
+                <InfoItem label="Peso" value={vaccine.petWeight != null ? `${vaccine.petWeight} kg` : null} />
+              </div>
+            </Section>
+            <Section title="Informações do Proprietário">
+              <div className="grid grid-cols-2 gap-4">
+                <InfoItem label="Nome" value={vaccine.ownerName} />
+                <InfoItem label="Contato" value={vaccine.ownerContact} />
+              </div>
+            </Section>
           </div>
 
-          <div className="space-y-6">
-            {/* Status Section */}
-            <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2">
-                {getStatusIcon(vaccine.status)}
-                <span className="font-semibold capitalize">{vaccine.status}</span>
-              </div>
-              <span className="text-gray-500">ID: {vaccine.id}</span>
+          {/* Vaccine info */}
+          <Section title="Informações da Vacina">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <InfoItem label="Nome da Vacina" value={vaccine.name} />
+              <InfoItem label="Fabricante" value={vaccine.manufacturer} />
+              <InfoItem label="Número do Lote" value={vaccine.batchNumber} />
+              <InfoItem label="Data de Administração" value={formatDate(vaccine.administrationDate)} />
+              <InfoItem label="Data de Validade" value={formatDate(vaccine.expirationDate)} />
+              <InfoItem label="Próxima Dose" value={formatDate(vaccine.nextDueDate)} />
+              <InfoItem label="Via de administração" value={vaccine.route} />
+              <InfoItem label="Local de aplicação" value={vaccine.applicationSite} />
+              <InfoItem label="Dose" value={vaccine.dose || vaccine.dosage} />
             </div>
+          </Section>
 
-            {/* Updated Vaccine Label Image Section */}
-            {vaccine?.labelImage && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-lg">Foto do Rótulo da Vacina</h3>
-                  {vaccine?.labelImageMetadata && (
-                    <button
-                      onClick={() => setIsMetadataModalOpen(true)}
-                      className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
-                    >
-                      <IoInformationCircle size={20} />
-                      <span className="text-sm">Metadados</span>
-                    </button>
-                  )}
-                </div>
-                <div 
-                  className="border rounded-lg overflow-hidden cursor-pointer"
-                  onClick={() => setIsImageViewerOpen(true)}
-                >
-                  <img
-                    src={vaccine.labelImage}
-                    alt="Rótulo da vacina"
-                    className="w-full h-auto max-h-[300px] object-contain hover:opacity-90 transition-opacity"
+          {/* Clinic info */}
+          {vaccine.clinicName && (
+            <Section title="Informações da Clínica">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InfoItem label="Nome da Clínica" value={vaccine.clinicName} />
+                <InfoItem label="CNPJ" value={vaccine.clinicCnpj} />
+                <div className="md:col-span-2">
+                  <InfoItem
+                    label="Endereço"
+                    value={vaccine.clinicAddress
+                      ? `${vaccine.clinicAddress.street || ''}, ${vaccine.clinicAddress.number || ''} — ${vaccine.clinicAddress.neighborhood || ''}, ${vaccine.clinicAddress.city || ''}/${vaccine.clinicAddress.state || ''}`
+                      : null}
                   />
                 </div>
-                <p className="text-sm text-gray-500 text-center">
-                  Clique na imagem para ampliar
-                </p>
               </div>
-            )}
+            </Section>
+          )}
 
-            {/* Metadata Modal */}
-            {isMetadataModalOpen && vaccine?.labelImageMetadata && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-                <div className="bg-white rounded-lg w-full max-w-2xl p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Metadados da Imagem</h3>
-                    <button 
-                      onClick={() => setIsMetadataModalOpen(false)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      <IoClose size={24} />
-                    </button>
+          {/* Validation info — exibido após a validação do veterinário */}
+          {showValidationInfo && (
+            <Section title="Informações de Validação">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InfoItem label="Data de Validação" value={formatDate(vetVal.validatedAt)} />
+                <InfoItem
+                  label="Validado Por"
+                  value={`${vetVal.validatedByName || vaccine.veterinarianName || '—'} (CRMV: ${vetVal.validatedByCrmv || vaccine.crmvNumber || '—'})`}
+                />
+                {vetVal.rejectionReason && (
+                  <div className="md:col-span-2">
+                    <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)' }}>Motivo da Rejeição</div>
+                    <div className="mt-0.5" style={{ fontSize: '15px', color: 'var(--apple-red)' }}>{vetVal.rejectionReason}</div>
                   </div>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <label className="block text-gray-600">Nome do Arquivo</label>
-                        <div className="font-medium">{vaccine.labelImageMetadata.name}</div>
-                      </div>
-                      <div>
-                        <label className="block text-gray-600">Tamanho</label>
-                        <div className="font-medium">{(vaccine.labelImageMetadata.size / 1024).toFixed(2)} KB</div>
-                      </div>
-                      <div>
-                        <label className="block text-gray-600">Tipo</label>
-                        <div className="font-medium">{vaccine.labelImageMetadata.contentType}</div>
-                      </div>
-                      <div>
-                        <label className="block text-gray-600">Data de Upload</label>
-                        <div className="font-medium">{formatDate(vaccine.labelImageMetadata.timeCreated)}</div>
-                      </div>
-                      {vaccine.labelImageMetadata.location && (
-                        <div className="col-span-2">
-                          <label className="block text-gray-600">Localização</label>
-                          <div className="font-medium">
-                            {vaccine.labelImageMetadata.location.latitude}°, {vaccine.labelImageMetadata.location.longitude}°
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {vaccine.labelImageMetadata.location && (
-                      <div className="mt-4">
-                        <label className="block text-gray-600 mb-2">Localização no Mapa</label>
-                        <div 
-                          ref={mapRef}
-                          className="w-full h-[300px] rounded-lg border border-gray-200"
-                        />
-                      </div>
-                    )}
+                )}
+                {vetVal.notes && (
+                  <div className="md:col-span-2">
+                    <InfoItem label="Observações" value={vetVal.notes} />
                   </div>
-                </div>
+                )}
               </div>
-            )}
+            </Section>
+          )}
 
-            {/* Main Details Grid */}
-            <div className="grid grid-cols-2 gap-6">
-              {/* Pet Information */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Informações do Pet</h3>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm text-gray-600">Nome</label>
-                    <div className="font-medium">{vaccine.petName}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600">Espécie</label>
-                    <div className="font-medium">{vaccine.petSpecies}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600">Raça</label>
-                    <div className="font-medium">{vaccine.petBreed}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600">Peso</label>
-                    <div className="font-medium">{vaccine.petWeight} kg</div>
-                  </div>
-                </div>
+          {/* Validation controls */}
+          {canValidate && (
+            <div className="rounded-[14px] p-5" style={{ background: 'rgba(0,122,255,0.06)', border: '1px solid rgba(0,122,255,0.18)' }}>
+              <div className="flex items-center gap-2 mb-4">
+                <AlertCircle size={18} strokeWidth={1.75} style={{ color: 'var(--apple-blue)' }} />
+                <h3 className="font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>Validação da Vacina</h3>
               </div>
 
-              {/* Owner Information */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Informações do Proprietário</h3>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm text-gray-600">Nome</label>
-                    <div className="font-medium">{vaccine.ownerName}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600">Contato</label>
-                    <div className="font-medium">{vaccine.ownerContact}</div>
-                  </div>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Observações da Validação
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={validationNote}
+                    onChange={(e) => setValidationNote(e.target.value)}
+                    placeholder="Adicione observações sobre a validação..."
+                    style={{ ...inputStyle, resize: 'none' }}
+                  />
                 </div>
-              </div>
-            </div>
 
-            {/* Vaccine Information */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Informações da Vacina</h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm text-gray-600">Nome da Vacina</label>
-                    <div className="font-medium">{vaccine.name}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600">Fabricante</label>
-                    <div className="font-medium">{vaccine.manufacturer}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600">Número do Lote</label>
-                    <div className="font-medium">{vaccine.batchNumber}</div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm text-gray-600">Data de Administração</label>
-                    <div className="font-medium">{formatDate(vaccine.administrationDate)}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600">Data de Validade</label>
-                    <div className="font-medium">{formatDate(vaccine.expirationDate)}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600">Próxima Dose</label>
-                    <div className="font-medium">{formatDate(vaccine.nextDueDate)}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Clinic Information */}
-            {vaccine.clinicName && (
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Informações da Clínica</h3>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <div>
-                      <label className="block text-sm text-gray-600">Nome da Clínica</label>
-                      <div className="font-medium">{vaccine.clinicName}</div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Approve */}
+                  <div className="rounded-[12px] p-4" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle size={16} strokeWidth={2} style={{ color: 'var(--apple-green)' }} />
+                      <h4 className="font-semibold" style={{ fontSize: '14px', color: 'var(--text-primary)' }}>Aprovar Vacina</h4>
                     </div>
-                    <div>
-                      <label className="block text-sm text-gray-600">CNPJ</label>
-                      <div className="font-medium">{vaccine.clinicCnpj}</div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div>
-                      <label className="block text-sm text-gray-600">Endereço</label>
-                      <div className="font-medium">
-                        {vaccine.clinicAddress?.street}, {vaccine.clinicAddress?.number}
-                        <br />
-                        {vaccine.clinicAddress?.neighborhood} - {vaccine.clinicAddress?.city}/{vaccine.clinicAddress?.state}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Validation Information - Only show if vaccine is approved or rejected */}
-            {(vaccine.status === 'approved' || vaccine.status === 'rejected') && vaccine.validationDetails && (
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Informações de Validação</h3>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <div>
-                      <label className="block text-sm text-gray-600">Data de Validação</label>
-                      <div className="font-medium">{formatDate(vaccine.validationDetails.validatedAt)}</div>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-600">Validado Por</label>
-                      <div className="font-medium">
-                        {vaccine.veterinarianName} (CRMV: {vaccine.crmvNumber})
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    {vaccine.validationDetails.rejectionReason && (
-                      <div>
-                        <label className="block text-sm text-gray-600">Motivo da Rejeição</label>
-                        <div className="font-medium text-red-600">{vaccine.validationDetails.rejectionReason}</div>
-                      </div>
-                    )}
-                    {vaccine.validationDetails.notes && (
-                      <div>
-                        <label className="block text-sm text-gray-600">Observações</label>
-                        <div className="font-medium">{vaccine.validationDetails.notes}</div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Validation Controls */}
-            {(vaccine.validationDetails?.vetValidation?.status === 'pending' || !vaccine.validationDetails?.vetValidation?.status) && (
-              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 space-y-6">
-                <div className="flex items-center gap-3">
-                  <CiCircleAlert className="text-blue-600" size={24} />
-                  <h3 className="font-semibold text-lg text-blue-700">Validação da Vacina</h3>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Observações da Validação
-                    </label>
-                    <textarea
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                      rows="3"
-                      value={validationNote}
-                      onChange={(e) => setValidationNote(e.target.value)}
-                      placeholder="Adicione observações sobre a validação..."
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Approve Section */}
-                    <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition">
-                      <div className="flex items-center gap-2 mb-3">
-                        <CiCircleCheck className="text-green-600" size={20} />
-                        <h4 className="font-medium text-green-700">Aprovar Vacina</h4>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Confirme a aprovação desta vacina após verificar todos os detalhes.
-                      </p>
-                      <button
-                        className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
-                        onClick={() => handleValidation(true)}
-                        disabled={isValidating}
-                      >
-                        {isValidating ? 'Processando...' : 'Aprovar'}
-                        <CiCircleCheck size={18} />
-                      </button>
-                    </div>
-                    
-                    {/* Reject Section */}
-                    <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition">
-                      <div className="flex items-center gap-2 mb-3">
-                        <CiCircleRemove className="text-red-600" size={20} />
-                        <h4 className="font-medium text-red-700">Rejeitar Vacina</h4>
-                      </div>
-                      <div className="space-y-3">
-                        <label className="block text-sm text-gray-600">
-                          Motivo da Rejeição <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
-                          value={rejectionReason}
-                          onChange={(e) => setRejectionReason(e.target.value)}
-                          placeholder="Informe o motivo da rejeição..."
-                        />
-                        <button
-                          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
-                          onClick={() => handleValidation(false)}
-                          disabled={isValidating || !rejectionReason}
-                        >
-                          {isValidating ? 'Processando...' : 'Rejeitar'}
-                          <CiCircleRemove size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* GOVBR Sign Section */}
-                  <div className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition">
-                    <div className="flex items-center gap-2 mb-3">
-                      <CiCircleCheck className="text-blue-600" size={20} />
-                      <h4 className="font-medium text-blue-700">Assinar Documento</h4>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Utilize o GOVBR para assinar digitalmente este documento.
+                    <p className="mb-4" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      Confirme a aprovação desta vacina após verificar todos os detalhes.
                     </p>
                     <button
-                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                      onClick={() => handleValidation(true)}
+                      disabled={isValidating}
+                      className="w-full flex items-center justify-center gap-2 rounded-[10px] font-medium transition-opacity duration-150"
+                      style={{ height: '42px', fontSize: '15px', color: '#fff', background: 'var(--apple-green)', opacity: isValidating ? 0.5 : 1, cursor: isValidating ? 'default' : 'pointer' }}
                     >
-                      Assinar com GOVBR
+                      {isValidating ? 'Processando...' : 'Aprovar'}
+                      <CheckCircle size={16} strokeWidth={2} />
                     </button>
+                  </div>
+
+                  {/* Reject */}
+                  <div className="rounded-[12px] p-4" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <XCircle size={16} strokeWidth={2} style={{ color: 'var(--apple-red)' }} />
+                      <h4 className="font-semibold" style={{ fontSize: '14px', color: 'var(--text-primary)' }}>Rejeitar Vacina</h4>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                        Motivo da Rejeição <span style={{ color: 'var(--apple-red)' }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        placeholder="Informe o motivo da rejeição..."
+                        style={inputStyle}
+                      />
+                      <button
+                        onClick={() => handleValidation(false)}
+                        disabled={isValidating || !rejectionReason}
+                        className="w-full flex items-center justify-center gap-2 rounded-[10px] font-medium transition-opacity duration-150"
+                        style={{ height: '42px', fontSize: '15px', color: '#fff', background: 'var(--apple-red)', opacity: (isValidating || !rejectionReason) ? 0.5 : 1, cursor: (isValidating || !rejectionReason) ? 'default' : 'pointer' }}
+                      >
+                        {isValidating ? 'Processando...' : 'Rejeitar'}
+                        <XCircle size={16} strokeWidth={2} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-            {/* Notes */}
-            {vaccine.notes && (
-              <div className="space-y-2">
-                <h3 className="font-semibold text-lg">Observações</h3>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700">{vaccine.notes}</p>
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          {vaccine.notes && (
+            <Section title="Observações">
+              <p style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{vaccine.notes}</p>
+            </Section>
+          )}
         </div>
       </div>
+
+      {/* ── Metadata modal ────────────────────────────────────────────────── */}
+      {isMetadataModalOpen && vaccine?.labelImageMetadata && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+        >
+          <div
+            className="fade-in-up w-full max-w-2xl rounded-[20px] overflow-hidden"
+            style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)' }}
+          >
+            <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: '1px solid var(--separator)' }}>
+              <h3 className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>Metadados da Imagem</h3>
+              <button
+                onClick={() => setIsMetadataModalOpen(false)}
+                className="rounded-[8px] p-1.5 transition-colors duration-150"
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-secondary)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <X size={18} strokeWidth={2} style={{ color: 'var(--text-secondary)' }} />
+              </button>
+            </div>
+            <div className="px-7 py-6 flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <InfoItem label="Nome do Arquivo" value={vaccine.labelImageMetadata.name} />
+                <InfoItem label="Tamanho" value={vaccine.labelImageMetadata.size != null ? `${(vaccine.labelImageMetadata.size / 1024).toFixed(2)} KB` : null} />
+                <InfoItem label="Tipo" value={vaccine.labelImageMetadata.contentType} />
+                <InfoItem label="Data de Upload" value={formatDate(vaccine.labelImageMetadata.timeCreated)} />
+                {vaccine.labelImageMetadata.location && (
+                  <div className="col-span-2 flex items-center gap-1.5">
+                    <MapPin size={14} strokeWidth={1.75} style={{ color: 'var(--text-tertiary)' }} />
+                    <InfoItem
+                      label="Localização"
+                      value={`${vaccine.labelImageMetadata.location.latitude}°, ${vaccine.labelImageMetadata.location.longitude}°`}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {vaccine.labelImageMetadata.location && (
+                <div>
+                  <div className="mb-2" style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)' }}>
+                    Localização no Mapa
+                  </div>
+                  <div ref={mapRef} className="w-full h-[300px] rounded-[12px]" style={{ border: '1px solid var(--separator)' }} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -4,14 +4,9 @@ import { PawPrint, Syringe, ClipboardCheck, ChevronRight } from 'lucide-react';
 import { useTutorPets } from '../../../hooks/useTutorPets';
 import { useTutorVaccines } from '../../../hooks/useTutorVaccines';
 import { useAuth } from '../../../context/AuthContext';
+import { toDate } from '../../../utils/dates';
 
 const DAY = 24 * 60 * 60 * 1000;
-const toDate = (v) => {
-  if (!v) return null;
-  if (v.toDate instanceof Function) return v.toDate();
-  if (v.seconds) return new Date(v.seconds * 1000);
-  return new Date(v);
-};
 
 const KpiCard = ({ label, value, accentColor, icon: Icon, delay }) => (
   <div className="fade-in-up rounded-[16px] p-5 flex items-center justify-between"
@@ -38,9 +33,7 @@ const TutorHome = () => {
     const d = toDate(v.nextDueDate);
     return d && d >= now && d <= in30;
   }).length;
-  const pendingApprovals = vaccines.filter(v =>
-    (v.validationDetails?.tutorValidation?.status || 'pending') === 'pending'
-  ).length;
+  const pendingApprovals = vaccines.filter(v => !v.tutorAcknowledged).length;
 
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
@@ -60,7 +53,7 @@ const TutorHome = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <KpiCard label="Meus pets" value={pets.length} accentColor="var(--apple-blue)" icon={PawPrint} delay={50} />
         <KpiCard label="Vacinas próximas (30d)" value={upcomingVaccines} accentColor="var(--apple-orange)" icon={Syringe} delay={100} />
-        <KpiCard label="Aguardando sua aprovação" value={pendingApprovals} accentColor="var(--apple-indigo)" icon={ClipboardCheck} delay={150} />
+        <KpiCard label="Aguardando sua ciência" value={pendingApprovals} accentColor="var(--apple-indigo)" icon={ClipboardCheck} delay={150} />
       </div>
 
       {/* Pets list */}

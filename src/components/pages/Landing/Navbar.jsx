@@ -5,7 +5,6 @@ import { useAuth } from '../../../context/AuthContext';
 const NAV_LINKS = [
   { label: 'Funcionalidades', href: '#servicos' },
   { label: 'Sobre',           href: '#sobre'    },
-  { label: 'Contato',         href: '#contato'  },
 ];
 
 const Navbar = () => {
@@ -38,7 +37,7 @@ const Navbar = () => {
   };
 
   const linkStyle = (label) => ({
-    fontFamily: 'system-ui, -apple-system, Roboto, sans-serif',
+    fontFamily: 'SF Pro Display',
     fontWeight: 500,
     fontSize: '15px',
     letterSpacing: '-0.01em',
@@ -64,16 +63,15 @@ const Navbar = () => {
         <a
           href="#"
           style={{
-            fontFamily: 'Inter, sans-serif',
-            fontStyle: 'italic',
-            fontWeight: 500,
+            fontFamily: 'SF Pro Display',
+            fontWeight: 600,
             fontSize: '20px',
-            color: '#000',
+            color: '#032b43',
             textDecoration: 'none',
             letterSpacing: '-0.02em',
           }}
         >
-          Logo
+          Pets
         </a>
 
         {/* Thin divider */}
@@ -104,9 +102,9 @@ const Navbar = () => {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
           <button
             disabled={loading}
-            onClick={() => navigate(user ? '/vacinas' : '/auth')}
+            onClick={() => navigate(user ? '/app' : '/auth')}
             style={{
-              fontFamily: 'system-ui, -apple-system, Roboto, sans-serif',
+              fontFamily: 'SF Pro Display',
               fontWeight: 500,
               fontSize: '13px',
               letterSpacing: '-0.01em',
@@ -132,7 +130,7 @@ const Navbar = () => {
           <Link to="/auth" tabIndex={-1}>
             <button
               style={{
-                fontFamily: 'system-ui, -apple-system, Roboto, sans-serif',
+                fontFamily: 'SF Pro Display',
                 fontWeight: 500,
                 fontSize: '13px',
                 letterSpacing: '-0.01em',

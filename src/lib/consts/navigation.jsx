@@ -1,4 +1,4 @@
-import { LayoutDashboard, PawPrint, Syringe, Building2, MessageSquare, Home } from 'lucide-react';
+import { LayoutDashboard, PawPrint, Syringe, Building2, MessageSquare, Home, CalendarClock } from 'lucide-react';
 import { HiOutlineQuestionMarkCircle, HiOutlineCog } from 'react-icons/hi';
 
 // Veterinarian navigation
@@ -20,6 +20,12 @@ export const DASHBOARD_SIDEBAR_LINKS = [
 		label: 'Vacinas',
 		path: '/vacinas',
 		icon: <Syringe size={20} strokeWidth={1.5} />,
+	},
+	{
+		key: 'vencimentos',
+		label: 'Vencimentos',
+		path: '/vencimentos',
+		icon: <CalendarClock size={20} strokeWidth={1.5} />,
 	},
 	{
 		key: 'clinicas',

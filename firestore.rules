@@ -45,19 +45,33 @@ service cloud.firestore {
       }
     }
 
-    // Vaccines — readable by the registering vet or the pet owner.
-    // Updatable by either party (vet validates, owner approves).
-    // Deletable only by the registering vet.
+    // Vaccines — registro clínico com autoridade do veterinário.
+    //  • status e validationDetails: só mudam via Cloud Function (admin) — cliente NUNCA.
+    //  • tutor (dono): só pode marcar ciência (tutorAcknowledged/At).
+    //  • vet (responsável): edita campos clínicos enquanto pending; congelado após
+    //    approved/rejected (só soft-delete).
+    //  • exclusão é LÓGICA (active:false) — hard delete negado.
     match /vaccines/{vaccineId} {
-      allow read: if request.auth != null &&
-        (request.auth.uid == resource.data.veterinarianId ||
-         request.auth.uid == resource.data.ownerId);
+      function isVet()   { return request.auth.uid == resource.data.veterinarianId; }
+      function isOwner() { return request.auth.uid == resource.data.ownerId; }
+      function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+      function frozen()  { return resource.data.status == 'approved' || resource.data.status == 'rejected'; }
+      function touchesProtected() { return changed().hasAny(['status', 'validationDetails']); }
+      function tutorAckOnly()   { return changed().hasOnly(['tutorAcknowledged', 'tutorAcknowledgedAt', 'updatedAt']); }
+      function softDeleteOnly() {
+        return changed().hasOnly(['active', 'deletedAt', 'deletedBy', 'updatedAt'])
+          && request.resource.data.active == false
+          && request.resource.data.deletedBy == request.auth.uid;
+      }
+
+      allow read: if request.auth != null && (isVet() || isOwner());
       allow create: if request.auth != null;
-      allow update: if request.auth != null &&
-        (request.auth.uid == resource.data.veterinarianId ||
-         request.auth.uid == resource.data.ownerId);
-      allow delete: if request.auth != null &&
-        request.auth.uid == resource.data.veterinarianId;
+      allow update: if request.auth != null && !touchesProtected() && (
+        (isOwner() && tutorAckOnly()) ||
+        (isVet() && softDeleteOnly()) ||
+        (isVet() && !frozen())
+      );
+      allow delete: if false;
     }
 
     // Appointments — managed by the assigned veterinarian.
@@ -74,16 +88,28 @@ service cloud.firestore {
         resource.data.veterinarians.hasAny([request.auth.uid]);
     }
 
-    // Deworming — same access pattern as vaccines.
+    // Deworming — mesmo padrão de vaccines (eixo único de status + ciência + soft-delete).
     match /deworming/{dewormingId} {
-      allow read: if request.auth != null &&
-        (request.auth.uid == resource.data.veterinarianId ||
-         request.auth.uid == resource.data.ownerId);
+      function isVet()   { return request.auth.uid == resource.data.veterinarianId; }
+      function isOwner() { return request.auth.uid == resource.data.ownerId; }
+      function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+      function frozen()  { return resource.data.status == 'approved' || resource.data.status == 'rejected'; }
+      function touchesProtected() { return changed().hasAny(['status', 'validationDetails']); }
+      function tutorAckOnly()   { return changed().hasOnly(['tutorAcknowledged', 'tutorAcknowledgedAt', 'updatedAt']); }
+      function softDeleteOnly() {
+        return changed().hasOnly(['active', 'deletedAt', 'deletedBy', 'updatedAt'])
+          && request.resource.data.active == false
+          && request.resource.data.deletedBy == request.auth.uid;
+      }
+
+      allow read: if request.auth != null && (isVet() || isOwner());
       allow create: if request.auth != null;
-      allow update: if request.auth != null &&
-        request.auth.uid == resource.data.veterinarianId;
-      allow delete: if request.auth != null &&
-        request.auth.uid == resource.data.veterinarianId;
+      allow update: if request.auth != null && !touchesProtected() && (
+        (isOwner() && tutorAckOnly()) ||
+        (isVet() && softDeleteOnly()) ||
+        (isVet() && !frozen())
+      );
+      allow delete: if false;
     }
 
     // Conversas (chat) — apenas os dois participantes (vet e tutor) acessam.
@@ -102,6 +128,17 @@ service cloud.firestore {
           get(/databases/$(database)/documents/conversas/$(conversaId)).data.tutorId == request.auth.uid
         );
       }
+    }
+
+    // Catálogo controlado (vacinas/vermífugos) — leitura por qualquer autenticado;
+    // escrita só via Admin SDK (seed/migração), nunca pelo cliente.
+    match /vaccineCatalog/{itemId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /dewormerCatalog/{itemId} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
     // Deny everything not explicitly covered above.

@@ -1,19 +1,12 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import logger from '../utils/logger';
+import { toDate } from '../utils/dates';
 
 const DAY = 24 * 60 * 60 * 1000;
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-const toDate = (v) => {
-  if (!v) return null;
-  if (v.toDate instanceof Function) return v.toDate();
-  if (v.seconds) return new Date(v.seconds * 1000);
-  if (v instanceof Date) return v;
-  return new Date(v);
-};
 
 export function useDashboard() {
   const [dashboardData, setDashboardData] = useState(null);
@@ -32,11 +25,20 @@ export function useDashboard() {
         const in30 = new Date(now.getTime() + 30 * DAY);
 
         // ── Parallel fetches scoped to the vet ───────────────────────────────
-        const [petsSnapshot, appointmentsSnapshot, vaccinesSnapshot, dewormingSnapshot] = await Promise.all([
+        // Vacinas próximas e vermífugos vencidos usam QUERY INDEXADA por nextDueDate
+        // (índice composto veterinarianId+nextDueDate) — sem baixar tudo e filtrar.
+        const [petsSnapshot, appointmentsSnapshot, upcomingVacSnap, overdueDewSnap] = await Promise.all([
           getDocs(query(collection(db, 'pets'), where('veterinarians', 'array-contains', user.uid))),
           getDocs(query(collection(db, 'appointments'), where('veterinarianId', '==', user.uid))),
-          getDocs(query(collection(db, 'vaccines'), where('veterinarianId', '==', user.uid))),
-          getDocs(query(collection(db, 'deworming'), where('veterinarianId', '==', user.uid))),
+          getDocs(query(collection(db, 'vaccines'),
+            where('veterinarianId', '==', user.uid),
+            where('nextDueDate', '>=', now),
+            where('nextDueDate', '<=', in30),
+            orderBy('nextDueDate', 'asc'))),
+          getDocs(query(collection(db, 'deworming'),
+            where('veterinarianId', '==', user.uid),
+            where('nextDueDate', '<', now),
+            orderBy('nextDueDate', 'asc'))),
         ]);
 
         const appointments = appointmentsSnapshot.docs.map(doc => ({
@@ -63,18 +65,10 @@ export function useDashboard() {
           }
         });
 
-        // ── Upcoming vaccines (next 30 days) ─────────────────────────────────
-        const upcomingVaccines = vaccinesSnapshot.docs.filter(d => {
-          const due = toDate(d.data().nextDueDate);
-          return due && due >= now && due <= in30;
-        }).length;
-
-        // ── Overdue dewormings ───────────────────────────────────────────────
-        const overdueDewormings = dewormingSnapshot.docs.filter(d => {
-          const data = d.data();
-          const due = toDate(data.nextDueDate);
-          return data.status === 'expired' || (due && due < now);
-        }).length;
+        // Contadores a partir da query indexada — só resta excluir soft-deleted
+        // (filtro barato sobre o resultado já recortado pelo índice).
+        const upcomingVaccines = upcomingVacSnap.docs.filter(d => d.data().active !== false).length;
+        const overdueDewormings = overdueDewSnap.docs.filter(d => d.data().active !== false).length;
 
         const recentPets = petsSnapshot.docs
           .map(doc => ({

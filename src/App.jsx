@@ -17,11 +17,13 @@ import ResetPassword from './components/pages/Auth/ResetPassword';
 // Veterinarian Features
 import Pets from './components/pages/Pets/Pets';
 import PetRecord from './components/pages/PetRecord/PetRecord';
+import Carteira from './components/pages/PetRecord/Carteira';
 import Vaccines from './components/pages/Vacinas/Vacinas';
 import VaccineDetailsModal from './components/pages/Vacinas/VaccineDetailsModal';
 import Clinicas from './components/pages/Clinicas/Clinicas';
 import Chat from './components/pages/Chat/Chat';
 import Dashboard from './components/pages/Dashboard/Dashboard';
+import Vencimentos from './components/pages/Vencimentos/Vencimentos';
 
 // Tutor Features
 import TutorHome from './components/pages/Tutor/TutorHome';
@@ -65,11 +67,13 @@ const App = () => {
                   <Route path="/pets">
                     <Route index element={<Pets />} />
                     <Route path=":petId" element={<PetRecord />} />
+                    <Route path=":petId/carteira" element={<Carteira />} />
                   </Route>
                   <Route path="/vacinas">
                     <Route index element={<Vaccines />} />
                     <Route path=":vaccineId" element={<VaccineDetailsModal />} />
                   </Route>
+                  <Route path="/vencimentos" element={<Vencimentos />} />
                   <Route path="/clinicas" element={<Clinicas />} />
                   <Route path="/chat" element={<Chat />} />
                 </Route>
@@ -80,6 +84,7 @@ const App = () => {
                   <Route path="/meus-pets">
                     <Route index element={<TutorPets />} />
                     <Route path=":petId" element={<PetRecord />} />
+                    <Route path=":petId/carteira" element={<Carteira />} />
                   </Route>
                   <Route path="/minhas-vacinas" element={<TutorVaccines />} />
                 </Route>

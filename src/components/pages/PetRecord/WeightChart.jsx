@@ -2,13 +2,7 @@ import React from 'react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-
-const toDate = (v) => {
-  if (!v) return null;
-  if (v.toDate instanceof Function) return v.toDate();
-  if (v.seconds) return new Date(v.seconds * 1000);
-  return new Date(v);
-};
+import { toDate } from '../../../utils/dates';
 
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload || !payload.length) return null;

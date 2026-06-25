@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Heart, CheckCircle, XCircle, Syringe, CalendarClock } from 'lucide-react';
 import { usePets } from '../../../hooks/usePets';
 import { usePatientStats } from '../../../hooks/usePatientStats';
+import useVetVaccines from '../../../hooks/useVetVaccines';
+import { toDate } from '../../../utils/dates';
 
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS_CFG = {
@@ -21,19 +23,9 @@ const StatusBadge = ({ status }) => {
 };
 
 // ── Helper functions ───────────────────────────────────────────────────────
-const getNextVaccineDate = (pet) => {
-  if (!pet.vaccines || pet.vaccines.length === 0) return null;
-  const upcoming = pet.vaccines
-    .filter(v => v.nextDate && new Date(v.nextDate) > new Date())
-    .sort((a, b) => new Date(a.nextDate) - new Date(b.nextDate));
-  if (upcoming.length === 0) return null;
-  const d = upcoming[0];
-  return `${d.name}: ${new Date(d.nextDate).toLocaleDateString('pt-BR')}`;
-};
-
 const getPetAge = (birthDate) => {
-  if (!birthDate) return '—';
-  const birth = birthDate?.toDate instanceof Function ? birthDate.toDate() : new Date(birthDate);
+  const birth = toDate(birthDate);
+  if (!birth) return '—';
   const ageInMonths = (new Date().getFullYear() - birth.getFullYear()) * 12 + (new Date().getMonth() - birth.getMonth());
   if (ageInMonths < 12) return `${ageInMonths} ${ageInMonths === 1 ? 'mês' : 'meses'}`;
   const years = Math.floor(ageInMonths / 12);
@@ -67,6 +59,21 @@ const PetsPage = () => {
 
   const { pets, loading, error } = usePets();
   const { stats } = usePatientStats();
+  const { vaccines: vetVaccines } = useVetVaccines();
+
+  // Próxima vacina por pet — derivada da coleção `vaccines` (fonte de verdade),
+  // não do array stale pet.vaccines[]. Considera só ativas com nextDueDate futura.
+  const nextVaccineByPet = {};
+  {
+    const now = new Date();
+    (vetVaccines || []).forEach(v => {
+      if (v.active === false) return;
+      const due = toDate(v.nextDueDate);
+      if (!due || due <= now) return;
+      const prev = nextVaccineByPet[v.petId];
+      if (!prev || due < prev.due) nextVaccineByPet[v.petId] = { due, name: v.name };
+    });
+  }
 
   if (loading) {
     return (
@@ -197,7 +204,8 @@ const PetsPage = () => {
               <tbody>
                 {filteredPets.map((pet, i) => {
                   const isLast = i === filteredPets.length - 1;
-                  const nextVaccine = getNextVaccineDate(pet);
+                  const nv = nextVaccineByPet[pet.id];
+                  const nextVaccine = nv ? `${nv.name}: ${nv.due.toLocaleDateString('pt-BR')}` : null;
                   return (
                     <tr
                       key={pet.id}

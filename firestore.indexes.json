@@ -1,4 +1,21 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "vaccines",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "veterinarianId", "order": "ASCENDING" },
+        { "fieldPath": "nextDueDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "deworming",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "veterinarianId", "order": "ASCENDING" },
+        { "fieldPath": "nextDueDate", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

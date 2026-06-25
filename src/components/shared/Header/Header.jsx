@@ -1,19 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Bell, Search, ChevronDown, User, Bookmark, MessageCircle, Settings, LogOut } from "lucide-react";
+import { Bell, ChevronDown, User, Bookmark, MessageCircle, Settings, LogOut, CheckCircle, XCircle } from "lucide-react";
 import { auth, db } from "../../../config/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import LogoutModal from "../LogoutModal/LogoutModal";
+import { useNotifications } from "../../../hooks/useNotifications";
+import { toDate } from "../../../utils/dates";
 
 export default function Header() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showDevToast, setShowDevToast] = useState(false);
   const menuRef = useRef(null);
+  const notifRef = useRef(null);
   const navigate = useNavigate();
+  const { notifications, unreadCount, markAllRead } = useNotifications();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -26,9 +30,12 @@ export default function Header() {
     return () => unsubscribe();
   }, []);
 
-  // Close menu on outside click
+  // Close menus on outside click
   useEffect(() => {
-    const handle = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setShowProfileMenu(false); };
+    const handle = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowProfileMenu(false);
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifMenu(false);
+    };
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, []);
@@ -40,23 +47,25 @@ export default function Header() {
     finally { setShowLogoutModal(false); }
   };
 
-  const unreadCount = 2;
+  const toggleNotif = () => {
+    const opening = !showNotifMenu;
+    setShowNotifMenu(opening);
+    if (opening) markAllRead();
+  };
 
-  const handleNotificationClick = () => {
-    setShowDevToast(true);
-    setTimeout(() => setShowDevToast(false), 3000);
+  const notifText = (n) => {
+    if (n.type === 'VACCINE_VALIDATION') {
+      return n.status === 'rejected' ? 'Uma vacina foi rejeitada' : 'Uma vacina foi validada';
+    }
+    return 'Notificação';
+  };
+  const notifTime = (n) => {
+    const d = toDate(n.createdAt);
+    return d ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
   };
 
   return (
     <>
-      {/* Dev toast */}
-      {showDevToast && (
-        <div className="fixed bottom-6 right-6 z-[100] text-white text-sm px-4 py-2.5 rounded-[12px] fade-in-up"
-          style={{ background: '#1C1C1E', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-          🚧 Sistema de notificações em desenvolvimento
-        </div>
-      )}
-
       <header
         className="h-[60px] flex-shrink-0 flex items-center justify-between px-6 sticky top-0 z-30"
         style={{
@@ -76,35 +85,55 @@ export default function Header() {
           </span>
         </div>
 
-        {/* Right — search + bell + profile */}
+        {/* Right — bell + profile */}
         <div className="flex items-center gap-2">
 
-          {/* Search */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-[10px] w-52"
-            style={{ background: 'var(--header-search-bg)' }}>
-            <Search size={14} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              className="bg-transparent border-none outline-none text-[15px] w-full placeholder:text-[--apple-gray-2]"
-              style={{ color: 'var(--text-primary)' }}
-            />
-          </div>
+          {/* Notifications */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={toggleNotif}
+              className="relative w-9 h-9 rounded-[10px] flex items-center justify-center transition-all duration-150"
+              style={{ color: 'var(--text-secondary)' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.12)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <Bell size={20} strokeWidth={1.5} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: 'var(--apple-red)' }} />
+              )}
+            </button>
 
-          {/* Bell */}
-          <button
-            onClick={handleNotificationClick}
-            className="relative w-9 h-9 rounded-[10px] flex items-center justify-center transition-all duration-150"
-            style={{ color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.12)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          >
-            <Bell size={20} strokeWidth={1.5} />
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-                style={{ background: 'var(--apple-red)' }} />
+            {showNotifMenu && (
+              <div className="absolute right-0 mt-2 w-[320px] rounded-[14px] py-1 z-50 overflow-hidden fade-in-up"
+                style={{ background: 'var(--surface-elevated)', boxShadow: '0 8px 40px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)', animationDuration: '0.2s' }}>
+                <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--separator)' }}>
+                  <p className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>Notificações</p>
+                </div>
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-8 text-center" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                    Nenhuma notificação.
+                  </div>
+                ) : (
+                  <div className="max-h-[340px] overflow-y-auto">
+                    {notifications.slice(0, 20).map((n) => {
+                      const rejected = n.status === 'rejected';
+                      const Icon = rejected ? XCircle : CheckCircle;
+                      const color = rejected ? 'var(--apple-red)' : 'var(--apple-green)';
+                      return (
+                        <div key={n.id} className="px-4 py-3 flex items-start gap-3" style={{ borderBottom: '1px solid var(--separator)' }}>
+                          <Icon size={16} strokeWidth={1.75} style={{ color, flexShrink: 0, marginTop: '2px' }} />
+                          <div className="min-w-0">
+                            <p className="text-[14px]" style={{ color: 'var(--text-primary)' }}>{notifText(n)}</p>
+                            <p className="text-[12px]" style={{ color: 'var(--text-tertiary)' }}>{notifTime(n)}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
-          </button>
+          </div>
 
           {/* Profile */}
           {!loading && currentUser && (

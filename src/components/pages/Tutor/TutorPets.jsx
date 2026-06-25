@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, PawPrint, ChevronRight } from 'lucide-react';
 import { useTutorPets } from '../../../hooks/useTutorPets';
+import { toDate } from '../../../utils/dates';
 
 const getAge = (birthDate) => {
-  if (!birthDate) return '—';
-  const birth = birthDate?.toDate instanceof Function ? birthDate.toDate() : new Date(birthDate);
+  const birth = toDate(birthDate);
+  if (!birth) return '—';
   const months = (new Date().getFullYear() - birth.getFullYear()) * 12 + (new Date().getMonth() - birth.getMonth());
   if (months < 12) return `${months} ${months === 1 ? 'mês' : 'meses'}`;
   const years = Math.floor(months / 12);

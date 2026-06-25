@@ -1,19 +1,16 @@
 import React, { useState } from 'react';
-import { Syringe, CheckCircle, XCircle, Clock, Check, X } from 'lucide-react';
+import { Syringe, CheckCircle, Clock, Check } from 'lucide-react';
 import { useTutorVaccines } from '../../../hooks/useTutorVaccines';
+import { normalizeStatus } from '../../../utils/vaccineStatus';
+import { toDate } from '../../../utils/dates';
 
-const toDate = (v) => {
-  if (!v) return null;
-  if (v.toDate instanceof Function) return v.toDate();
-  if (v.seconds) return new Date(v.seconds * 1000);
-  return new Date(v);
-};
 const fmt = (v) => { const d = toDate(v); return d ? d.toLocaleDateString('pt-BR') : '—'; };
 
-const TUTOR_STATUS = {
-  approved: { label: 'Você aprovou', color: 'var(--apple-green)', bg: 'rgba(52,199,89,0.12)', icon: CheckCircle },
-  rejected: { label: 'Você rejeitou', color: 'var(--apple-red)', bg: 'rgba(255,59,48,0.10)', icon: XCircle },
-  pending:  { label: 'Aguardando você', color: 'var(--apple-orange)', bg: 'rgba(255,149,0,0.12)', icon: Clock },
+// Status (decisão do veterinário) — exibição informativa para o tutor.
+const VET_STATUS = {
+  pending:  { label: 'Pendente', color: 'var(--apple-orange)', bg: 'rgba(255,149,0,0.12)' },
+  approved: { label: 'Aprovada', color: 'var(--apple-green)',  bg: 'rgba(52,199,89,0.12)' },
+  rejected: { label: 'Rejeitada', color: 'var(--apple-red)',   bg: 'rgba(255,59,48,0.10)' },
 };
 
 const KpiCard = ({ label, value, accentColor, icon: Icon, delay }) => (
@@ -30,16 +27,15 @@ const KpiCard = ({ label, value, accentColor, icon: Icon, delay }) => (
 );
 
 const TutorVaccines = () => {
-  const { vaccines, loading, respond } = useTutorVaccines();
+  const { vaccines, loading, acknowledge } = useTutorVaccines();
   const [busyId, setBusyId] = useState(null);
 
-  const tutorStatusOf = (v) => v.validationDetails?.tutorValidation?.status || 'pending';
-  const pending = vaccines.filter(v => tutorStatusOf(v) === 'pending').length;
-  const approved = vaccines.filter(v => tutorStatusOf(v) === 'approved').length;
+  const pending = vaccines.filter(v => !v.tutorAcknowledged).length;
+  const acknowledged = vaccines.filter(v => v.tutorAcknowledged).length;
 
-  const handle = async (id, decision) => {
+  const handleAck = async (id) => {
     setBusyId(id);
-    try { await respond(id, decision); } finally { setBusyId(null); }
+    try { await acknowledge(id); } finally { setBusyId(null); }
   };
 
   return (
@@ -49,7 +45,7 @@ const TutorVaccines = () => {
           Vacinas
         </h1>
         <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-          Confirme as vacinas registradas para os seus pets.
+          Confirme que está ciente das vacinas registradas para os seus pets.
         </p>
       </div>
 
@@ -61,8 +57,8 @@ const TutorVaccines = () => {
         <>
           <div className="grid grid-cols-3 gap-4 mb-6">
             <KpiCard label="Total" value={vaccines.length} accentColor="var(--apple-blue)" icon={Syringe} delay={50} />
-            <KpiCard label="Aguardando você" value={pending} accentColor="var(--apple-orange)" icon={Clock} delay={100} />
-            <KpiCard label="Aprovadas por você" value={approved} accentColor="var(--apple-green)" icon={CheckCircle} delay={150} />
+            <KpiCard label="Aguardando sua ciência" value={pending} accentColor="var(--apple-orange)" icon={Clock} delay={100} />
+            <KpiCard label="Confirmadas" value={acknowledged} accentColor="var(--apple-green)" icon={CheckCircle} delay={150} />
           </div>
 
           <div className="fade-in-up rounded-[20px] overflow-hidden" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: '200ms' }}>
@@ -76,16 +72,19 @@ const TutorVaccines = () => {
               </div>
             ) : (
               vaccines.map((v, i) => {
-                const ts = tutorStatusOf(v);
-                const cfg = TUTOR_STATUS[ts] || TUTOR_STATUS.pending;
-                const StatusIcon = cfg.icon;
-                const isPending = ts === 'pending';
+                const vs = VET_STATUS[normalizeStatus(v.status)] || VET_STATUS.pending;
                 return (
                   <div key={v.id} className="px-6 py-4 flex items-center justify-between gap-4"
                     style={{ borderBottom: i < vaccines.length - 1 ? '1px solid var(--separator)' : 'none' }}>
                     <div className="min-w-0">
-                      <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>
-                        {v.name} <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>· {v.petName}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>
+                          {v.name} <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>· {v.petName}</span>
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+                          style={{ background: vs.bg, color: vs.color }}>
+                          {vs.label}
+                        </span>
                       </div>
                       <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                         Aplicada: {fmt(v.administrationDate)} · Próxima: {fmt(v.nextDueDate)}
@@ -95,24 +94,17 @@ const TutorVaccines = () => {
                       )}
                     </div>
 
-                    {isPending ? (
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button onClick={() => handle(v.id, 'rejected')} disabled={busyId === v.id}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] font-medium transition-opacity duration-150"
-                          style={{ fontSize: '14px', color: 'var(--apple-red)', background: 'rgba(255,59,48,0.10)', opacity: busyId === v.id ? 0.5 : 1 }}>
-                          <X size={14} strokeWidth={2.5} /> Rejeitar
-                        </button>
-                        <button onClick={() => handle(v.id, 'approved')} disabled={busyId === v.id}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] font-medium transition-opacity duration-150"
-                          style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-green)', opacity: busyId === v.id ? 0.5 : 1 }}>
-                          <Check size={14} strokeWidth={2.5} /> Aprovar
-                        </button>
-                      </div>
-                    ) : (
+                    {v.tutorAcknowledged ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium flex-shrink-0"
-                        style={{ background: cfg.bg, color: cfg.color }}>
-                        <StatusIcon size={11} strokeWidth={2} /> {cfg.label}
+                        style={{ background: 'rgba(52,199,89,0.12)', color: 'var(--apple-green)' }}>
+                        <CheckCircle size={11} strokeWidth={2} /> Ciente{v.tutorAcknowledgedAt ? ` em ${fmt(v.tutorAcknowledgedAt)}` : ''}
                       </span>
+                    ) : (
+                      <button onClick={() => handleAck(v.id)} disabled={busyId === v.id}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] font-medium transition-opacity duration-150 flex-shrink-0"
+                        style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)', opacity: busyId === v.id ? 0.5 : 1, cursor: busyId === v.id ? 'default' : 'pointer' }}>
+                        <Check size={14} strokeWidth={2.5} /> Confirmar ciência
+                      </button>
                     )}
                   </div>
                 );

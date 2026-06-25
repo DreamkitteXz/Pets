@@ -30,6 +30,9 @@ const firestoreSchema = {
             crmv: String,
             specialties: [String],
             yearsOfExperience: Number,
+            // @deprecated (B5) — NÃO é fonte de verdade do vínculo vet↔clínica.
+            // A verdade é clinics.veterinarians[] (suporta múltiplas clínicas).
+            // Campo removido por migração; não escrever mais.
             clinicId: String
           };
         }
@@ -64,19 +67,29 @@ const firestoreSchema = {
       administrationDate: Timestamp,
       nextDueDate: Timestamp,
 
-      // Pet information
+      // Dados clínicos da aplicação (B9)
+      route: String,            // via: Subcutânea | Intramuscular | Oral | Intranasal | Tópica | Outra
+      applicationSite: String,  // local de aplicação (texto)
+      dose: String,             // dose aplicada (vacina). Em deworming usa-se `dosage`.
+
+      // ⚠️ SNAPSHOT (ponto-no-tempo) — NÃO é fonte de verdade do cadastro atual.
+      // Os campos pet*/owner*/veterinarian*/clinic* abaixo refletem o estado NO
+      // MOMENTO DA APLICAÇÃO e devem permanecer imutáveis (integridade do registro).
+      // Para o dado atual do pet/tutor/clínica, consulte as coleções respectivas.
+      // NÃO "corrija" estes campos para refletir mudanças posteriores.
+      // Pet information (snapshot)
       petId: String,
       petName: String,
       petSpecies: String,
       petBreed: String,
       petWeight: Number,
 
-      // Owner information
+      // Owner information (snapshot)
       ownerId: String,
       ownerName: String,
       ownerContact: String,
 
-      // Veterinarian information
+      // Veterinarian information (snapshot)
       veterinarianId: String,
       veterinarianName: String,
       crmvNumber: String,
@@ -92,26 +105,39 @@ const firestoreSchema = {
         state: String
       },
 
-      // Updated validation status
-      status: ['pending', 'vetApproved', 'vetRejected', 'tutorApproved', 'tutorRejected', 'approved', 'rejected'],
+      // ── Status: EIXO ÚNICO ──────────────────────────────────────────────
+      // status: 'pending' | 'approved' | 'rejected'
+      //   'pending'              = aguardando o veterinário (envio externo do tutor)
+      //   'approved' | 'rejected' = decisão do veterinário (autoridade do CRMV)
+      //
+      // DECISÃO FUNDADORA: o veterinário registra a aplicação que ele mesmo fez.
+      // Registro nascido no vet entra JÁ com status 'approved' (auto-validado pelo
+      // CRMV de quem aplicou), com o bloco vetValidation preenchido — sem etapa extra.
+      // A validação de envios externos do tutor é secundária (status 'pending' → vet decide).
+      status: ['pending', 'approved', 'rejected'],
+
+      // CONTRATO ÚNICO de validação — formato ANINHADO (validationDetails.vetValidation.*).
+      // NÃO usar campos planos (ex.: validationDetails.validatedAt).
+      //   vetValidation.status SEMPRE espelha vaccine.status ('approved' | 'rejected').
+      //   Escrito pela Cloud Function `updateVaccineStatus` e no cadastro feito pelo vet.
       validationDetails: {
         vetValidation: {
-          status: String,
+          status: String,            // 'approved' | 'rejected' (espelha vaccine.status)
           validatedAt: Timestamp,
-          validatedBy: String,
+          validatedBy: String,       // uid do veterinário
           validatedByName: String,
           validatedByCrmv: String,
           notes: String,
           rejectionReason: String
-        },
-        tutorValidation: {
-          status: String,
-          validatedAt: Timestamp,
-          validatedBy: String,
-          notes: String,
-          rejectionReason: String
         }
+        // tutorValidation: REMOVIDO. A confirmação do tutor virou campo de CIÊNCIA
+        // (tutorAcknowledged) — nunca um segundo eixo de status. Ver abaixo.
       },
+
+      // Ciência do tutor (substitui o antigo tutorValidation/tutorApproved/tutorRejected).
+      // É apenas um aceite de leitura; NÃO interfere no status.
+      tutorAcknowledged: Boolean,
+      tutorAcknowledgedAt: Timestamp, // null enquanto não confirmado
 
       // Additional information
       labelImage: String, // URL to Firebase Storage
@@ -127,6 +153,20 @@ const firestoreSchema = {
         }
       },
       notes: String,
+
+      // ── Trilha de auditoria (B4) ─────────────────────────────────────────
+      // Convenção para TODOS os registros clínicos (vaccines, deworming, e as
+      // subcoleções pets/{id}/consultas e pets/{id}/pesos):
+      //   createdBy / updatedBy : uid de quem criou / alterou por último
+      //   createdAt / updatedAt : serverTimestamp()
+      // Exclusão é lógica: active:false + deletedAt + deletedBy.
+      // O bloco validationDetails.vetValidation é IMUTÁVEL após a validação
+      // (garantido pelas Firestore rules e pela Cloud Function).
+      createdBy: String,
+      updatedBy: String,
+      active: Boolean,        // ausente = ativo; false = arquivado (soft-delete)
+      deletedBy: String,
+      deletedAt: Timestamp,
       createdAt: Timestamp,
       updatedAt: Timestamp
     }
@@ -144,21 +184,22 @@ const firestoreSchema = {
       isNeutered: Boolean,
       chipNumber: String,
       
-      // Owner information
+      // Owner information — FONTE DE VERDADE do vínculo tutor↔pet (B5).
       ownerId: String,
       ownerName: String,
-      
-      // Vaccination history
+
+      // @deprecated (B5) — array stale, não atualizado ao criar vacina.
+      // A verdade do vínculo vacina↔pet é vaccines.petId. Removido por migração.
       vaccines: [], // Array of vaccineIds
 
-      veterinarians: [], // Array of veterinarianIds
+      veterinarians: [], // Array of veterinarianIds — verdade do vínculo vet↔pet
 
       status: 'active' | 'inactive',
       createdAt: Timestamp,
       updatedAt: Timestamp,
       createdBy: String, // veterinarianId
 
-      // Enhanced owner information
+      // @deprecated (B5) — duplica ownerId. Use ownerId. Removido por migração.
       tutorId: String, // Reference to users collection
       emergencyContacts: [{
         name: String,
@@ -250,16 +291,40 @@ const firestoreSchema = {
         state: String
       },
 
-      // Status and tracking
-      status: ['active', 'completed', 'expired'],
+      // Status — MESMO eixo único da vacina: 'pending' | 'approved' | 'rejected'.
+      // (Legado: registros antigos podem ter 'active'/'completed'/'expired'; a UI
+      //  tolera ambos via normalizeStatus + mapa de exibição.)
+      status: ['pending', 'approved', 'rejected'],
       effectivenessNotes: String,
       sideEffects: [String],
       observations: String,
 
-      // Metadata
+      // Metadata + auditoria (mesma convenção da vacina: createdBy/updatedBy,
+      // active/deletedAt/deletedBy para soft-delete, validationDetails.vetValidation).
       createdAt: Timestamp,
       updatedAt: Timestamp,
       createdBy: String
+    }
+  },
+
+  // ── Catálogo controlado (B8) ───────────────────────────────────────────────
+  // Vocabulário canônico para padronizar nome/fabricante e pré-preencher a próxima
+  // dose (administrationDate + reforcoDias). Leitura por autenticados; escrita só
+  // via Admin SDK (seed). Seed: scripts/migrations/seedCatalog.js
+  vaccineCatalog: {
+    [itemId]: {
+      name: String,            // nome canônico (ex.: 'V10 Polivalente')
+      manufacturer: String,
+      species: [String],       // espécies-alvo (ex.: ['Cachorro']) ou ['all']
+      reforcoDias: Number      // intervalo padrão de reforço, em dias
+    }
+  },
+  dewormerCatalog: {
+    [itemId]: {
+      name: String,
+      manufacturer: String,
+      species: [String],
+      reforcoDias: Number
     }
   }
 };

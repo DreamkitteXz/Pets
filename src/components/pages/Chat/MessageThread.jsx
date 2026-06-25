@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../../context/AuthContext';
+import { toDate } from '../../../utils/dates';
 
 const formatTime = (ts) => {
-  if (!ts) return '';
-  const d = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
+  const d = toDate(ts);
+  if (!d) return '';
   return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 

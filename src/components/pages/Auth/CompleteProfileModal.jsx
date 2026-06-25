@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../../config/firebase';
 import { useAuth } from '../../../context/AuthContext';
 import { validateCPF, validateCRMV, formatCPF, formatCEP } from '../../../utils/validation';
@@ -139,10 +139,10 @@ const CompleteProfileModal = () => {
       role,
       profileCompleted: true,
       status: 'active',
-      updatedAt: new Date().toISOString(),
+      updatedAt: serverTimestamp(),
     };
     const payload = role === 'veterinarian'
-      ? { ...common, crmv: form.crmv, specialties: form.specialties, yearsOfExperience: form.yearsOfExperience ? Number(form.yearsOfExperience) : 0, clinicId: '' }
+      ? { ...common, crmv: form.crmv, specialties: form.specialties, yearsOfExperience: form.yearsOfExperience ? Number(form.yearsOfExperience) : 0 }
       : { ...common, pets: userProfile?.pets || [], preferredVetId: '', emergencyContact: { name: form.emergencyName, phone: form.emergencyPhone, relationship: form.emergencyRelationship } };
 
     try {

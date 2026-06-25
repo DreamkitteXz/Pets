@@ -446,6 +446,8 @@ FIRESTORE_DOCS = {
                     'rejectionReason': '',
                 },
             },
+            'tutorAcknowledged': True,
+            'tutorAcknowledgedAt': ts('2025-06-16'),
             'labelImage': 'https://placehold.co/600x400/EEF2FF/4338CA?text=V10+Polivalente',
             'labelImageMetadata': {
                 'name': 'rotulo_v10_rex_20250615.jpg',
@@ -486,7 +488,7 @@ FIRESTORE_DOCS = {
                 'street': 'Av. Paulista', 'number': '1500',
                 'neighborhood': 'Bela Vista', 'city': 'São Paulo', 'state': 'SP',
             },
-            'status': 'vetApproved',
+            'status': 'approved',
             'validationDetails': {
                 'vetValidation': {
                     'status': 'approved',
@@ -604,7 +606,7 @@ FIRESTORE_DOCS = {
                 'street': 'Rua Voluntários da Pátria', 'number': '300',
                 'neighborhood': 'Botafogo', 'city': 'Rio de Janeiro', 'state': 'RJ',
             },
-            'status': 'vetRejected',
+            'status': 'rejected',
             'validationDetails': {
                 'vetValidation': {
                     'status': 'rejected',
@@ -682,6 +684,8 @@ FIRESTORE_DOCS = {
                     'rejectionReason': '',
                 },
             },
+            'tutorAcknowledged': True,
+            'tutorAcknowledgedAt': ts('2025-09-02'),
             'labelImage': 'https://placehold.co/600x400/F0FDF4/16A34A?text=FVRCP',
             'labelImageMetadata': {
                 'name': 'rotulo_fvrcp_cleo_20250901.jpg',
@@ -722,7 +726,7 @@ FIRESTORE_DOCS = {
                 'street': 'Av. Paulista', 'number': '1500',
                 'neighborhood': 'Bela Vista', 'city': 'São Paulo', 'state': 'SP',
             },
-            'status': 'vetApproved',
+            'status': 'approved',
             'validationDetails': {
                 'vetValidation': {
                     'status': 'approved',

@@ -264,7 +264,7 @@ exports.verifyOtp = onCall(
     await auth.updateUser(uid, { emailVerified: true });
     await db.collection('users').doc(uid).update({
       emailVerified: true,
-      updatedAt:     new Date().toISOString(),
+      updatedAt:     admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return { success: true };
@@ -360,17 +360,25 @@ exports.updateVaccineStatus = onCall(
       throw new HttpsError('failed-precondition', 'Esta vacina não está pendente de validação.');
     }
 
-    const newStatus = isApproved ? 'vetApproved' : 'vetRejected';
+    // Busca CRMV/nome do veterinário para compor o bloco de validação.
+    const vetSnap  = await db.collection('users').doc(request.auth.uid).get();
+    const vetData  = vetSnap.exists ? vetSnap.data() : {};
+
+    // Eixo único de status: aprovação/rejeição do vet define o status diretamente.
+    const newStatus = isApproved ? 'approved' : 'rejected';
 
     await vaccineRef.update({
       status: newStatus,
       'validationDetails.vetValidation': {
-        status: isApproved ? 'approved' : 'rejected',
-        validatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        validatedBy: request.auth.uid,
+        status:          newStatus,
+        validatedAt:     admin.firestore.FieldValue.serverTimestamp(),
+        validatedBy:     request.auth.uid,
+        validatedByName: vetData.name || '',
+        validatedByCrmv: vetData.crmv || '',
         notes:           notes || '',
         rejectionReason: isApproved ? '' : rejectionReason,
       },
+      updatedBy: request.auth.uid,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 

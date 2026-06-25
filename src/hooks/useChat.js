@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import { toMillis } from '../utils/dates';
 
 const POLL_MS = 5000;
 
@@ -30,8 +31,7 @@ export function useChat() {
         query(collection(db, 'conversas'), where('vetId', '==', user.uid))
       );
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const ms = (c) => c.lastMessageAt?.toMillis?.() ?? (c.lastMessageAt?.seconds ? c.lastMessageAt.seconds * 1000 : 0);
-      all.sort((a, b) => ms(b) - ms(a));
+      all.sort((a, b) => toMillis(b.lastMessageAt) - toMillis(a.lastMessageAt));
       setConversations(all);
     } catch (err) {
       setError(err);

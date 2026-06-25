@@ -10,7 +10,7 @@ import {
   confirmPasswordReset,
   reload,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { getAuthErrorMessage } from '../../utils/authErrors';
 import { sendOtp } from './otpService';
 
@@ -31,7 +31,7 @@ export async function signUpWithEmail(email, password, name) {
     await setDoc(doc(db, 'users', user.uid), {
       email,
       name,
-      createdAt: new Date().toISOString(),
+      createdAt: serverTimestamp(),
       emailVerified: false,
       profileCompleted: false,
       status: 'pending',
@@ -64,7 +64,7 @@ export async function signInWithGoogle() {
         email: user.email,
         name: user.displayName || '',
         photoURL: user.photoURL || '',
-        createdAt: new Date().toISOString(),
+        createdAt: serverTimestamp(),
         emailVerified: true,
         profileCompleted: false,
         status: 'pending',

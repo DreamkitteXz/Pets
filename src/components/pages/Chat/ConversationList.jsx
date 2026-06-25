@@ -1,9 +1,10 @@
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
+import { toDate } from '../../../utils/dates';
 
 const formatTime = (ts) => {
-  if (!ts) return '';
-  const d = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
+  const d = toDate(ts);
+  if (!d) return '';
   const now = new Date();
   const diff = now - d;
   if (diff < 60000) return 'agora';
