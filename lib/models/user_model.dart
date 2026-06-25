@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Users {
   String? name;
   String password;
@@ -61,8 +63,8 @@ class Users {
             'phone': null,
             'relationship': null,
           },
-      'createdAt': DateTime.now(),
-      'updatedAt': DateTime.now(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
       'pets': [], // Initialize empty pets array for tutors
     };
   }

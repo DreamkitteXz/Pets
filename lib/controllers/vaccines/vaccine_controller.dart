@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/models/vaccine_model.dart';
 import 'package:pet_app/repositories/vaccine_repository.dart';
@@ -78,8 +79,8 @@ class VaccineController {
         'rejectionReason': null,
       },
       'labelImage': labelImage,
-      'createdAt': DateTime.now(),
-      'updatedAt': DateTime.now(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     };
 
     await _repository.saveVaccine(id, vaccineData);
