@@ -196,7 +196,7 @@ export default function Header() {
                     currentUser?.role === 'tutor'
                       ? { icon: Bookmark, label: 'Meus Pets', to: '/meus-pets' }
                       : { icon: Bookmark, label: 'Meus Pacientes', to: '/pets' },
-                    { icon: MessageCircle, label: 'Mensagens', to: null },
+                    { icon: MessageCircle, label: 'Mensagens', to: '/chat' },
                     { icon: Settings, label: 'Configurações', to: '/settings' },
                   ].map(({ icon: Icon, label, to }) => (
                     <button
