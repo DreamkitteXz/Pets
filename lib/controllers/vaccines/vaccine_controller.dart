@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/models/vaccine_model.dart';
 import 'package:pet_app/repositories/vaccine_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -102,47 +101,10 @@ class VaccineController {
     return await _repository.fetchAvailableVaccinesFromApi();
   }
 
-  /// Adds a vaccine to the pending queue for approval.
-  Future<void> addVaccineToQueue(String? petId, String? vaccineId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('User not authenticated');
-    final userId = user.uid;
-
-    final userData = await _repository.getUserData(userId);
-    if (userData == null) throw Exception('Owner not found');
-    final address = userData['address'] as Map<String, dynamic>;
-
-    final petData = await _repository.getPetData(userId, petId);
-    if (petData == null) throw Exception('Pet not found');
-    final pet = Pets.fromMap(petData);
-
-    final vaccineData =
-        await _repository.getVaccineData(userId, petId, vaccineId);
-    if (vaccineData == null) throw Exception('Vaccine not found');
-
-    final pendingData = {
-      'owner': {
-        'name': userData['name'],
-        'cpf': userData['cpf'],
-        'phone': userData['phone'],
-        'address': address,
-      },
-      'pet': {
-        'id': pet.id,
-        'name': pet.name,
-        'species': pet.species,
-        'breed': pet.breed,
-        'color': pet.color,
-        'gender': pet.gender,
-        'birthDate': pet.birthDate,
-        'isNeutered': pet.isNeutered,
-        'chipNumber': pet.chipNumber,
-      },
-      'vaccine': vaccineData,
-    };
-
-    await _repository.addPendingVaccine(vaccineId, pendingData);
-  }
+  // [F1.3/§2.9/§2.10] Removido addVaccineToQueue: lia a subcoleção antiga
+  // users/{uid}/pets/... e escrevia em pending_vaccines (coleção negada por
+  // rule). Era código morto. A submissão de vacina pelo tutor depende da
+  // decisão §13.2 (direto em vaccines status:'pending' vs. via CF).
 
   /// Returns a stream of vaccines for a given pet.
   Stream<List<Vacinas>> vaccinesStreamForPet(String petId) {

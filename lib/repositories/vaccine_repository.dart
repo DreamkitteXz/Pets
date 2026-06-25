@@ -21,40 +21,10 @@ class VaccineRepository {
     }).toList();
   }
 
-  Future<Map<String, dynamic>?> getUserData(String userId) async {
-    final userSnapshot = await _firestore.collection('users').doc(userId).get();
-    return userSnapshot.exists ? userSnapshot.data() : null;
-  }
-
-  Future<Map<String, dynamic>?> getPetData(String userId, String? petId) async {
-    if (petId == null) return null;
-    final petSnapshot = await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('pets')
-        .doc(petId)
-        .get();
-    return petSnapshot.exists ? petSnapshot.data() : null;
-  }
-
-  Future<Map<String, dynamic>?> getVaccineData(
-      String userId, String? petId, String? vacId) async {
-    if (petId == null || vacId == null) return null;
-    final vaccineSnapshot = await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('pets')
-        .doc(petId)
-        .collection('vaccines')
-        .doc(vacId)
-        .get();
-    return vaccineSnapshot.exists ? vaccineSnapshot.data() : null;
-  }
-
-  Future<void> addPendingVaccine(
-      String? vacId, Map<String, dynamic> data) async {
-    await _firestore.collection('pending_vaccines').doc(vacId).set(data);
-  }
+  // [F1.3/§2.10] Removidos getUserData/getPetData/getVaccineData e
+  // addPendingVaccine: liam a subcoleção antiga users/{uid}/pets/... (hoje
+  // pets/vacinas são top-level) e escreviam em pending_vaccines (coleção sem
+  // rule = negada). Toda a cadeia era código morto (addVaccineToQueue).
 
   Future<List<Map<String, dynamic>>> fetchAvailableVaccinesFromApi() async {
     try {
