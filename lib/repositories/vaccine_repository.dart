@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:http/http.dart' as http;
 
 class VaccineRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -26,45 +24,17 @@ class VaccineRepository {
   // pets/vacinas são top-level) e escreviam em pending_vaccines (coleção sem
   // rule = negada). Toda a cadeia era código morto (addVaccineToQueue).
 
-  Future<List<Map<String, dynamic>>> fetchAvailableVaccinesFromApi() async {
-    try {
-      final response = await http.get(Uri.parse(
-          'https://run.mocky.io/v3/cb845c8e-efb3-4ce6-abda-636552e01a26'));
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.cast<Map<String, dynamic>>();
-      } else {
-        throw Exception('Failed to load vaccines');
-      }
-    } catch (e) {
-      // Fallback local list
-      return [
-        {
-          'id': 'vac1',
-          'name': 'V8',
-          'description': 'Vacina múltipla para cães',
-          'species': 'cachorro',
-        },
-        {
-          'id': 'vac2',
-          'name': 'Antirrábica',
-          'description': 'Protege contra raiva',
-          'species': 'cachorro',
-        },
-        {
-          'id': 'vac3',
-          'name': 'Tríplice Felina',
-          'description': 'Protege contra três doenças felinas',
-          'species': 'gato',
-        },
-        {
-          'id': 'vac4',
-          'name': 'Quádrupla Felina',
-          'description': 'Protege contra quatro doenças felinas',
-          'species': 'gato',
-        },
-      ];
-    }
+  /// Catálogo controlado de vacinas (coleção `vaccineCatalog`, leitura liberada
+  /// a qualquer autenticado pela rule). Substitui o antigo fetch via mocky.io +
+  /// lista hardcoded. Itens: {name, manufacturer, species:[...], reforcoDias}.
+  /// F2.5/§2.8.
+  Future<List<Map<String, dynamic>>> fetchVaccineCatalog() async {
+    final query = await _firestore.collection('vaccineCatalog').get();
+    return query.docs.map((doc) {
+      final data = doc.data();
+      data['id'] = doc.id;
+      return data;
+    }).toList();
   }
 
   /// Returns a stream of vaccine maps for a given pet.

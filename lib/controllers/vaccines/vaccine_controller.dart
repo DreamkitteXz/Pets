@@ -96,9 +96,9 @@ class VaccineController {
     }).toList();
   }
 
-  /// Fetches available vaccines from the API.
+  /// Catálogo controlado de vacinas (Firestore `vaccineCatalog`). F2.5/§2.8.
   Future<List<Map<String, dynamic>>> fetchAvailableVaccines() async {
-    return await _repository.fetchAvailableVaccinesFromApi();
+    return await _repository.fetchVaccineCatalog();
   }
 
   // [F1.3/§2.9/§2.10] Removido addVaccineToQueue: lia a subcoleção antiga
