@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+// Flutter 3.24+ passou a exportar CarouselController em material, colidindo com
+// o do carousel_slider (usado aqui). Ocultamos o do material.
+import 'package:flutter/material.dart' hide CarouselController;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pet_app/models/onboarding_info.dart';
 import 'package:pet_app/screens/components/logo.dart';
