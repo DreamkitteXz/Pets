@@ -763,10 +763,11 @@ class _AddVacPageState extends State<AddVacPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Update pet's vaccines array
+      // Vincula o vet ao pet (canônico). NÃO grava mais pets.vaccines[]
+      // (deprecado — verdade é vaccines.petId). F0.3/§2.2.
       await petRef.update({
-        'vaccines': FieldValue.arrayUnion([vaccineId]),
-        'veterinarians': FieldValue.arrayUnion([selectedVetId])
+        'veterinarians': FieldValue.arrayUnion([selectedVetId]),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // Close loading dialog

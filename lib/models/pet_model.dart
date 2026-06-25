@@ -63,7 +63,8 @@ class Pets {
       'chipNumber': chipNumber,
       'ownerId': ownerId,
       'ownerName': ownerName,
-      'vaccines': vaccines ?? [],
+      // 'vaccines' (array) NÃO é mais gravado — verdade é vaccines.petId
+      // (web removeu por migração). F0.3/§2.2.
       'veterinarians': veterinarians ?? [],
       'status': status ?? 'active',
       'createdAt': createdAt ?? FieldValue.serverTimestamp(),

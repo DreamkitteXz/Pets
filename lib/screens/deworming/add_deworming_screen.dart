@@ -183,8 +183,9 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
       DocumentReference petRef =
           FirebaseFirestore.instance.collection('pets').doc(widget.petId);
 
+      // NÃO grava mais pets.dewormings[] (deprecado, análogo a vaccines[] —
+      // verdade é deworming.petId). Apenas atualiza o updatedAt. F0.3/§2.2.
       batch.update(petRef, {
-        'dewormings': FieldValue.arrayUnion([dewormingId]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
