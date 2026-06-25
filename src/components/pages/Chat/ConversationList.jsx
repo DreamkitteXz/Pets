@@ -76,11 +76,21 @@ export default function ConversationList({ conversations, activeId, onSelect, lo
                     {c.petName}
                   </div>
                 )}
-                {c.lastMessage && (
-                  <div className="truncate mt-0.5" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>
-                    {c.lastMessage}
-                  </div>
-                )}
+                <div className="flex items-center justify-between gap-2">
+                  {c.lastMessage && (
+                    <div className="truncate mt-0.5" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>
+                      {c.lastMessage}
+                    </div>
+                  )}
+                  {c.unread > 0 && (
+                    <span
+                      className="flex-shrink-0 inline-flex items-center justify-center rounded-full font-semibold"
+                      style={{ minWidth: '18px', height: '18px', padding: '0 5px', fontSize: '11px', background: 'var(--apple-blue)', color: '#fff' }}
+                    >
+                      {c.unread}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </button>

@@ -1,6 +1,8 @@
 import React from 'react';
 import { MessageSquare, RefreshCw } from 'lucide-react';
-import { useChat } from '../../../hooks/useChat';
+// Fonte de dados: mock isolado (src/services/chatMock.js). Trocar pelo backend
+// real depois = voltar para `useChat` (Firestore) — a UI permanece igual.
+import { useChatMock as useChat } from '../../../hooks/useChatMock';
 import ConversationList from './ConversationList';
 import MessageThread from './MessageThread';
 import MessageInput from './MessageInput';
