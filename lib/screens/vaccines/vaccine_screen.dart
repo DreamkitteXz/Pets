@@ -224,31 +224,22 @@ class _VaccineScreenState extends State<VaccineScreen> {
                           ],
                         ),
                       ),
-                      // Check validation status and show appropriate buttons
-                      if (widget.vacina.validationDetails?['vetValidation']
-                                  ?['status'] ==
-                              'vetApproved' &&
-                          widget.vacina.validationDetails?['tutorValidation']
-                                  ?['status'] ==
-                              null)
+                      // Ciência do tutor (F2.2/§5): o vet já aprovou
+                      // (status == 'approved') e o tutor ainda não deu ciência.
+                      // O tutor NÃO aprova/rejeita — apenas confirma ciência
+                      // (rule tutorAckOnly: só tutorAcknowledged/At).
+                      if (widget.vacina.status == 'approved' &&
+                          widget.vacina.tutorAcknowledged != true) ...[
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 12, 0, 24),
+                          padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
                           child: Titles(
-                            title: 'Valide essa Vacina',
+                            title: 'Confirme o recebimento',
                             fontSize: 24,
                             paddingL: 24,
                             cor: const Color(0xFF041A23),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-
-                      // Show validation buttons only if vet approved and tutor hasn't validated yet
-                      if (widget.vacina.validationDetails?['vetValidation']
-                                  ?['status'] ==
-                              'approved' &&
-                          widget.vacina.validationDetails?['tutorValidation']
-                                  ?['status'] ==
-                              'pending')
                         Padding(
                           padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
                           child: SubTitle(
@@ -257,74 +248,37 @@ class _VaccineScreenState extends State<VaccineScreen> {
                             isObservacoes: true,
                             titleObservacoes: 'Orientações:',
                             textObservacoes:
-                                'O veterinário já validou esta vacina. Para finalizar o processo clique em validar para poder emiti-la no Certificado de vacinação do seu Pet.',
+                                'O veterinário já validou esta vacina. Confirme que você está ciente para ela constar no Certificado de vacinação do seu Pet.',
                             padding: 0,
                           ),
                         ),
-
-                      if (widget.vacina.validationDetails?['vetValidation']
-                                  ?['status'] ==
-                              'approved' &&
-                          widget.vacina.validationDetails?['tutorValidation']
-                                  ?['status'] ==
-                              'pending')
                         Padding(
                           padding: const EdgeInsets.only(
                               left: 24.0, right: 24.0, bottom: 42, top: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              SizedBox(
-                                height: 40,
-                                width: 120,
-                                child: ElevatedButton(
-                                  onPressed: (() async {
-                                    // TODO: Implement rejection logic
-                                  }),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFED7D7),
-                                    elevation: 4,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(17),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Recusar',
-                                    style: TextStyle(
-                                        color: Color(0xFFBE5050), fontSize: 18),
-                                  ),
+                          child: SizedBox(
+                            height: 44,
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                ValidacaoController().darCiencia(
+                                    widget.vacina.id!);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD5F3C2),
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(17),
                                 ),
                               ),
-                              SizedBox(
-                                height: 40,
-                                width: 120,
-                                child: ElevatedButton(
-                                  onPressed: (() {
-                                    ValidacaoController().validadeVacTutor(
-                                        widget.petId, widget.vacina.id!);
-                                  }),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFD5F3C2),
-                                    elevation: 4,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(17),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Validar',
-                                    style: TextStyle(
-                                        color: Color(0xFF5A9F31), fontSize: 18),
-                                  ),
-                                ),
-                              )
-                            ],
+                              child: const Text(
+                                'Estou ciente',
+                                style: TextStyle(
+                                    color: Color(0xFF5A9F31), fontSize: 18),
+                              ),
+                            ),
                           ),
                         ),
-                      if (widget.vacina.status == 'approved' ||
-                          widget.vacina.status == 'rejected')
-                        const SizedBox(
-                          height: 1,
-                        )
+                      ],
                     ],
                   ),
                 ))));
