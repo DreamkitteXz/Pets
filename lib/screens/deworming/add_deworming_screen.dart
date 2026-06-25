@@ -167,8 +167,8 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
           orElse: () => {'address': null},
         )['address'],
 
-        // Status and tracking
-        'status': DewormingStatus.active.name,
+        // Status and tracking — eixo único (F2.1/§3.1); era DewormingStatus.active
+        'status': DewormingStatus.pending.name,
         'effectivenessNotes': effectivenessNotesController.text,
         'sideEffects': [],
         'observations': observationsController.text,

@@ -6,15 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Data: 09/03/2024
 //==========================================================================
 
-enum VaccineStatus {
-  pending,
-  vetApproved,
-  vetRejected,
-  tutorApproved,
-  tutorRejected,
-  fullyApproved,
-  rejected
-}
+// Eixo ÚNICO de status (alinhado à web/rules/CF): pending | approved | rejected.
+// Ciência do tutor é um campo à parte (tutorAcknowledged). F2.1/§3.1.
+enum VaccineStatus { pending, approved, rejected }
 
 class Vacinas {
   String? id;
@@ -49,6 +43,8 @@ class Vacinas {
 
   // Validation status
   String? status;
+  // Só vetValidation (preenchido pela CF updateVaccineStatus). A ciência do
+  // tutor é o campo tutorAcknowledged, não um bloco aqui. F2.1/§3.1.
   Map<String, dynamic>? validationDetails = {
     'vetValidation': {
       'status': null,
@@ -57,14 +53,11 @@ class Vacinas {
       'notes': null,
       'rejectionReason': null,
     },
-    'tutorValidation': {
-      'status': null,
-      'validatedAt': null,
-      'validatedBy': null,
-      'notes': null,
-      'rejectionReason': null,
-    },
   };
+
+  // Ciência do tutor (único campo que o tutor pode atualizar — rule tutorAckOnly)
+  bool? tutorAcknowledged;
+  DateTime? tutorAcknowledgedAt;
 
   // Additional information
   String? labelImage;
@@ -96,6 +89,8 @@ class Vacinas {
     this.clinicAddress,
     this.status = 'pending',
     this.validationDetails,
+    this.tutorAcknowledged,
+    this.tutorAcknowledgedAt,
     this.labelImage,
     this.notes,
     this.createdAt,
@@ -159,14 +154,9 @@ class Vacinas {
               'notes': null,
               'rejectionReason': null,
             },
-            'tutorValidation': {
-              'status': null,
-              'validatedAt': null,
-              'validatedBy': null,
-              'notes': null,
-              'rejectionReason': null,
-            },
           },
+      tutorAcknowledged: map['tutorAcknowledged'],
+      tutorAcknowledgedAt: parseDate(map['tutorAcknowledgedAt']),
       labelImage: map['labelImage'],
       notes: map['notes'],
       createdAt: parseDate(map['createdAt']),

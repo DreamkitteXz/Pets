@@ -6,15 +6,10 @@ enum UserRole { veterinarian, tutor }
 
 enum UserStatus { active, pending, suspended }
 
-enum VaccineStatus {
-  pending,
-  vetApproved,
-  vetRejected,
-  tutorApproved,
-  tutorRejected,
-  fullyApproved,
-  rejected
-}
+// Eixo ÚNICO de status (alinhado à web/rules/CF): pending | approved | rejected.
+// A ciência do tutor é um campo à parte (tutorAcknowledged), não um status.
+// F2.1/§3.1.
+enum VaccineStatus { pending, approved, rejected }
 
 enum PetStatus { active, inactive }
 
@@ -24,7 +19,8 @@ enum AppointmentType { checkup, vaccination, emergency, surgery }
 
 enum AppointmentStatus { scheduled, completed, cancelled }
 
-enum DewormingStatus { active, completed, expired }
+// Mesmo eixo único de vaccines (F2.1/§3.1). Era {active,completed,expired}.
+enum DewormingStatus { pending, approved, rejected }
 
 class FirestoreSchema {
   // Users collection
@@ -114,22 +110,21 @@ class FirestoreSchema {
           // Validation status
           'status':
               VaccineStatus.values.map((e) => e.name).toList(), // Enum in Dart
+          // Só vetValidation (escrito pela CF updateVaccineStatus). NÃO existe
+          // tutorValidation — a ciência do tutor é tutorAcknowledged. F2.1/§3.1.
           'validationDetails': {
             'vetValidation': {
               'status': String, // 'pending', 'approved', 'rejected'
               'validatedAt': Timestamp,
               'validatedBy': String, // userId
-              'notes': String,
-              'rejectionReason': String,
-            },
-            'tutorValidation': {
-              'status': String, // 'pending', 'approved', 'rejected'
-              'validatedAt': Timestamp,
-              'validatedBy': String, // userId
+              'validatedByName': String,
+              'validatedByCrmv': String,
               'notes': String,
               'rejectionReason': String,
             },
           },
+          'tutorAcknowledged': bool, // ciência do tutor (único campo do tutor)
+          'tutorAcknowledgedAt': Timestamp,
 
           // Additional information
           'labelImage': String, // URL to Firebase Storage

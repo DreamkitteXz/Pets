@@ -734,6 +734,8 @@ class _AddVacPageState extends State<AddVacPage> {
         'clinicName': clinicData['clinicName'] ?? '',
         'clinicAddress': clinicData['clinicAddress'] ?? {},
         'status': 'pending',
+        // Só vetValidation (a CF updateVaccineStatus preenche na validação).
+        // Sem tutorValidation — ciência do tutor é tutorAcknowledged. F2.1/§3.1.
         'validationDetails': {
           'vetValidation': {
             'status': 'pending',
@@ -742,13 +744,6 @@ class _AddVacPageState extends State<AddVacPage> {
             'notes': '',
             'rejectionReason': '',
           },
-          'tutorValidation': {
-            'status': 'pending',
-            'validatedAt': null,
-            'validatedBy': null,
-            'notes': '',
-            'rejectionReason': '',
-          }
         },
         'petId': widget.petId,
         'petName': _petNameController.text,

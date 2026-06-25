@@ -68,7 +68,7 @@ class Vermifugo {
     this.clinicId,
     this.clinicName,
     this.clinicAddress,
-    this.status = 'active',
+    this.status = 'pending', // eixo único (F2.1/§3.1); era 'active'
     this.effectivenessNotes,
     this.sideEffects,
     this.observations,
