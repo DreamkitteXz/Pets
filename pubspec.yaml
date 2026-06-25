@@ -79,6 +79,7 @@ dependencies:
   fl_chart: ^0.60.0
   dropdown_search: ^5.0.6
   async: ^2.11.0
+  cloud_functions: ^4.7.6
   
 flutter_native_splash:
   color: "#041A23"
