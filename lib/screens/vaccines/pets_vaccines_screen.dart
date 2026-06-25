@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:open_file/open_file.dart';
@@ -84,11 +83,9 @@ class PetsVaccinesScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               Vacinas model = userVacinas![index];
               return CardVacinas(
-                  pet: pet ?? Pets(id: model.petId ?? ''),
-                  model: model,
-                  onDelete: () async {
-                    await vaccineController.deleteVaccine(model.id!);
-                  });
+                pet: pet ?? Pets(id: model.petId ?? ''),
+                model: model,
+              );
             },
           ),
         ),
@@ -178,51 +175,24 @@ class PetsVaccinesScreen extends StatelessWidget {
               itemCount: listVac.length,
               itemBuilder: (context, index) {
                 Vacinas model = listVac[index];
-                return Dismissible(
-                    confirmDismiss: (DismissDirection direction) async {
-                      if (direction == DismissDirection.endToStart) {
-                        return await showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return deleteVac(context);
-                            });
-                      }
-                      return null;
-                    },
-                    key: ValueKey<Vacinas>(model),
-                    direction: DismissDirection.endToStart,
-                    background: Container(
-                      decoration: const BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.only(
-                              topRight: Radius.circular(8),
-                              bottomRight: Radius.circular(8))),
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: const Icon(Icons.delete, color: Colors.white),
-                    ),
-                    onDismissed: (direction) async {
-                      await vaccineController.deleteVaccine(model.id!);
-                    },
-                    child: GestureDetector(
-                      onLongPress: () {},
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                VaccineScreen(vacina: model, petId: pet!.id!),
-                          ),
-                        );
-                        print(FirebaseAuth.instance.currentUser);
-                      },
-                      child: CardVacinas(
-                          pet: pet!,
-                          model: model,
-                          onDelete: () async {
-                            await vaccineController.deleteVaccine(model.id!);
-                          }),
-                    ));
+                // [F2.3/§5] Sem swipe-to-delete: hard delete de registro
+                // clínico é negado por rule (allow delete: if false) e o tutor
+                // não exclui vacina.
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            VaccineScreen(vacina: model, petId: pet!.id),
+                      ),
+                    );
+                  },
+                  child: CardVacinas(
+                    pet: pet!,
+                    model: model,
+                  ),
+                );
               },
             );
           },
@@ -237,12 +207,10 @@ class CardVacinas extends StatelessWidget {
     super.key,
     required this.pet,
     required this.model,
-    required this.onDelete,
   });
 
   final Pets pet;
   final Vacinas model;
-  final Future<void> Function() onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -458,23 +426,5 @@ class FloatingActionVac extends StatelessWidget {
   }
 }
 
-Widget deleteVac(BuildContext context) {
-  return AlertDialog(
-    title: const Text('Confirmar Exclusão'),
-    content: const Text('Tem certeza que deseja excluir esta vacina?'),
-    actions: <Widget>[
-      TextButton(
-        child: const Text('Cancelar'),
-        onPressed: () {
-          Navigator.of(context).pop(false);
-        },
-      ),
-      TextButton(
-        child: const Text('Excluir'),
-        onPressed: () {
-          Navigator.of(context).pop(true);
-        },
-      ),
-    ],
-  );
-}
+// [F2.3/§5] deleteVac (diálogo de confirmação de exclusão) removido junto com
+// o swipe-to-delete: o tutor não exclui registro clínico de vacina.

@@ -80,8 +80,6 @@ class VaccineRepository {
             }).toList());
   }
 
-  /// Deletes a vaccine by its ID.
-  Future<void> deleteVaccine(String vaccineId) async {
-    await _firestore.collection('vaccines').doc(vaccineId).delete();
-  }
+  // [F2.3/§5] deleteVaccine removido: hard delete é negado por rule
+  // (allow delete: if false). Registro clínico não é excluído pelo tutor.
 }

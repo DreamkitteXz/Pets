@@ -116,8 +116,6 @@ class VaccineController {
             }).toList());
   }
 
-  /// Deletes a vaccine by its ID.
-  Future<void> deleteVaccine(String vaccineId) async {
-    await _repository.deleteVaccine(vaccineId);
-  }
+  // [F2.3/§5] deleteVaccine removido: hard delete é negado por rule
+  // (allow delete: if false). O tutor não exclui registro clínico de vacina.
 }
