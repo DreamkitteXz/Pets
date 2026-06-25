@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pet_app/models/pet_model.dart';
 
 class PetRepository {
@@ -8,6 +9,10 @@ class PetRepository {
     final doc = _firestore.collection('pets').doc();
     final petData = pet.toMap();
     petData['id'] = doc.id;
+    // createdBy = quem cria o pet (no app, o próprio tutor). Necessário para a
+    // rule de pets: delete exige createdBy==uid e update aceita createdBy OU
+    // ownerId. Sem isso o delete do pet falha. F0.4/§5.
+    petData['createdBy'] = FirebaseAuth.instance.currentUser?.uid;
     await doc.set(petData);
   }
 
