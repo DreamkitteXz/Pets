@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Bell, ChevronDown, User, Bookmark, MessageCircle, Settings, LogOut, CheckCircle, XCircle } from "lucide-react";
+import { Bell, MessageSquare, ChevronDown, User, Bookmark, MessageCircle, Settings, LogOut, CheckCircle, XCircle } from "lucide-react";
 import { auth, db } from "../../../config/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import LogoutModal from "../LogoutModal/LogoutModal";
 import { useNotifications } from "../../../hooks/useNotifications";
+import { useChatUnread } from "../../../hooks/useChatMock";
 import { toDate } from "../../../utils/dates";
 
 export default function Header() {
@@ -18,6 +19,7 @@ export default function Header() {
   const notifRef = useRef(null);
   const navigate = useNavigate();
   const { notifications, unreadCount, markAllRead } = useNotifications();
+  const chatUnread = useChatUnread();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -85,8 +87,24 @@ export default function Header() {
           </span>
         </div>
 
-        {/* Right — bell + profile */}
+        {/* Right — messages + bell + profile */}
         <div className="flex items-center gap-2">
+
+          {/* Messages → chat (T2 badge / T3 navega) */}
+          <button
+            onClick={() => navigate('/chat')}
+            className="relative w-9 h-9 rounded-[10px] flex items-center justify-center transition-all duration-150"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.12)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            title="Mensagens"
+            aria-label="Mensagens"
+          >
+            <MessageSquare size={20} strokeWidth={1.5} />
+            {chatUnread > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: 'var(--apple-red)' }} />
+            )}
+          </button>
 
           {/* Notifications */}
           <div className="relative" ref={notifRef}>
