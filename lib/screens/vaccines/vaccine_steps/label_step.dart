@@ -91,8 +91,12 @@ class LabelStep extends StatelessWidget {
 
                       final uniqueFileName =
                           DateTime.now().microsecondsSinceEpoch.toString();
+                      // Path canônico do rótulo de vacina. A storage.rule só
+                      // libera escrita em 'vaccine-labels/'; 'images/' é negado.
+                      // F1.2/§6.
                       final referenceRoot = FirebaseStorage.instance.ref();
-                      final referenceDirRoot = referenceRoot.child('images');
+                      final referenceDirRoot =
+                          referenceRoot.child('vaccine-labels');
                       final referenceImageToUpload =
                           referenceDirRoot.child(uniqueFileName);
 
