@@ -38,7 +38,8 @@ class Users {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'password': password,
+      // 'password' NÃO é persistido no Firestore: a senha vai só para o
+      // Firebase Auth (createUserWithEmailAndPassword). Ver F0.1/§2.1.
       'email': email,
       'cpf': cpf,
       'id': id,
