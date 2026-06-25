@@ -25,6 +25,12 @@ yarn-error.log*
 .firebaserc
 firebase-debug.log
 
+# Service account keys / credenciais (NUNCA versionar)
+**/cred.json
+**/serviceAccount*.json
+**/*-adminsdk-*.json
+scripts/seedDatabase/cred.json
+
 # Environment files
 .env
 .env.local
