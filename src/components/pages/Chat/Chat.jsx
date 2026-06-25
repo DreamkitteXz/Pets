@@ -60,10 +60,10 @@ const ChatPage = () => {
         {/* ── Left panel — conversation list ───────────────────────────── */}
         <div
           className="w-[280px] flex-shrink-0 flex flex-col"
-          style={{ borderRight: '1px solid var(--separator)', background: '#1C1C1E' }}
+          style={{ borderRight: '1px solid var(--separator)', background: 'var(--surface-secondary)' }}
         >
-          <div className="px-4 py-3.5" style={{ borderBottom: '1px solid rgba(84,84,88,0.25)' }}>
-            <h2 className="font-semibold text-white" style={{ fontSize: '13px', letterSpacing: '0.02em' }}>
+          <div className="px-4 py-3.5" style={{ borderBottom: '1px solid var(--separator)' }}>
+            <h2 className="font-semibold" style={{ fontSize: '13px', letterSpacing: '0.02em', color: 'var(--text-secondary)' }}>
               CONVERSAS
             </h2>
           </div>

@@ -54,31 +54,31 @@ export default function ConversationList({ conversations, activeId, onSelect, lo
               background: isActive ? 'rgba(10,132,255,0.12)' : 'transparent',
               borderLeft: isActive ? '3px solid var(--apple-blue)' : '3px solid transparent',
             }}
-            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(116,116,128,0.08)'; }}
             onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-[13px] flex-shrink-0 text-white"
-                style={{ background: 'rgba(255,255,255,0.15)' }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-[13px] flex-shrink-0"
+                style={{ background: 'rgba(0,122,255,0.1)', color: 'var(--apple-blue)' }}>
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium truncate" style={{ fontSize: '14px', color: isActive ? 'var(--apple-blue)' : 'rgba(255,255,255,0.85)' }}>
+                  <span className="font-medium truncate" style={{ fontSize: '14px', color: isActive ? 'var(--apple-blue)' : 'var(--text-primary)' }}>
                     {c.tutorName || 'Tutor'}
                   </span>
-                  <span className="flex-shrink-0" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+                  <span className="flex-shrink-0" style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                     {formatTime(c.lastMessageAt)}
                   </span>
                 </div>
                 {c.petName && (
-                  <div className="truncate" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)', marginTop: '1px' }}>
+                  <div className="truncate" style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '1px' }}>
                     {c.petName}
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-2">
                   {c.lastMessage && (
-                    <div className="truncate mt-0.5" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>
+                    <div className="truncate mt-0.5" style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
                       {c.lastMessage}
                     </div>
                   )}
