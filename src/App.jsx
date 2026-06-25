@@ -33,6 +33,7 @@ import TutorVaccines from './components/pages/Tutor/TutorVaccines';
 // Profile & Settings
 import Profile from './components/pages/Profile/Profile';
 import Settings from './components/pages/Settings/Settings';
+import Support from './components/pages/Support/Support';
 
 // Error Pages
 import NotFound from './components/pages/Error/NotFound';
@@ -92,6 +93,7 @@ const App = () => {
                 {/* Any authenticated, onboarded user */}
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/support" element={<Support />} />
               </Route>
             </Route>
           </Route>
