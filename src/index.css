@@ -10,14 +10,16 @@
 			'Inter', 'Segoe UI', Roboto, sans-serif;
 		line-height: 1.3;
 	}
-	table {
-	}
 	th,
 	td {
-		@apply py-3 px-2.5 text-sm text-left border-y border-gray-200;
+		@apply py-3 px-2.5 text-sm text-left;
+		/* Tokens de tema (light/dark) em vez de cinzas fixos */
+		border-top: 1px solid var(--separator);
+		border-bottom: 1px solid var(--separator);
 	}
 	thead {
-		@apply bg-neutral-100;
+		/* Antes: bg-neutral-100 fixo → faixa branca no dark. Agora segue o tema. */
+		background: var(--surface-secondary);
 	}
 	th {
 		@apply font-semibold;
