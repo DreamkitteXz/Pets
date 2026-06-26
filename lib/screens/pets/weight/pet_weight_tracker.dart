@@ -743,7 +743,8 @@ class WeightDetailChart extends StatelessWidget {
         ),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            tooltipBgColor: const Color(0xFF4A80F0),
+            // fl_chart 1.x: tooltipBgColor virou getTooltipColor (callback).
+            getTooltipColor: (touchedSpot) => const Color(0xFF4A80F0),
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((spot) {
                 final index = spot.x.toInt();

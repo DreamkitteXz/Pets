@@ -1,6 +1,4 @@
-// Flutter 3.24+ passou a exportar CarouselController em material, colidindo com
-// o do carousel_slider (usado aqui). Ocultamos o do material.
-import 'package:flutter/material.dart' hide CarouselController;
+import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pet_app/models/onboarding_info.dart';
 import 'package:pet_app/screens/components/logo.dart';
@@ -80,7 +78,7 @@ class OnboardingCarousel extends StatefulWidget {
 
 class _OnboardingCarouselState extends State<OnboardingCarousel> {
   int activeIndex = 0;
-  final CarouselController controller = CarouselController();
+  final CarouselSliderController controller = CarouselSliderController();
   final List<Color> dotsColors = [
     const Color(0xFFF29301),
     const Color(0xFF4A406E),

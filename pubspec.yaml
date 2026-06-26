@@ -39,9 +39,11 @@ dependencies:
   cloud_firestore: ^4.8.3
   firebase_auth: ^4.7.0
   get: ^4.6.5
-  auth: ^8.2.0+02
+  # 'auth' (social login: facebook/twitter/google) removido: não era usado no
+  # código e fixava http ^0.13 (conflito com package_info_plus 10) + causava os
+  # problemas de JVM-target (flutter_facebook_auth) e namespace (twitter_login).
   mask_text_input_formatter: ^2.5.0
-  uuid: ^3.0.7
+  uuid: ^4.5.1
   google_fonts: ^4.0.4
   shared_preferences: ^2.2.0
   provider: ^6.1.2
@@ -69,14 +71,14 @@ dependencies:
   path_provider: ^2.1.1
   syncfusion_flutter_pdf: ^23.1.36
   flutter_svg: ^2.0.9
-  carousel_slider: ^4.2.1
+  carousel_slider: ^5.1.2
   smooth_page_indicator: ^1.1.0
   permission_handler: ^11.0.1
-  package_info_plus: ^4.2.0
+  package_info_plus: ^10.1.0
   path: ^1.8.3
   percent_indicator: ^4.2.4
-  geolocator: ^11.1.0
-  fl_chart: ^0.60.0
+  geolocator: ^14.0.0
+  fl_chart: ^1.0.0
   dropdown_search: ^5.0.6
   async: ^2.11.0
   cloud_functions: ^4.7.6
@@ -160,21 +162,17 @@ flutter:
     - assets/images/defaults/cats/
     - assets/images/defaults/cats/somali/
     - assets/images/defaults/dogs/beagle/male/
-    - assets/images/defaults/dogs/beagle/female/
     - assets/images/defaults/dogs/pintcher/male/
-    - assets/images/defaults/dogs/pintcher/female/
     - assets/images/defaults/dogs/golden/male/
-    - assets/images/defaults/dogs/golden/female/
     - assets/images/defaults/cats/somali/male/
-    - assets/images/defaults/cats/somali/female/
     - assets/images/defaults/dogs/boxer/
     - assets/images/defaults/dogs/boxer/male/
     - assets/images/defaults/dogs/chihuahua/
     - assets/images/defaults/dogs/chihuahua/male/
     - assets/images/defaults/dogs/dachshund/
     - assets/images/defaults/dogs/dachshund/male/
-    - assets/images/defaults/dogs/german_sheperd/
-    - assets/images/defaults/dogs/german_sheperd/male/
+    - assets/images/defaults/dogs/german_shepherd/
+    - assets/images/defaults/dogs/german_shepherd/male/
     - assets/images/defaults/dogs/husky/
     - assets/images/defaults/dogs/husky/male/
     - assets/images/defaults/dogs/maltese/
@@ -185,8 +183,8 @@ flutter:
     - assets/images/defaults/dogs/poodle/male/
     - assets/images/defaults/dogs/pug/
     - assets/images/defaults/dogs/pug/male/
-    - assets/images/defaults/dogs/rotweiller/
-    - assets/images/defaults/dogs/rotweiller/male/
+    - assets/images/defaults/dogs/rottweiler/
+    - assets/images/defaults/dogs/rottweiler/male/
     - assets/images/defaults/dogs/zwergspitz/
     - assets/images/defaults/dogs/zwergspitz/male/
     - assets/images/defaults/dogs/bulldog/
