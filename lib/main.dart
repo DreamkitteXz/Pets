@@ -7,7 +7,9 @@ import 'package:pet_app/controllers/validacao_controller.dart';
 import 'package:pet_app/screens/main_screen.dart';
 import 'package:pet_app/screens/onboarding_screen.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:pet_app/services/pet_assets_service.dart';
+import 'package:pet_app/design/design.dart';
 
 import 'firebase_options.dart';
 
@@ -33,7 +35,16 @@ void main() async {
     print('Error loading pet assets configuration: $e');
   }
 
-  runApp(const MyApp());
+  // Tema: honra o sistema por padrão + override persistido.
+  final themeController = ThemeController();
+  await themeController.load();
+
+  runApp(
+    ChangeNotifierProvider<ThemeController>.value(
+      value: themeController,
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -41,12 +52,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.watch<ThemeController>();
     return MaterialApp(
       navigatorKey: NavigationService.navigatorKey,
       title: 'Tutor App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: theme.mode,
       home: const RoteadorTelas(),
     );
   }
@@ -61,7 +74,7 @@ class RoteadorTelas extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Scaffold(body: AppLoading());
         }
 
         if (snapshot.hasData && snapshot.data != null) {
