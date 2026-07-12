@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:pet_app/controllers/validacao_controller.dart';
 import 'package:pet_app/models/vaccine_model.dart';
-import 'package:pet_app/screens/components/subtitle.dart';
-import 'package:pet_app/screens/components/titles.dart';
+import 'package:pet_app/design/design.dart';
 
+/// Detalhe da vacina (tutor) — repaginado sobre o design system.
+/// Status como 1ª classe, validação do veterinário em modo somente-leitura e
+/// "ciência" do tutor (rule tutorAckOnly). O tutor NÃO aprova/rejeita.
 class VaccineScreen extends StatefulWidget {
   final Vacinas vacina;
   final String petId;
@@ -15,350 +16,292 @@ class VaccineScreen extends StatefulWidget {
 }
 
 class _VaccineScreenState extends State<VaccineScreen> {
+  // Marca a ciência localmente (otimista) após o tap, para esconder o botão
+  // sem depender de recarregar o documento.
+  bool _ackedLocally = false;
+
+  Vacinas get v => widget.vacina;
+
+  String _fmt(DateTime? d) => d == null
+      ? 'N/D'
+      : '${d.day.toString().padLeft(2, '0')}/'
+          '${d.month.toString().padLeft(2, '0')}/${d.year}';
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-        child: Scaffold(
-            backgroundColor: Colors.white,
-            appBar: AppBar(
-              title: Text(
-                widget.vacina.name ?? 'Unknown Vaccine',
-                style: const TextStyle(
-                    color: Color(0xFF080809),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600),
+    final status = appStatusFromString(v.status);
+    final vet = (v.validationDetails is Map)
+        ? (v.validationDetails!['vetValidation'] as Map?)
+        : null;
+    final acknowledged = _ackedLocally || v.tutorAcknowledged == true;
+
+    return AppScaffold(
+      title: v.name ?? 'Vacina',
+      showBack: true,
+      bodyPadding: false,
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: AppSpacing.lg),
+          child: StatusChip(status: status, compact: true),
+        ),
+      ],
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xxxl),
+        children: [
+          _StatusCard(status: status, vetValidation: vet),
+          const SizedBox(height: AppSpacing.lg),
+
+          if (v.labelImage?.isNotEmpty ?? false) ...[
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: ClipRRect(
+                borderRadius: AppRadius.card_,
+                child: Image.network(
+                  v.labelImage!,
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _imgPlaceholder(context),
+                  loadingBuilder: (ctx, child, prog) =>
+                      prog == null ? child : const SizedBox(
+                          height: 200, child: AppLoading()),
+                ),
               ),
-              backgroundColor: Colors.white,
-              automaticallyImplyLeading: false,
-              actions: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: SvgPicture.asset(
-                    widget.vacina.status == 'approved'
-                        ? 'lib/screens/assets/validado.svg'
-                        : 'lib/screens/assets/aguardando.svg',
-                    width: 30,
-                    height: 30,
-                  ),
-                )
-              ],
-              centerTitle: true,
-              elevation: 0,
             ),
-            body: SafeArea(
-                top: true,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
-                        child: Titles(
-                          title: 'Informações da Vacina',
-                          fontSize: 18,
-                          paddingL: 24,
-                          cor: const Color(0xFF707070),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 12, 0, 24),
-                        child: Titles(
-                          title: 'Foto do Rótulo:',
-                          fontSize: 16,
-                          paddingL: 24,
-                          cor: const Color(0xFF707070),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Padding(
-                        padding:
-                            const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 12),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (widget.vacina.labelImage?.isNotEmpty ?? false)
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  widget.vacina.labelImage!,
-                                  width: 300,
-                                  height: 220,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            else
-                              const SizedBox(),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding:
-                            const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 12),
-                        child: ListView(
-                          padding: EdgeInsets.zero,
-                          primary: false,
-                          shrinkWrap: true,
-                          scrollDirection: Axis.vertical,
-                          children: [
-                            VacinaInfo(
-                                widget: widget.vacina.name ?? 'N/A',
-                                title: 'Vacina',
-                                icon: Icons.vaccines),
-                            VacinaInfo(
-                                widget: formatDate(
-                                    widget.vacina.administrationDate),
-                                title: 'Data Aplicada',
-                                icon: Icons.date_range),
-                            VacinaInfo(
-                                widget: formatDate(widget.vacina.nextDueDate),
-                                title: 'Próxima Aplicação',
-                                icon: Icons.date_range),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(0, 12, 0, 24),
-                              child: Titles(
-                                title: 'Dados da Vacina',
-                                fontSize: 24,
-                                paddingL: 24,
-                                cor: const Color(0xFF062D3E),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            VacinaInfo(
-                                widget: widget.vacina.batchNumber ?? 'N/A',
-                                title: 'Lote',
-                                icon: Icons.folder),
-                            VacinaInfo(
-                                widget: widget.vacina.manufacturer ?? 'N/A',
-                                title: 'Farmacêutica',
-                                icon: Icons.medical_information),
-                            VacinaInfo(
-                                widget:
-                                    formatDate(widget.vacina.expirationDate),
-                                title: 'Data de Validade',
-                                icon: Icons.date_range),
-                            VacinaInfo(
-                                widget: widget.vacina.petWeight?.toString() ??
-                                    'N/A',
-                                title: 'Peso do Pet',
-                                icon: Icons.percent),
-                            VacinaInfo(
-                                widget: widget.vacina.notes ?? 'N/A',
-                                title: 'Observações',
-                                icon: Icons.insert_drive_file_outlined),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(0, 12, 0, 24),
-                              child: Titles(
-                                title: 'Dados do veterinário(a)',
-                                fontSize: 24,
-                                paddingL: 24,
-                                cor: const Color(0xFF062D3E),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            ListView(
-                              padding: EdgeInsets.zero,
-                              primary: false,
-                              shrinkWrap: true,
-                              scrollDirection: Axis.vertical,
-                              children: [
-                                VacinaInfo(
-                                    widget:
-                                        widget.vacina.veterinarianName ?? 'N/A',
-                                    title: 'Nome',
-                                    icon: Icons.person),
-                                VacinaInfo(
-                                    widget: widget.vacina.crmvNumber ?? 'N/A',
-                                    title: 'CRMV',
-                                    icon: Icons.edit_document),
-                              ],
-                            ),
-                            if (widget.vacina.clinicName != null &&
-                                widget.vacina.clinicName!.isNotEmpty) ...[
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(0, 12, 0, 24),
-                                child: Titles(
-                                  title: 'Dados da Clínica',
-                                  fontSize: 24,
-                                  paddingL: 24,
-                                  cor: const Color(0xFF062D3E),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              VacinaInfo(
-                                  widget: widget.vacina.clinicCnpj ?? 'N/A',
-                                  title: 'CNPJ',
-                                  icon: Icons.document_scanner),
-                              VacinaInfo(
-                                  widget: widget.vacina.clinicName ?? 'N/A',
-                                  title: 'Clínica',
-                                  icon: Icons.store),
-                              VacinaInfo(
-                                  widget:
-                                      widget.vacina.clinicAddress?['street'] ??
-                                          'N/A',
-                                  title: 'Rua',
-                                  icon: Icons.location_on_outlined),
-                              VacinaInfo(
-                                  widget: widget.vacina
-                                          .clinicAddress?['neighborhood'] ??
-                                      'N/A',
-                                  title: 'Bairro',
-                                  icon: Icons.location_on_outlined),
-                              VacinaInfo(
-                                  widget:
-                                      widget.vacina.clinicAddress?['number'] ??
-                                          'N/A',
-                                  title: 'Número',
-                                  icon: Icons.location_on_outlined),
-                              VacinaInfo(
-                                  widget:
-                                      widget.vacina.clinicAddress?['city'] ??
-                                          'N/A',
-                                  title: 'Cidade',
-                                  icon: Icons.location_city),
-                            ],
-                          ],
-                        ),
-                      ),
-                      // Ciência do tutor (F2.2/§5): o vet já aprovou
-                      // (status == 'approved') e o tutor ainda não deu ciência.
-                      // O tutor NÃO aprova/rejeita — apenas confirma ciência
-                      // (rule tutorAckOnly: só tutorAcknowledged/At).
-                      if (widget.vacina.status == 'approved' &&
-                          widget.vacina.tutorAcknowledged != true) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
-                          child: Titles(
-                            title: 'Confirme o recebimento',
-                            fontSize: 24,
-                            paddingL: 24,
-                            cor: const Color(0xFF041A23),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
-                          child: SubTitle(
-                            subtitle: '',
-                            fontSize: 1,
-                            isObservacoes: true,
-                            titleObservacoes: 'Orientações:',
-                            textObservacoes:
-                                'O veterinário já validou esta vacina. Confirme que você está ciente para ela constar no Certificado de vacinação do seu Pet.',
-                            padding: 0,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(
-                              left: 24.0, right: 24.0, bottom: 42, top: 16),
-                          child: SizedBox(
-                            height: 44,
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                ValidacaoController().darCiencia(
-                                    widget.vacina.id!);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFD5F3C2),
-                                elevation: 4,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(17),
-                                ),
-                              ),
-                              child: const Text(
-                                'Estou ciente',
-                                style: TextStyle(
-                                    color: Color(0xFF5A9F31), fontSize: 18),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ))));
+            const SizedBox(height: AppSpacing.lg),
+          ],
+
+          _InfoGroup(header: 'Dados da vacina', rows: {
+            'Aplicada em': _fmt(v.administrationDate),
+            'Próxima dose': _fmt(v.nextDueDate),
+            'Lote': v.batchNumber ?? 'N/D',
+            'Fabricante': v.manufacturer ?? 'N/D',
+            'Validade': _fmt(v.expirationDate),
+            if ((v.petWeight ?? 0) > 0) 'Peso do pet': '${v.petWeight} kg',
+            if ((v.notes ?? '').isNotEmpty) 'Observações': v.notes!,
+          }),
+          const SizedBox(height: AppSpacing.lg),
+
+          _InfoGroup(header: 'Veterinário', rows: {
+            'Nome': v.veterinarianName ?? 'N/D',
+            'CRMV': v.crmvNumber ?? 'N/D',
+          }),
+
+          if ((v.clinicName ?? '').isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _InfoGroup(header: 'Clínica', rows: {
+              'Nome': v.clinicName ?? 'N/D',
+              if ((v.clinicCnpj ?? '').isNotEmpty) 'CNPJ': v.clinicCnpj!,
+              if ((v.clinicAddress?['street'] ?? '').isNotEmpty)
+                'Rua': v.clinicAddress!['street']!,
+              if ((v.clinicAddress?['city'] ?? '').isNotEmpty)
+                'Cidade': v.clinicAddress!['city']!,
+            }),
+          ],
+
+          // Ciência do tutor: só quando aprovada e ainda sem ciência.
+          if (status == AppStatus.approved && !acknowledged) ...[
+            const SizedBox(height: AppSpacing.xl),
+            Text('Confirme o recebimento',
+                style: AppTypography.title2
+                    .copyWith(color: context.colors.textPrimary)),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'O veterinário já validou esta vacina. Confirme que você está '
+              'ciente para ela constar na carteira do seu pet.',
+              style: AppTypography.callout
+                  .copyWith(color: context.colors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              label: 'Estou ciente',
+              icon: Icons.check_rounded,
+              variant: AppButtonVariant.primary,
+              onPressed: _darCiencia,
+            ),
+          ],
+
+          if (acknowledged) ...[
+            const SizedBox(height: AppSpacing.xl),
+            _AckConfirmation(),
+          ],
+        ],
+      ),
+    );
   }
 
-  String formatDate(DateTime? date) {
-    if (date == null) return 'N/A';
-    return '${date.day}/${date.month}/${date.year}';
+  void _darCiencia() {
+    final id = v.id;
+    if (id == null) return;
+    ValidacaoController().darCiencia(id);
+    setState(() => _ackedLocally = true);
   }
+
+  Widget _imgPlaceholder(BuildContext context) => Container(
+        height: 200,
+        color: context.colors.surfaceSecondary,
+        child: Icon(Icons.broken_image_rounded,
+            color: context.colors.textTertiary, size: 40),
+      );
 }
 
-class VacinaInfo extends StatelessWidget {
-  String title;
-  IconData? icon;
-  VacinaInfo({super.key, required this.widget, required this.title, this.icon});
-
-  final String? widget;
+/// Card proeminente do status + validação do vet (somente-leitura).
+class _StatusCard extends StatelessWidget {
+  final AppStatus status;
+  final Map? vetValidation;
+  const _StatusCard({required this.status, this.vetValidation});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 20),
-      child: Container(
-        width: double.infinity,
-        constraints: const BoxConstraints(
-          maxWidth: 570,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: const [
-            //OK
-            BoxShadow(
-              blurRadius: 2,
-              color: Color(0x411D2429),
-              offset: Offset(0, 2),
-            )
-          ],
-          borderRadius: BorderRadius.circular(8), //O
-          border: Border.all(
-            color: const Color(0xFFE3E3E3),
-            width: 1,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 16, 14),
-          child: Row(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final c = context.colors;
+    Color color;
+    IconData icon;
+    String title;
+    String subtitle;
+    switch (status) {
+      case AppStatus.approved:
+        color = c.statusApproved;
+        icon = Icons.check_circle_rounded;
+        title = 'Vacina aprovada';
+        subtitle = 'Validada pelo veterinário responsável.';
+        break;
+      case AppStatus.rejected:
+        color = c.statusRejected;
+        icon = Icons.cancel_rounded;
+        title = 'Vacina rejeitada';
+        subtitle = 'O veterinário não validou este registro.';
+        break;
+      case AppStatus.pending:
+        color = c.statusPending;
+        icon = Icons.schedule_rounded;
+        title = 'Aguardando validação';
+        subtitle = 'O veterinário responsável ainda não revisou este registro.';
+        break;
+    }
+
+    final notes = (vetValidation?['notes'] ?? '').toString();
+    final rejection = (vetValidation?['rejectionReason'] ?? '').toString();
+
+    return AppCard(
+      color: c.tint(color, 0.10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 12, 0),
+              Icon(icon, color: color, size: 24),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
                 child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                          color: Color(0xFF707070),
-                          fontSize: 17,
-                          fontWeight: FontWeight.w500),
-                    ),
-                    Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(0, 4, 0, 0),
-                      child: Text(
-                        widget!,
-                        style: const TextStyle(
-                            color: Color(0xFF707070),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400),
-                      ),
-                    ),
+                    Text(title,
+                        style: AppTypography.headline.copyWith(color: color)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: AppTypography.footnote
+                            .copyWith(color: c.textSecondary)),
                   ],
                 ),
               ),
-              Icon(icon, color: Colors.black, size: 24),
             ],
           ),
+          if (rejection.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _vetNote(context, 'Motivo da rejeição', rejection),
+          ],
+          if (notes.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _vetNote(context, 'Observações do veterinário', notes),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _vetNote(BuildContext context, String label, String value) {
+    final c = context.colors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: AppTypography.caption.copyWith(color: c.textTertiary)),
+        const SizedBox(height: 2),
+        Text(value,
+            style: AppTypography.callout.copyWith(color: c.textPrimary)),
+      ],
+    );
+  }
+}
+
+/// Grupo de informações (label → valor) em card agrupado.
+class _InfoGroup extends StatelessWidget {
+  final String header;
+  final Map<String, String> rows;
+  const _InfoGroup({required this.header, required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final entries = rows.entries.toList();
+    final children = <Widget>[];
+    for (var i = 0; i < entries.length; i++) {
+      children.add(Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(entries[i].key,
+                style: AppTypography.callout.copyWith(color: c.textSecondary)),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Text(entries[i].value,
+                  textAlign: TextAlign.right,
+                  style: AppTypography.callout.copyWith(color: c.textPrimary)),
+            ),
+          ],
         ),
+      ));
+      if (i != entries.length - 1) {
+        children.add(Padding(
+          padding: const EdgeInsets.only(left: AppSpacing.lg),
+          child: Divider(height: 1, thickness: 1, color: c.separator),
+        ));
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xs, 0, AppSpacing.xs, AppSpacing.sm),
+          child: Text(header.toUpperCase(),
+              style: AppTypography.caption
+                  .copyWith(color: c.textTertiary, letterSpacing: 0.5)),
+        ),
+        AppCard(padding: EdgeInsets.zero, child: Column(children: children)),
+      ],
+    );
+  }
+}
+
+class _AckConfirmation extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return AppCard(
+      color: c.tint(c.accentGreen, 0.10),
+      child: Row(
+        children: [
+          Icon(Icons.verified_rounded, color: c.accentGreen),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text('Ciência registrada — obrigado!',
+                style: AppTypography.callout.copyWith(color: c.textPrimary)),
+          ),
+        ],
       ),
     );
   }
