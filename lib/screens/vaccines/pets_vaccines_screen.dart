@@ -8,6 +8,7 @@ import 'package:pet_app/screens/vaccines/add_vaccine_screen.dart';
 import 'package:pet_app/screens/vaccines/vaccine_screen.dart';
 import 'package:pet_app/services/vaccine_card_generator.dart';
 import 'package:pet_app/controllers/vaccines/vaccine_controller.dart';
+import 'package:pet_app/design/design.dart';
 
 class PetsVaccinesScreen extends StatelessWidget {
   final Pets? pet;
@@ -214,161 +215,109 @@ class CardVacinas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String formatDate(DateTime? date) {
-      if (date == null) return 'N/A';
-      return '${date.day}/${date.month}/${date.year}';
+    final c = context.colors;
+    final status = appStatusFromString(model.status);
+    final bool pending = status == AppStatus.pending;
+
+    Color statusColor;
+    switch (status) {
+      case AppStatus.approved:
+        statusColor = c.statusApproved;
+        break;
+      case AppStatus.rejected:
+        statusColor = c.statusRejected;
+        break;
+      case AppStatus.pending:
+        statusColor = c.statusPending;
+        break;
     }
 
+    String fmt(DateTime? d) => d == null
+        ? 'N/D'
+        : '${d.day.toString().padLeft(2, '0')}/'
+            '${d.month.toString().padLeft(2, '0')}/${d.year}';
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Container(
-        width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: const [
-            BoxShadow(
-              blurRadius: 4,
-              color: Color(0x411D2429),
-              offset: Offset(0, 4),
-            )
-          ],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFFE0E0E0),
-            width: 1,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  VaccineScreen(vacina: model, petId: pet.id),
+            ),
+          );
+        },
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F5F5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: pet.species == 'cachorro'
-                                ? (pet.gender == 'macho'
-                                    ? Image.asset('assets/images/vacine.jpeg')
-                                    : Image.asset('assets/images/vacine.jpeg'))
-                                : (pet.gender == 'macho'
-                                    ? Image.asset('assets/images/vacine.jpeg')
-                                    : Image.asset('assets/images/vacine.jpeg')),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                model.name ??
-                                    'Vacina Desconhecida', // Changed from model.vacina
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1A1A1A),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Lote: ${model.batchNumber ?? 'N/D'}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF707070),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: model.status == 'approved'
-                          ? Colors.green.withOpacity(0.1)
-                          : model.status == 'rejected' ||
-                                  model.status == 'vetRejected' ||
-                                  model.status == 'tutorRejected'
-                              ? Colors.red.withOpacity(0.1)
-                              : model.status == 'vetApproved' ||
-                                      model.status == 'tutorApproved'
-                                  ? Colors.orange.withOpacity(0.1)
-                                  : Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _getStatusText(model.status ?? 'pending'),
-                      style: TextStyle(
-                        color: model.status == 'approved'
-                            ? Colors.green
-                            : model.status == 'rejected' ||
-                                    model.status == 'vetRejected' ||
-                                    model.status == 'tutorRejected'
-                                ? Colors.red
-                                : model.status == 'vetApproved' ||
-                                        model.status == 'tutorApproved'
-                                    ? Colors.orange
-                                    : Colors.grey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+              // Acento lateral quando "aguardando validação" do vet.
+              if (pending) Container(width: 4, color: statusColor),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.calendar_today,
-                        size: 16,
-                        color: Color(0xFF707070),
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: c.tint(statusColor, 0.12),
+                              borderRadius: const BorderRadius.all(
+                                  Radius.circular(AppRadius.md)),
+                            ),
+                            child: Icon(Icons.vaccines_rounded,
+                                color: statusColor, size: 22),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  model.name ?? 'Vacina',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.headline
+                                      .copyWith(color: c.textPrimary),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Lote ${model.batchNumber ?? 'N/D'}',
+                                  style: AppTypography.footnote
+                                      .copyWith(color: c.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          StatusChip(status: status, compact: true),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Aplicada: ${formatDate(model.administrationDate)}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF707070),
-                        ),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          _DateBit(
+                              icon: Icons.event_available_rounded,
+                              label: 'Aplicada',
+                              value: fmt(model.administrationDate)),
+                          const SizedBox(width: AppSpacing.lg),
+                          _DateBit(
+                              icon: Icons.event_repeat_rounded,
+                              label: 'Próxima',
+                              value: fmt(model.nextDueDate)),
+                        ],
                       ),
                     ],
                   ),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.event_repeat,
-                        size: 16,
-                        color: Color(0xFF707070),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Próxima: ${formatDate(model.nextDueDate)}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF707070),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ],
           ),
@@ -376,23 +325,27 @@ class CardVacinas extends StatelessWidget {
       ),
     );
   }
+}
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'approved':
-        return 'APROVADO';
-      case 'vetApproved':
-        return 'APROVADO VET';
-      case 'tutorApproved':
-        return 'APROVADO TUTOR';
-      case 'rejected':
-      case 'vetRejected':
-      case 'tutorRejected':
-        return 'REJEITADO';
-      case 'pending':
-      default:
-        return 'PENDENTE';
-    }
+class _DateBit extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _DateBit(
+      {required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: c.textTertiary),
+        const SizedBox(width: 4),
+        Text('$label: $value',
+            style: AppTypography.caption.copyWith(color: c.textSecondary)),
+      ],
+    );
   }
 }
 
