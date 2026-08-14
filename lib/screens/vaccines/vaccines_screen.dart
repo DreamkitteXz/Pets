@@ -1,11 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import 'package:pet_app/design/design.dart';
 import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/models/vaccine_model.dart';
-import 'package:pet_app/screens/vaccines/add_vaccine_screen.dart';
-import 'package:pet_app/screens/vaccines/vaccine_screen.dart';
+import 'package:pet_app/screens/vaccines/pets_vaccines_screen.dart'
+    show CardVacinas;
 
+/// Aba "Vacinas": todas as vacinas do tutor, agrupadas por pet.
+///
+/// Reaproveita o [CardVacinas] da carteira do pet — antes esta tela tinha uma
+/// cópia própria do card, com o eixo de status ANTIGO (vetApproved /
+/// tutorApproved / vetRejected / tutorRejected), que a F2.1/§3.1 aposentou.
 class VacinasScreen extends StatelessWidget {
   const VacinasScreen({super.key});
 
@@ -13,330 +20,102 @@ class VacinasScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return SafeArea(
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text(
-              'Vacinas',
-              style: TextStyle(
-                  fontFamily: 'Outfit',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 24,
-                  color: Color(0xFF080809)),
-            ),
-            actions: const [],
-            backgroundColor: Colors.white,
-            automaticallyImplyLeading: false,
-            centerTitle: true,
-            elevation: 0,
-          ),
-          body: const Center(child: Text('Usuário não autenticado')),
-        ),
+      return const AppScaffold(
+        title: 'Vacinas',
+        body: AppErrorState(message: 'Sessão expirada. Entre novamente.'),
       );
     }
 
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: const Text(
-            'Vacinas',
-            style: TextStyle(
-                fontFamily: 'Outfit',
-                fontWeight: FontWeight.w600,
-                fontSize: 24,
-                color: Color(0xFF080809)),
-          ),
-          actions: const [],
-          backgroundColor: Colors.white,
-          automaticallyImplyLeading: false,
-          centerTitle: true,
-          elevation: 0,
-        ),
-        body: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('vaccines')
-              .where('ownerId', isEqualTo: user.uid)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final docs = snapshot.data!.docs;
-            if (docs.isEmpty) {
-              return const Center(child: Text('Nenhuma vacina encontrada.'));
-            }
-            final vacinas = docs.map((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              data['id'] = doc.id;
-              return Vacinas.fromMap(data);
-            }).toList();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      // ownerId é campo único: sem índice composto. A ordenação é no cliente.
+      stream: FirebaseFirestore.instance
+          .collection('vaccines')
+          .where('ownerId', isEqualTo: user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        List<Vacinas> vaccines = const [];
+        int pending = 0;
 
-            return ListView.builder(
-              itemCount: vacinas.length,
-              itemBuilder: (context, index) {
-                final vacina = vacinas[index];
-                // Create a minimal Pets object for CardVacinas
-                final pet = Pets(
-                  id: vacina.petId ?? '',
-                  name: vacina.petName ?? '',
-                  species: vacina.petSpecies ?? 'cachorro',
-                  gender: vacina.petName ?? 'macho',
-                );
-                return CardVacinas(
-                  pet: pet,
-                  model: vacina,
-                );
-              },
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
+        if (snapshot.hasData) {
+          vaccines = snapshot.data!.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return Vacinas.fromMap(data);
+          }).toList();
+          vaccines.sort((a, b) {
+            final da = a.administrationDate;
+            final db = b.administrationDate;
+            if (da == null && db == null) return 0;
+            if (da == null) return 1;
+            if (db == null) return -1;
+            return db.compareTo(da);
+          });
+          pending = vaccines
+              .where((v) => appStatusFromString(v.status) == AppStatus.pending)
+              .length;
+        }
 
-class CardVacinas extends StatelessWidget {
-  const CardVacinas({
-    super.key,
-    required this.pet,
-    required this.model,
-  });
-
-  final Pets pet;
-  final Vacinas model;
-
-  @override
-  Widget build(BuildContext context) {
-    String formatDate(DateTime? date) {
-      if (date == null) return 'N/A';
-      return '${date.day}/${date.month}/${date.year}';
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Container(
-        width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: const [
-            BoxShadow(
-              blurRadius: 4,
-              color: Color(0x411D2429),
-              offset: Offset(0, 4),
-            )
-          ],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFFE0E0E0),
-            width: 1,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F5F5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: pet.species == 'cachorro'
-                                ? (pet.gender == 'macho'
-                                    ? Image.asset('assets/images/vacine.jpeg')
-                                    : Image.asset('assets/images/vacine.jpeg'))
-                                : (pet.gender == 'macho'
-                                    ? Image.asset('assets/images/vacine.jpeg')
-                                    : Image.asset('assets/images/vacine.jpeg')),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                model.name ??
-                                    'Vacina Desconhecida', // Changed from model.vacina
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1A1A1A),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Lote: ${model.batchNumber ?? 'N/D'}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF707070),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: model.status == 'approved'
-                          ? Colors.green.withOpacity(0.1)
-                          : model.status == 'rejected' ||
-                                  model.status == 'vetRejected' ||
-                                  model.status == 'tutorRejected'
-                              ? Colors.red.withOpacity(0.1)
-                              : model.status == 'vetApproved' ||
-                                      model.status == 'tutorApproved'
-                                  ? Colors.orange.withOpacity(0.1)
-                                  : Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _getStatusText(model.status ?? 'pending'),
-                      style: TextStyle(
-                        color: model.status == 'approved'
-                            ? Colors.green
-                            : model.status == 'rejected' ||
-                                    model.status == 'vetRejected' ||
-                                    model.status == 'tutorRejected'
-                                ? Colors.red
-                                : model.status == 'vetApproved' ||
-                                        model.status == 'tutorApproved'
-                                    ? Colors.orange
-                                    : Colors.grey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today,
-                        size: 16,
-                        color: Color(0xFF707070),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Aplicada: ${formatDate(model.administrationDate)}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF707070),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.event_repeat,
-                        size: 16,
-                        color: Color(0xFF707070),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Próxima: ${formatDate(model.nextDueDate)}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF707070),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'approved':
-        return 'APROVADO';
-      case 'vetApproved':
-        return 'APROVADO VET';
-      case 'tutorApproved':
-        return 'APROVADO TUTOR';
-      case 'rejected':
-      case 'vetRejected':
-      case 'tutorRejected':
-        return 'REJEITADO';
-      case 'pending':
-      default:
-        return 'PENDENTE';
-    }
-  }
-}
-
-class FloatingActionVac extends StatelessWidget {
-  final String petId;
-
-  const FloatingActionVac({
-    Key? key,
-    required this.petId,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddVacPage(petId: petId),
-          ),
+        return AppScaffold(
+          title: 'Vacinas',
+          subtitle: pending > 0
+              ? '$pending aguardando validação'
+              : 'Todas as vacinas dos seus pets',
+          bodyPadding: false,
+          body: _buildBody(context, snapshot, vaccines),
         );
       },
-      backgroundColor: const Color(0xFF4B39EF),
-      elevation: 8,
-      child: const Icon(
-        Icons.add_rounded,
-        color: Colors.white,
-        size: 28,
-      ),
     );
   }
-}
 
-Widget deleteVac(BuildContext context) {
-  return AlertDialog(
-    title: const Text('Confirmar Exclusão'),
-    content: const Text('Tem certeza que deseja excluir esta vacina?'),
-    actions: <Widget>[
-      TextButton(
-        child: const Text('Cancelar'),
-        onPressed: () {
-          Navigator.of(context).pop(false);
-        },
-      ),
-      TextButton(
-        child: const Text('Excluir'),
-        onPressed: () {
-          Navigator.of(context).pop(true);
-        },
-      ),
-    ],
-  );
+  Widget _buildBody(
+    BuildContext context,
+    AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
+    List<Vacinas> vaccines,
+  ) {
+    if (snapshot.hasError) {
+      return const AppErrorState(
+          message: 'Não foi possível carregar suas vacinas.');
+    }
+    if (!snapshot.hasData) return const AppLoading();
+    if (vaccines.isEmpty) {
+      return const AppEmptyState(
+        icon: Icons.vaccines_rounded,
+        title: 'Nenhuma vacina',
+        message: 'Abra um pet e registre a primeira vacina da carteira dele.',
+      );
+    }
+
+    // Agrupa por pet preservando a ordem (mais recente primeiro).
+    final groups = <String, List<Vacinas>>{};
+    final names = <String, String>{};
+    for (final v in vaccines) {
+      final key = v.petId ?? '—';
+      groups.putIfAbsent(key, () => <Vacinas>[]).add(v);
+      names[key] = v.petName ?? 'Pet sem nome';
+    }
+
+    final children = <Widget>[];
+    groups.forEach((petId, list) {
+      children.add(Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.sm),
+        child: Text(
+          names[petId]!.toUpperCase(),
+          style: AppTypography.caption.copyWith(
+              color: context.colors.textTertiary, letterSpacing: 0.5),
+        ),
+      ));
+      for (final v in list) {
+        children.add(CardVacinas(
+          pet: Pets(id: petId, name: names[petId]),
+          model: v,
+        ));
+      }
+    });
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+      children: children,
+    );
+  }
 }
