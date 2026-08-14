@@ -13,52 +13,26 @@ class HomeController {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return const Stream.empty();
 
-    final appointmentsStream = _firestore
-        .collection('appointments')
-        .where('tutorId', isEqualTo: uid)
-        .where('date', isGreaterThan: Timestamp.now())
-        .orderBy('date')
-        .limit(3)
-        .snapshots();
-
+    // appointments: a rule é vet-only → o tutor não pode ler. Não consultamos
+    // (evita PERMISSION_DENIED).
     final vaccinesStream = _firestore
         .collection('vaccines')
         .where('ownerId', isEqualTo: uid)
         .snapshots();
 
+    // ownerId-only + filtro/ordenação no cliente: evita o índice composto
+    // (ownerId + nextDueDate), que não existe para o mobile (FAILED_PRECONDITION).
     final dewormingStream = _firestore
         .collection('deworming')
         .where('ownerId', isEqualTo: uid)
-        .where('nextDueDate', isGreaterThan: Timestamp.now())
-        .orderBy('nextDueDate')
-        .limit(3)
         .snapshots();
 
-    return StreamZip([appointmentsStream, vaccinesStream, dewormingStream])
-        .map((snapshots) {
-      final QuerySnapshot apptsSnap = snapshots[0] as QuerySnapshot;
-      final QuerySnapshot vacsSnap = snapshots[1] as QuerySnapshot;
-      final QuerySnapshot dewsSnap = snapshots[2] as QuerySnapshot;
+    return StreamZip([vaccinesStream, dewormingStream]).map((snapshots) {
+      final QuerySnapshot vacsSnap = snapshots[0] as QuerySnapshot;
+      final QuerySnapshot dewsSnap = snapshots[1] as QuerySnapshot;
 
       final now = DateTime.now();
       final List<Map<String, dynamic>> activities = [];
-
-      // Appointments
-      for (final doc in apptsSnap.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final Timestamp? ts = data['date'] as Timestamp?;
-        if (ts == null) continue;
-        final DateTime dt = ts.toDate();
-        if (dt.isBefore(now)) continue;
-        activities.add({
-          'type': 'appointment',
-          'title': data['title'] ?? data['service'] ?? 'Consulta',
-          'time': dt,
-          'color': const Color(0xFF4A80F0),
-          'icon': Icons.event,
-          'raw': data,
-        });
-      }
 
       // Vaccines (filtra nextDueDate > now se existir)
       for (final doc in vacsSnap.docs) {
