@@ -530,7 +530,20 @@ class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
     );
   }
 
+  // Registro de peso pelo TUTOR: GATED (§13.4). A subcoleção pets/{id}/pesos
+  // tem escrita VET-ONLY na rule (o dono só lê). Enquanto não houver decisão de
+  // produto/rule, o tutor visualiza o histórico mas não adiciona.
+  static final bool kTutorWeightWriteEnabled = false;
+
   void _showAddWeightDialog() {
+    if (!kTutorWeightWriteEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Registro de peso pelo tutor estará disponível em breve.')),
+      );
+      return;
+    }
     final weightController = TextEditingController();
 
     showDialog(
