@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pet_app/controllers/user_controller.dart';
-import 'package:pet_app/screens/components/form_auth_button.dart';
-import 'package:pet_app/screens/components/logo.dart';
-import 'package:pet_app/screens/components/subtitle.dart';
-import 'package:pet_app/screens/components/text_input_auth.dart';
-import 'package:pet_app/screens/components/titles.dart';
+import 'package:pet_app/models/user_model.dart';
+import 'package:pet_app/design/design.dart';
 import 'package:pet_app/utils/input_formatters_utils.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -15,257 +12,215 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
-  final TextEditingController _nameController = TextEditingController();
-
-  final TextEditingController _emailController = TextEditingController();
-
-  final TextEditingController _cpfController = TextEditingController();
-
-  final TextEditingController _phoneController = TextEditingController();
-
-  final TextEditingController _passwordController = TextEditingController();
-
-  final TextEditingController _streetController = TextEditingController();
-
-  final TextEditingController _neighbourhoodController =
-      TextEditingController();
-
-  final TextEditingController _numberController = TextEditingController();
-
-  final TextEditingController _stateController = TextEditingController();
-
-  final TextEditingController _cepController = TextEditingController();
-
-  final TextEditingController _addressInfoController = TextEditingController();
-
-  // Add new controllers for emergency contact
-  final TextEditingController _emergencyNameController =
-      TextEditingController();
-  final TextEditingController _emergencyPhoneController =
-      TextEditingController();
-  final TextEditingController _emergencyRelationController =
-      TextEditingController();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _cpfController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _streetController = TextEditingController();
+  final _neighbourhoodController = TextEditingController();
+  final _numberController = TextEditingController();
+  final _stateController = TextEditingController();
+  final _cepController = TextEditingController();
+  final _addressInfoController = TextEditingController();
+  final _emergencyNameController = TextEditingController();
+  final _emergencyPhoneController = TextEditingController();
+  final _emergencyRelationController = TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
+  final _userController = UserController();
+
+  bool _obscure = true;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    for (final c in [
+      _nameController,
+      _emailController,
+      _cpfController,
+      _phoneController,
+      _passwordController,
+      _streetController,
+      _neighbourhoodController,
+      _numberController,
+      _stateController,
+      _cepController,
+      _addressInfoController,
+      _emergencyNameController,
+      _emergencyPhoneController,
+      _emergencyRelationController,
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _signup() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _loading = true);
+    await _userController.createUser(
+      Users(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        cpf: _cpfController.text,
+        phone: _phoneController.text,
+        street: _streetController.text,
+        neighbourhood: _neighbourhoodController.text,
+        number: _numberController.text,
+        state: _stateController.text,
+        cep: _cepController.text,
+        addressDetails: _addressInfoController.text,
+        emergencyContact: {
+          'name': _emergencyNameController.text,
+          'phone': _emergencyPhoneController.text,
+          'relationship': _emergencyRelationController.text,
+        },
+      ),
+      context,
+    );
+    // Em caso de sucesso, o createUser autentica e o RoteadorTelas navega.
+    if (mounted) setState(() => _loading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final UserController userController = UserController();
-    return SafeArea(
-        child: Scaffold(
-      body: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          autovalidateMode: AutovalidateMode.disabled,
-          child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Logo(),
-                const SizedBox(height: 36),
-                Titles(
-                  title: 'Crie sua conta',
-                  fontSize: 32.0,
-                  paddingL: 30.0,
-                ),
-                const SizedBox(height: 20),
-                SubTitle(
-                  subtitle:
-                      'Bem vindo(a) ao Pets, preencha os campos com seus dados para criar sua conta.',
-                  fontSize: 14.0,
-                ),
-                const SizedBox(height: 40),
-                TextInput(
-                    inputTitle: 'Nome',
-                    controller: _nameController,
-                    textInputType: TextInputType.name,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Nome é obrigatório';
-                      }
-                      return null;
-                    }),
-                const SizedBox(height: 20),
-                TextInput(
-                  inputTitle: 'Email',
-                  controller: _emailController,
-                  textInputType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Email é obrigatório';
-                    }
-                    final emailRegex =
-                        RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                    if (!emailRegex.hasMatch(value)) {
-                      return 'Email inválido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20.0),
-                TextInput(
-                  inputTitle: 'CPF',
-                  controller: _cpfController,
-                  textInputType: TextInputType.number,
-                  inputFormatter: InputFormatters.cpfFormatter,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'CPF é obrigatório';
-                    }
-                    if (value.length < 14) {
-                      // Including dots and dash
-                      return 'CPF inválido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                TextInput(
-                    inputTitle: 'Telefone',
-                    controller: _phoneController,
-                    textInputType: TextInputType.phone,
-                    inputFormatter: InputFormatters.phoneFormatter,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Telefone é obrigatório';
-                      }
-                      if (value.length < 15) {
-                        // Including parentheses and dash
-                        return 'Telefone inválido';
-                      }
-                      return null;
-                    }),
-                const SizedBox(height: 20),
-                TextInput(
-                  inputTitle: 'Senha',
-                  controller: _passwordController,
-                  isPassword: true,
-                  textInputType: TextInputType.name,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Senha é obrigatória';
-                    }
-                    if (value.length < 6) {
-                      return 'Senha deve ter no mínimo 6 caracteres';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 30.0),
-                Titles(
-                  title: 'Endereço',
-                  fontSize: 30.0,
-                  paddingL: 30.0,
-                ),
-                const SizedBox(height: 30.0),
-                TextInput(
-                  inputTitle: 'Rua',
-                  controller: _streetController,
-                  textInputType: TextInputType.streetAddress,
-                ),
-                const SizedBox(height: 20.0),
-                TextInput(
-                  inputTitle: 'Bairro',
-                  controller: _neighbourhoodController,
-                  textInputType: TextInputType.streetAddress,
-                ),
-                const SizedBox(height: 20.0),
-                TextInput(
-                  inputTitle: 'Número',
-                  controller: _numberController,
-                  textInputType: TextInputType.number,
-                ),
-                const SizedBox(height: 20.0),
-                //TODO: DROPDOWN LIST Para os Estados
-                TextInput(
-                  inputTitle: 'Estado',
-                  controller: _stateController,
-                  textInputType: TextInputType.name,
-                ),
-                const SizedBox(height: 20.0),
-                TextInput(
-                  inputTitle: 'CEP',
-                  controller: _cepController,
-                  textInputType: TextInputType.number,
-                  inputFormatter: InputFormatters.cepFormatter,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'CEP é obrigatório';
-                    }
-                    if (value.length < 9) {
-                      // Including dash
-                      return 'CEP inválido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20.0),
-                TextInput(
-                    inputTitle: 'Complemento',
-                    controller: _addressInfoController,
-                    textInputType: TextInputType.name),
-                const SizedBox(height: 30.0),
-                Titles(
-                  title: 'Contato de Emergência',
-                  fontSize: 30.0,
-                  paddingL: 30.0,
-                ),
-                const SizedBox(height: 30.0),
-                TextInput(
-                  inputTitle: 'Nome do Contato',
-                  controller: _emergencyNameController,
-                  textInputType: TextInputType.name,
-                ),
-                const SizedBox(height: 20.0),
-                TextInput(
-                  inputTitle: 'Telefone do Contato',
-                  controller: _emergencyPhoneController,
-                  textInputType: TextInputType.phone,
-                  inputFormatter: InputFormatters.phoneFormatter,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Telefone do contato é obrigatório';
-                    }
-                    if (value.length < 15) {
-                      // Including parentheses and dash
-                      return 'Telefone inválido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20.0),
-                TextInput(
-                  inputTitle: 'Relação com o Contato',
-                  controller: _emergencyRelationController,
-                  textInputType: TextInputType.text,
-                ),
-                const SizedBox(height: 40.0),
-                //FORBUTTON
-                FormButton(
-                  title: 'Criar Conta',
-                  formKey: _formKey,
-                  userController: userController,
-                  nameController: _nameController,
-                  emailController: _emailController,
-                  cpfController: _cpfController,
-                  phoneController: _phoneController,
-                  passwordController: _passwordController,
-                  streetController: _streetController,
-                  neighbourhoodController: _neighbourhoodController,
-                  numberController: _numberController,
-                  stateController: _stateController,
-                  cepController: _cepController,
-                  addressInfoController: _addressInfoController,
-                  emergencyNameController: _emergencyNameController,
-                  emergencyPhoneController: _emergencyPhoneController,
-                  emergencyRelationController: _emergencyRelationController,
-                  type: 2, // 2 -> Create account button
-                ),
-                const SizedBox(height: 20.0),
-                const SizedBox(height: 20.0),
-              ]),
+    return AppScaffold(
+      title: 'Criar conta',
+      subtitle: 'Preencha seus dados para começar.',
+      showBack: true,
+      bodyPadding: false,
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xxxl),
+          children: [
+            AppTextField(
+              controller: _nameController,
+              label: 'Nome',
+              prefixIcon: Icons.person_outline_rounded,
+              validator: _required('Nome é obrigatório'),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              controller: _emailController,
+              label: 'E-mail',
+              hint: 'voce@email.com',
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: Icons.mail_outline_rounded,
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'E-mail é obrigatório';
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v)) {
+                  return 'E-mail inválido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              controller: _cpfController,
+              label: 'CPF',
+              keyboardType: TextInputType.number,
+              inputFormatters: [InputFormatters.cpfFormatter],
+              validator: (v) => (v == null || v.length < 14)
+                  ? 'CPF inválido'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              controller: _phoneController,
+              label: 'Telefone',
+              keyboardType: TextInputType.phone,
+              inputFormatters: [InputFormatters.phoneFormatter],
+              validator: (v) => (v == null || v.length < 15)
+                  ? 'Telefone inválido'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              controller: _passwordController,
+              label: 'Senha',
+              hint: 'Mínimo 6 caracteres',
+              obscureText: _obscure,
+              prefixIcon: Icons.lock_outline_rounded,
+              suffix: IconButton(
+                icon: Icon(
+                    _obscure
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    size: 20,
+                    color: context.colors.textTertiary),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+              validator: (v) => (v == null || v.length < 6)
+                  ? 'Senha deve ter no mínimo 6 caracteres'
+                  : null,
+            ),
+
+            _sectionHeader(context, 'Endereço'),
+            AppTextField(controller: _streetController, label: 'Rua'),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+                controller: _neighbourhoodController, label: 'Bairro'),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+                controller: _numberController,
+                label: 'Número',
+                keyboardType: TextInputType.number),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(controller: _stateController, label: 'Estado'),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              controller: _cepController,
+              label: 'CEP',
+              keyboardType: TextInputType.number,
+              inputFormatters: [InputFormatters.cepFormatter],
+              validator: (v) =>
+                  (v == null || v.length < 9) ? 'CEP inválido' : null,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+                controller: _addressInfoController, label: 'Complemento'),
+
+            _sectionHeader(context, 'Contato de emergência'),
+            AppTextField(
+                controller: _emergencyNameController, label: 'Nome do contato'),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              controller: _emergencyPhoneController,
+              label: 'Telefone do contato',
+              keyboardType: TextInputType.phone,
+              inputFormatters: [InputFormatters.phoneFormatter],
+              validator: (v) => (v == null || v.length < 15)
+                  ? 'Telefone inválido'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+                controller: _emergencyRelationController,
+                label: 'Relação com o contato'),
+
+            const SizedBox(height: AppSpacing.xxl),
+            AppButton(
+                label: 'Criar conta',
+                loading: _loading,
+                onPressed: _loading ? null : _signup),
+          ],
         ),
       ),
-    ));
+    );
   }
+
+  String? Function(String?) _required(String msg) =>
+      (v) => (v == null || v.trim().isEmpty) ? msg : null;
+
+  Widget _sectionHeader(BuildContext context, String title) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xs, AppSpacing.xxl, AppSpacing.xs, AppSpacing.md),
+        child: Text(title,
+            style: AppTypography.title2
+                .copyWith(color: context.colors.textPrimary)),
+      );
 }
