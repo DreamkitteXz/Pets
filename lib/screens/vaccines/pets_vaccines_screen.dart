@@ -1,205 +1,106 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:open_file/open_file.dart';
+
+import 'package:pet_app/controllers/vaccines/vaccine_controller.dart';
+import 'package:pet_app/design/design.dart';
 import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/models/vaccine_model.dart';
 import 'package:pet_app/screens/vaccines/add_vaccine_screen.dart';
 import 'package:pet_app/screens/vaccines/vaccine_screen.dart';
 import 'package:pet_app/services/vaccine_card_generator.dart';
-import 'package:pet_app/controllers/vaccines/vaccine_controller.dart';
-import 'package:pet_app/design/design.dart';
 
+/// Carteira de vacinas do pet. Status é cidadão de 1ª classe: o card mostra o
+/// chip e um acento lateral enquanto a vacina aguarda validação do vet.
 class PetsVaccinesScreen extends StatelessWidget {
   final Pets? pet;
-  final List<Vacinas>? userVacinas;
 
-  const PetsVaccinesScreen({super.key, this.pet, this.userVacinas});
+  const PetsVaccinesScreen({super.key, this.pet});
 
   @override
   Widget build(BuildContext context) {
+    final currentPet = pet;
+    if (currentPet == null) {
+      return const AppScaffold(
+        title: 'Vacinas',
+        showBack: true,
+        body: AppErrorState(
+          message: 'Não foi possível identificar o pet desta carteira.',
+        ),
+      );
+    }
+
     final vaccineController = VaccineController();
-    print("VacinasPage - Pet received: $pet"); // Add this debug print
-    print("VacinasPage - Pet ID: ${pet?.id}"); // Add this debug print
-    print("VacinasPage - Pet name: ${pet?.name}"); // Add this debug print
 
-    if (pet?.id == null) {
-      print("VacinasPage - Pet ID is null!"); // Add this debug print
-      // Return a more informative error screen
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Vacinas'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
+    return AppScaffold(
+      title: 'Vacinas',
+      subtitle: currentPet.name,
+      showBack: true,
+      bodyPadding: false,
+      actions: [
+        IconButton(
+          onPressed: () => _exportCard(context, currentPet),
+          icon: const Icon(Icons.ios_share_rounded),
+          color: context.colors.accentBlue,
+          tooltip: 'Carteira em PDF',
         ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('ID do Pet não encontrado'),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Voltar'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+      ],
+      floatingActionButton: FloatingActionVac(petId: currentPet.id),
+      body: StreamBuilder<List<Vacinas>>(
+        stream: vaccineController.vaccinesStreamForPet(currentPet.id),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const AppErrorState(
+                message: 'Não foi possível carregar as vacinas deste pet.');
+          }
+          if (!snapshot.hasData) return const AppLoading();
 
-    if (userVacinas != null) {
-      // Show all vaccines for the user
-      return SafeArea(
-        child: Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            title: const Text(
-              'Vacinas',
-              style: TextStyle(
-                  fontFamily: 'Outfit',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 24,
-                  color: Color(0xFF080809)),
-            ),
-            backgroundColor: Colors.white,
-            automaticallyImplyLeading: true,
-            leading: IconButton(
-              onPressed: () async {
-                Navigator.pop(context);
-              },
-              icon: const Icon(
-                Icons.arrow_back_rounded,
-                size: 30,
-                color: Color(0xFF212121),
-              ),
-            ),
-            centerTitle: true,
-            elevation: 0,
-          ),
-          body: ListView.builder(
-            itemCount: userVacinas!.length,
-            itemBuilder: (context, index) {
-              Vacinas model = userVacinas![index];
-              return CardVacinas(
-                pet: pet ?? Pets(id: model.petId ?? ''),
-                model: model,
-              );
-            },
-          ),
-        ),
-      );
-    }
-
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: const Text(
-            'Vacinas',
-            style: TextStyle(
-                fontFamily: 'Outfit',
-                fontWeight: FontWeight.w600,
-                fontSize: 24,
-                color: Color(0xFF080809)),
-          ),
-          actions: <Widget>[
-            Padding(
-              padding: const EdgeInsets.only(right: 22.0),
-              child: GestureDetector(
-                onTap: () async {
-                  try {
-                    final snapshot = await FirebaseFirestore.instance
-                        .collection('vaccines')
-                        .where('petId', isEqualTo: pet!.id)
-                        .get();
-
-                    List<Vacinas> vaccines = snapshot.docs.map((doc) {
-                      Map<String, dynamic> data = doc.data();
-                      data['id'] = doc.id;
-                      return Vacinas.fromMap(data);
-                    }).toList();
-
-                    final path = await VaccineCardGenerator.generateVaccineCard(
-                        pet!, vaccines);
-                    final result = await OpenFile.open(
-                      path,
-                      type: 'application/pdf',
-                    );
-
-                    if (result.type != ResultType.done) {
-                      throw Exception(result.message);
-                    }
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Erro ao abrir PDF: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                child: SvgPicture.asset(
-                  'lib/screens/assets/docs.svg',
-                  width: 25,
-                  height: 25,
-                ),
-              ),
-            )
-          ],
-          backgroundColor: Colors.white,
-          automaticallyImplyLeading: false,
-          leading: IconButton(
-            onPressed: () async {
-              Navigator.pop(context);
-            },
-            icon: const Icon(
-              Icons.arrow_back_rounded,
-              size: 30,
-              color: Color(0xFF212121),
-            ),
-          ),
-          centerTitle: true,
-          elevation: 0,
-        ),
-        floatingActionButton: FloatingActionVac(petId: pet!.id!),
-        body: StreamBuilder<List<Vacinas>>(
-          stream: vaccineController.vaccinesStreamForPet(pet!.id!),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            List<Vacinas> listVac = snapshot.data!;
-            return ListView.builder(
-              itemCount: listVac.length,
-              itemBuilder: (context, index) {
-                Vacinas model = listVac[index];
-                // [F2.3/§5] Sem swipe-to-delete: hard delete de registro
-                // clínico é negado por rule (allow delete: if false) e o tutor
-                // não exclui vacina.
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            VaccineScreen(vacina: model, petId: pet!.id),
-                      ),
-                    );
-                  },
-                  child: CardVacinas(
-                    pet: pet!,
-                    model: model,
-                  ),
-                );
-              },
+          final vaccines = snapshot.data!;
+          if (vaccines.isEmpty) {
+            return const AppEmptyState(
+              icon: Icons.vaccines_rounded,
+              title: 'Nenhuma vacina',
+              message: 'Toque em + para registrar a primeira vacina. Ela fica '
+                  'aguardando validação até um veterinário conferir.',
             );
-          },
-        ),
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.only(
+                top: AppSpacing.sm, bottom: AppSpacing.xxxl + 56),
+            itemCount: vaccines.length,
+            itemBuilder: (context, index) =>
+                CardVacinas(pet: currentPet, model: vaccines[index]),
+          );
+        },
       ),
     );
+  }
+
+  Future<void> _exportCard(BuildContext context, Pets currentPet) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('vaccines')
+          .where('petId', isEqualTo: currentPet.id)
+          .get();
+
+      final vaccines = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return Vacinas.fromMap(data);
+      }).toList();
+
+      final path =
+          await VaccineCardGenerator.generateVaccineCard(currentPet, vaccines);
+      final result = await OpenFile.open(path, type: 'application/pdf');
+      if (result.type != ResultType.done) throw Exception(result.message);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('Erro ao gerar a carteira: $e'),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 }
 
@@ -245,7 +146,7 @@ class CardVacinas extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
+            MaterialPageRoute<void>(
               builder: (context) =>
                   VaccineScreen(vacina: model, petId: pet.id),
             ),
@@ -352,29 +253,19 @@ class _DateBit extends StatelessWidget {
 class FloatingActionVac extends StatelessWidget {
   final String petId;
 
-  const FloatingActionVac({
-    Key? key,
-    required this.petId,
-  }) : super(key: key);
+  const FloatingActionVac({super.key, required this.petId});
 
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton(
-      onPressed: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddVacPage(petId: petId),
-          ),
-        );
-      },
-      backgroundColor: const Color(0xFF4B39EF),
-      elevation: 8,
-      child: const Icon(
-        Icons.add_rounded,
-        color: Colors.white,
-        size: 28,
+      onPressed: () => Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (context) => AddVacPage(petId: petId)),
       ),
+      backgroundColor: context.colors.accentBlue,
+      foregroundColor: Colors.white,
+      elevation: 2,
+      child: const Icon(Icons.add_rounded, size: 28),
     );
   }
 }
