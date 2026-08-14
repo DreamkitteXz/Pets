@@ -89,6 +89,34 @@ class UserController {
           ));
       }
       return false;
+    } catch (e) {
+      // Workaround bug firebase_auth (PigeonUserDetails): a conta é criada no
+      // Auth mesmo com o erro de decode; grava o doc do usuário via currentUser.
+      final u = firebaseAuth.currentUser;
+      if (u != null) {
+        try {
+          await firebaseDatabase.collection('users').doc(u.uid).set({
+            ...user.toMap(),
+            'id': u.uid,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } catch (_) {}
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: CustomSnackBar(successfulText: 'Conta criada com sucesso!'),
+          backgroundColor: Colors.transparent,
+          behavior: SnackBarBehavior.floating,
+          elevation: 0,
+        ));
+        return true;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: CustomSnackBar(errorText: 'Erro ao criar conta: $e'),
+        backgroundColor: Colors.transparent,
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+      ));
+      return false;
     }
   }
 
@@ -120,6 +148,28 @@ class UserController {
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: CustomSnackBar(errorText: errorMessage),
+        backgroundColor: Colors.transparent,
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+      ));
+      return false;
+    } catch (e) {
+      // Workaround do bug conhecido do firebase_auth (PigeonUserDetails /
+      // 'List<Object?>' is not a subtype). O sign-in nativo ocorre; só o decode
+      // do credential no Dart lança. Se há currentUser, o login teve sucesso.
+      // Correção definitiva: subir para Firebase v3 (firebase_auth ^5).
+      if (firebaseAuth.currentUser != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              CustomSnackBar(successfulText: 'Usuário logado com sucesso!'),
+          backgroundColor: Colors.transparent,
+          behavior: SnackBarBehavior.floating,
+          elevation: 0,
+        ));
+        return true;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: CustomSnackBar(errorText: 'Erro ao entrar: $e'),
         backgroundColor: Colors.transparent,
         behavior: SnackBarBehavior.floating,
         elevation: 0,
