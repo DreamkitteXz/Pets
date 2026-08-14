@@ -5,6 +5,7 @@ import 'package:pet_app/screens/components/logo.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:pet_app/screens/auth/login_screen.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:pet_app/design/design.dart';
 
 class OnBoarding extends StatefulWidget {
   const OnBoarding({super.key});
@@ -18,7 +19,7 @@ class _OnBoardingState extends State<OnBoarding> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: context.colors.surfacePrimary,
         body: Column(
           children: [
             // LOGO NO TOPO
@@ -34,30 +35,17 @@ class _OnBoardingState extends State<OnBoarding> {
 
             // BOTÃO FIXADO NA PARTE INFERIOR
             Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LoginPage(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(27.0),
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              child: AppButton(
+                label: 'Começar',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginPage(),
                     ),
-                    backgroundColor: const Color(0xFF041A23),
-                  ),
-                  child: const Text(
-                    'Começar',
-                    style: TextStyle(fontSize: 18.0),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ],
@@ -120,10 +108,10 @@ class _OnboardingCarouselState extends State<OnboardingCarousel> {
                     const SizedBox(height: 40.0),
                     Text(
                       slide.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24.0,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF062D3E),
+                        color: context.colors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 20.0),
@@ -131,10 +119,10 @@ class _OnboardingCarouselState extends State<OnboardingCarousel> {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Text(
                         slide.description,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16.0,
                           fontWeight: FontWeight.w400,
-                          color: Color(0xFF1F4251),
+                          color: context.colors.textSecondary,
                         ),
                         textAlign: TextAlign.center,
                       ),
