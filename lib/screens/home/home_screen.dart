@@ -5,7 +5,9 @@ import 'package:pet_app/controllers/home/home_controller.dart';
 import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/models/user_model.dart';
 import 'package:pet_app/screens/pets/add_pet.dart';
+import 'package:pet_app/screens/notifications/notifications_screen.dart';
 import 'package:pet_app/screens/pets/pet_information.dart' as pet_info;
+import 'package:pet_app/services/notifications_service.dart';
 import 'package:pet_app/services/pet_assets_service.dart';
 import 'package:pet_app/design/design.dart';
 
@@ -408,27 +410,47 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               ],
             ),
           ),
-          IconButton(
-            onPressed: onNotificationTap,
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(Icons.notifications_none_rounded, color: c.textPrimary),
-                Positioned(
-                  right: -1,
-                  top: -1,
-                  child: Container(
-                    height: 9,
-                    width: 9,
-                    decoration: BoxDecoration(
-                      color: c.accentRed,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: c.surfaceGrouped, width: 1.5),
-                    ),
-                  ),
+          // Badge real: só aparece quando há notificação não lida em
+          // users/{uid}/notifications.
+          StreamBuilder<int>(
+            stream: NotificationsService.instance.unreadCount(),
+            builder: (context, snapshot) {
+              final unread = snapshot.data ?? 0;
+              return IconButton(
+                onPressed: onNotificationTap ??
+                    () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => const NotificationsScreen(),
+                          ),
+                        ),
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                        unread > 0
+                            ? Icons.notifications_rounded
+                            : Icons.notifications_none_rounded,
+                        color: c.textPrimary),
+                    if (unread > 0)
+                      Positioned(
+                        right: -1,
+                        top: -1,
+                        child: Container(
+                          height: 9,
+                          width: 9,
+                          decoration: BoxDecoration(
+                            color: c.accentRed,
+                            shape: BoxShape.circle,
+                            border:
+                                Border.all(color: c.surfaceGrouped, width: 1.5),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
           const SizedBox(width: AppSpacing.xs),
           GestureDetector(
