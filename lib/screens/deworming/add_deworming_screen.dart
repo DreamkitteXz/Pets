@@ -110,9 +110,10 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
       final petData = petDoc.data()!;
       final String dewormingId = gerarVersID();
 
-      // Create deworming document
+      // Create deworming document — coleção canônica é 'deworming' (singular);
+      // 'dewormings' (plural) cai no catch-all das rules (negado). §12.
       DocumentReference dewormingRef =
-          FirebaseFirestore.instance.collection('dewormings').doc(dewormingId);
+          FirebaseFirestore.instance.collection('deworming').doc(dewormingId);
 
       // Create batch for atomic operations
       WriteBatch batch = FirebaseFirestore.instance.batch();
