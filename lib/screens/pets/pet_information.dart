@@ -13,6 +13,12 @@ import 'dart:io';
 import 'package:pet_app/controllers/validacao_controller.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Upload de foto de pet: GATED (§13.5). Hoje o app subia em 'images/pets/',
+/// que a storage.rule NEGA (só 'vaccine-labels/' é liberado). O alvo é
+/// 'pet-photos/', que exige uma rule nova na branch Website. Enquanto a rule
+/// não existir, mantenha `false` — vire `true` quando ela for publicada.
+final bool kPetPhotoUploadEnabled = false;
+
 class PetInformation extends StatelessWidget {
   final Pets pet;
 
@@ -841,9 +847,18 @@ class PetInformation extends StatelessWidget {
   }
 
   Future<void> _uploadPetImage(BuildContext context, XFile pickedFile) async {
+    // GATED (§13.5): sem rule de Storage para foto de pet ainda.
+    if (!kPetPhotoUploadEnabled) {
+      final ctx = NavigationService.navigatorKey.currentContext ?? context;
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(content: Text('Foto de pet estará disponível em breve.')),
+      );
+      return;
+    }
     try {
+      // Path alvo quando a rule 'pet-photos/' existir na branch Website.
       final storageRef = FirebaseStorage.instance.ref().child(
-          'images/pets/${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name}');
+          'pet-photos/${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name}');
       final uploadTask = storageRef.putFile(File(pickedFile.path));
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
