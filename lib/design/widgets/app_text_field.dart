@@ -17,6 +17,7 @@ class AppTextField extends StatelessWidget {
   final int maxLines;
   final void Function(String)? onChanged;
   final bool enabled;
+  final bool readOnly;
   final List<TextInputFormatter>? inputFormatters;
 
   const AppTextField({
@@ -32,6 +33,7 @@ class AppTextField extends StatelessWidget {
     this.maxLines = 1,
     this.onChanged,
     this.enabled = true,
+    this.readOnly = false,
     this.inputFormatters,
   });
 
@@ -56,6 +58,7 @@ class AppTextField extends StatelessWidget {
           validator: validator,
           onChanged: onChanged,
           enabled: enabled,
+          readOnly: readOnly,
           maxLines: obscureText ? 1 : maxLines,
           style: AppTypography.callout.copyWith(color: c.textPrimary),
           inputFormatters: inputFormatters,

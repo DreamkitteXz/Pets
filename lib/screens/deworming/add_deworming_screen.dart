@@ -3,10 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:pet_app/controllers/id_controller.dart';
-import 'package:percent_indicator/percent_indicator.dart';
-import 'package:pet_app/screens/components/snackbar.dart';
+import 'package:pet_app/design/design.dart';
 import 'package:pet_app/firebase/schema.dart';
-import 'package:pet_app/controllers/data_picker.dart';
 import 'deworming_steps/vermifugo_basic_info_step.dart';
 import 'deworming_steps/vermifugo_dates_step.dart';
 import 'deworming_steps/vermifugo_observations_step.dart';
@@ -18,11 +16,10 @@ class AddVermifugoPage extends StatefulWidget {
   const AddVermifugoPage({super.key, required this.petId});
 
   @override
-  _AddVermifugoPageState createState() => _AddVermifugoPageState();
+  State<AddVermifugoPage> createState() => _AddVermifugoPageState();
 }
 
 class _AddVermifugoPageState extends State<AddVermifugoPage> {
-  DateTime? _selectedDate;
   bool _mostrarReforco = false;
 
   // Controladores dos campos que receberão as informações da vacina
@@ -47,6 +44,7 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
   List<Map<String, dynamic>> clinics = [];
 
   int _currentStep = 0;
+  bool _saving = false;
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -89,14 +87,11 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
 
   // Remove the old cadastroVermifugos function and update _submitForm
   Future<void> _submitForm() async {
+    if (_saving) return;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
     try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) =>
-            const Center(child: CircularProgressIndicator()),
-      );
-
       // Get pet data
       final petDoc = await FirebaseFirestore.instance
           .collection('pets')
@@ -193,23 +188,17 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
       // Commit the batch
       await batch.commit();
 
-      Navigator.pop(context); // Close loading dialog
-      Navigator.pop(context); // Return to previous screen
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:
-            CustomSnackBar(successfulText: 'Vermífugo adicionado com sucesso!'),
-        backgroundColor: Colors.transparent,
+      navigator.pop();
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Vermífugo registrado. Aguardando validação do '
+            'veterinário.'),
         behavior: SnackBarBehavior.floating,
-        elevation: 0,
       ));
     } catch (e) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: CustomSnackBar(errorText: 'Erro ao adicionar vermífugo: $e'),
-        backgroundColor: Colors.transparent,
+      if (mounted) setState(() => _saving = false);
+      messenger.showSnackBar(SnackBar(
+        content: Text('Erro ao adicionar vermífugo: $e'),
         behavior: SnackBarBehavior.floating,
-        elevation: 0,
       ));
     }
   }
@@ -282,102 +271,20 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
 
   @override
   Widget build(BuildContext context) {
-    double progress = (_currentStep + 1) / _buildSteps().length;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF041A23),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.grey),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: LinearPercentIndicator(
-          width: MediaQuery.of(context).size.width - 100,
-          lineHeight: 8.0,
-          percent: progress,
-          backgroundColor: Colors.grey.shade200,
-          progressColor: const Color(0xFF58CC02),
-          barRadius: const Radius.circular(8),
-        ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  child: _buildSteps()[_currentStep].content,
-                ),
-              ),
-            ),
-            _buildBottomBar(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          if (_currentStep > 0)
-            Expanded(
-              flex: 1,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade200,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () => setState(() => _currentStep--),
-                child: const Icon(Icons.arrow_back, color: Colors.grey),
-              ),
-            ),
-          if (_currentStep > 0) const SizedBox(width: 12),
-          Expanded(
-            flex: 4,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF041A23),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () => _validateStep(),
-              child: Text(
-                _currentStep == _buildSteps().length - 1
-                    ? 'FINALIZAR'
-                    : 'CONTINUAR',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    final steps = _buildSteps();
+    return WizardShell(
+      title: 'Novo vermífugo',
+      currentStep: _currentStep,
+      totalSteps: steps.length,
+      stepTitle: (steps[_currentStep].title as Text).data ?? '',
+      onBack: _currentStep == 0
+          ? null
+          : () => setState(() => _currentStep--),
+      onNext: _validateStep,
+      isLastStep: _currentStep == steps.length - 1,
+      busy: _saving,
+      formKey: _formKey,
+      child: steps[_currentStep].content,
     );
   }
 

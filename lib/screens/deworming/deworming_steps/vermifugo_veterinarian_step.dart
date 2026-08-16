@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pet_app/screens/components/text_input_auth.dart';
+import 'package:pet_app/design/design.dart';
 
 class VermifugoVeterinarianStep extends StatelessWidget {
   final String? selectedVetId;
@@ -9,57 +9,66 @@ class VermifugoVeterinarianStep extends StatelessWidget {
   final Function(String) onVetSelected;
 
   const VermifugoVeterinarianStep({
-    Key? key,
+    super.key,
     required this.selectedVetId,
     required this.nameController,
     required this.crmvController,
     required this.veterinarians,
     required this.onVetSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
+    final c = context.colors;
+
+    if (veterinarians.isEmpty) {
+      return Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30.0),
-            child: DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: 'Selecione o Veterinário',
-                border: OutlineInputBorder(),
-              ),
-              value: selectedVetId,
-              items: veterinarians.map<DropdownMenuItem<String>>((vet) {
-                return DropdownMenuItem<String>(
-                  value: vet['id'] as String,
-                  child: Text(vet['name'] ?? ''),
-                );
-              }).toList(),
-              onChanged: (String? vetId) {
-                if (vetId != null) {
-                  onVetSelected(vetId);
-                }
-              },
+          Icon(Icons.info_outline_rounded, size: 20, color: c.textTertiary),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              'Nenhum veterinário ativo disponível no momento.',
+              style: AppTypography.callout.copyWith(color: c.textSecondary),
             ),
           ),
-          const SizedBox(height: 20.0),
-          TextInput(
-            inputTitle: 'Nome',
-            controller: nameController,
-            textInputType: TextInputType.name,
-            readOnly: true,
-          ),
-          const SizedBox(height: 20.0),
-          TextInput(
-            inputTitle: 'CRMV',
-            controller: crmvController,
-            textInputType: TextInputType.number,
-            readOnly: true,
-          ),
         ],
-      ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Veterinário',
+            style: AppTypography.subhead.copyWith(color: c.textSecondary)),
+        const SizedBox(height: AppSpacing.sm),
+        DropdownButtonFormField<String>(
+          initialValue: selectedVetId,
+          hint: const Text('Selecione'),
+          items: veterinarians.map<DropdownMenuItem<String>>((vet) {
+            return DropdownMenuItem<String>(
+              value: vet['id'] as String,
+              child: Text(vet['name'] as String? ?? ''),
+            );
+          }).toList(),
+          onChanged: (vetId) {
+            if (vetId != null) onVetSelected(vetId);
+          },
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        // Nome e CRMV vêm do cadastro do vet — só leitura.
+        AppTextField(
+          controller: nameController,
+          label: 'Nome',
+          readOnly: true,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
+          controller: crmvController,
+          label: 'CRMV',
+          readOnly: true,
+        ),
+      ],
     );
   }
 }

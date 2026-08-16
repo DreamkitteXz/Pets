@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_app/design/design.dart';
 
 class VermifugoBasicInfoStep extends StatelessWidget {
   final TextEditingController vermifugoController;
@@ -19,57 +20,30 @@ class VermifugoBasicInfoStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Informações do Vermífugo',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF041A23),
-          ),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
+        // O título da etapa vem do WizardShell — aqui só os campos.
+        AppTextField(
           controller: vermifugoController,
-          decoration: InputDecoration(
-            labelText: 'Nome do Vermífugo',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+          label: 'Nome do vermífugo',
           validator: (value) =>
-              value?.isEmpty ?? true ? 'Campo obrigatório' : null,
+              (value?.isEmpty ?? true) ? 'Campo obrigatório' : null,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
           controller: pesoController,
-          decoration: InputDecoration(
-            labelText: 'Peso do Pet',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+          label: 'Peso do pet (kg)',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator: (value) =>
-              value?.isEmpty ?? true ? 'Campo obrigatório' : null,
+              (value?.isEmpty ?? true) ? 'Campo obrigatório' : null,
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
           controller: manufacturerController,
-          decoration: InputDecoration(
-            labelText: 'Fabricante',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+          label: 'Fabricante',
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
           controller: dosageController,
-          decoration: InputDecoration(
-            labelText: 'Dosagem',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+          label: 'Dosagem',
         ),
       ],
     );

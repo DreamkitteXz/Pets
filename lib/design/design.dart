@@ -15,3 +15,4 @@ export 'widgets/app_scaffold.dart';
 export 'widgets/app_state_views.dart';
 export 'widgets/app_text_field.dart';
 export 'widgets/status_chip.dart';
+export 'widgets/wizard_shell.dart';

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_app/design/design.dart';
 
 class VermifugoObservationsStep extends StatelessWidget {
   final TextEditingController effectivenessNotesController;
@@ -15,26 +16,17 @@ class VermifugoObservationsStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextFormField(
+        AppTextField(
           controller: effectivenessNotesController,
+          label: 'Notas de efetividade',
+          hint: 'Como o pet reagiu ao vermífugo',
           maxLines: 3,
-          decoration: InputDecoration(
-            labelText: 'Notas de Efetividade',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
         ),
-        const SizedBox(height: 16),
-        TextFormField(
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
           controller: observationsController,
+          label: 'Observações gerais',
           maxLines: 3,
-          decoration: InputDecoration(
-            labelText: 'Observações Gerais',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
         ),
       ],
     );

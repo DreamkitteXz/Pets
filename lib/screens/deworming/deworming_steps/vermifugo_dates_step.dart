@@ -20,15 +20,7 @@ class VermifugoDatesStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Datas de Aplicação',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF041A23),
-          ),
-        ),
-        const SizedBox(height: 16),
+        // O título da etapa vem do WizardShell — aqui só os campos.
         DatePickerInput(
           inputTitle: 'Data da Primeira Dose',
           controller: primeiraDoseController,
