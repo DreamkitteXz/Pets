@@ -17,7 +17,7 @@ class PetRepository {
   }
 
   Future<void> removePet(Pets pet) async {
-    if (pet.id == null) return;
+    if (pet.id.isEmpty) return;
     await _firestore.collection('pets').doc(pet.id).delete();
   }
 

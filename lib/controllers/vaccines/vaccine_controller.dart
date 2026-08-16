@@ -108,8 +108,10 @@ class VaccineController {
 
   /// Returns a stream of vaccines for a given pet.
   Stream<List<Vacinas>> vaccinesStreamForPet(String petId) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return Stream.value(const <Vacinas>[]);
     return _repository
-        .vaccinesStreamByPet(petId)
+        .vaccinesStreamByPet(petId, ownerId: uid)
         .map((list) => list.map((data) {
               data['id'] ??= '';
               return Vacinas.fromMap(data);

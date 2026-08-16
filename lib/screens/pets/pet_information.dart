@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -39,16 +40,24 @@ class PetInformation extends StatefulWidget {
 class _PetInformationState extends State<PetInformation> {
   Pets get pet => widget.pet;
 
-  // Consultas de campo único (petId): não exigem índice composto.
+  // O filtro por ownerId é o que torna a consulta aceitável para a rule:
+  // `vaccines`/`deworming` liberam leitura com `isVet() || isOwner()`, e o
+  // Firestore valida rules de query contra a QUERY. Só com `petId` a consulta
+  // inteira é recusada (PERMISSION_DENIED). Duas igualdades não pedem índice
+  // composto.
+  late final String? _uid = FirebaseAuth.instance.currentUser?.uid;
+
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _vaccinesStream =
       FirebaseFirestore.instance
           .collection('vaccines')
+          .where('ownerId', isEqualTo: _uid)
           .where('petId', isEqualTo: pet.id)
           .snapshots();
 
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _dewormingStream =
       FirebaseFirestore.instance
           .collection('deworming')
+          .where('ownerId', isEqualTo: _uid)
           .where('petId', isEqualTo: pet.id)
           .snapshots();
 

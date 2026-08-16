@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/models/deworming_model.dart';
@@ -27,11 +28,20 @@ class VermifugosPage extends StatelessWidget {
       floatingActionButton: FloatingActionVermifugo(petId: pet.id),
       body: StreamBuilder<QuerySnapshot>(
         // Coleção canônica 'deworming' (singular) — alinhada às rules/web.
+        // O `ownerId` é obrigatório na query: a rule libera com
+        // `isVet() || isOwner()` e o Firestore valida rules de query contra a
+        // QUERY. Só com `petId` a consulta é recusada por inteiro.
         stream: FirebaseFirestore.instance
             .collection('deworming')
+            .where('ownerId',
+                isEqualTo: FirebaseAuth.instance.currentUser?.uid)
             .where('petId', isEqualTo: pet.id)
             .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const AppErrorState(
+                message: 'Não foi possível carregar os vermífugos deste pet.');
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const AppLoading();
           }

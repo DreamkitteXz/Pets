@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
 
@@ -80,8 +81,10 @@ class PetsVaccinesScreen extends StatelessWidget {
   Future<void> _exportCard(BuildContext context, Pets currentPet) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
+      // `ownerId` é exigido pela rule de query (ver VaccineRepository).
       final snapshot = await FirebaseFirestore.instance
           .collection('vaccines')
+          .where('ownerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
           .where('petId', isEqualTo: currentPet.id)
           .get();
 

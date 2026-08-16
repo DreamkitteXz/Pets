@@ -37,10 +37,21 @@ class VaccineRepository {
     }).toList();
   }
 
-  /// Returns a stream of vaccine maps for a given pet.
-  Stream<List<Map<String, dynamic>>> vaccinesStreamByPet(String petId) {
+  /// Vacinas de um pet.
+  ///
+  /// O filtro por [ownerId] NÃO é redundante: a rule de `vaccines` libera
+  /// leitura com `isVet() || isOwner()`, e o Firestore avalia rules de query
+  /// contra a QUERY, não contra os documentos. Sem um `where` em `ownerId`
+  /// (ou `veterinarianId`) o servidor não consegue provar que todo resultado
+  /// é permitido e recusa a consulta inteira com PERMISSION_DENIED.
+  /// Dois filtros de igualdade não exigem índice composto.
+  Stream<List<Map<String, dynamic>>> vaccinesStreamByPet(
+    String petId, {
+    required String ownerId,
+  }) {
     return _firestore
         .collection('vaccines')
+        .where('ownerId', isEqualTo: ownerId)
         .where('petId', isEqualTo: petId)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) {
