@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pet_app/models/pet_model.dart';
-import 'package:pet_app/screens/add/add_screen.dart';
 import 'package:pet_app/screens/auth/login_screen.dart';
 import 'package:pet_app/screens/pets/add_pet.dart';
 import 'package:pet_app/screens/home/home_screen.dart';
@@ -57,7 +56,7 @@ class _HomeScreenPageState extends State<HomeScreenPage>
       userData: null, // agora passa Users? (null inicialmente)
     );
     _pages[1] = const VacinasScreen();
-    _pages[2] = const AddScreen();
+    // O índice 2 é o botão central de adicionar — não tem página própria.
     _pages[3] = const PetsScreen(pets: []);
     _pages[4] = ProfileScreen(
       user: widget.user,
