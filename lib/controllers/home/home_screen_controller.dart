@@ -5,7 +5,6 @@ import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/models/vaccine_model.dart';
 import 'package:pet_app/repositories/pet_repository.dart';
 import 'package:pet_app/repositories/vaccine_repository.dart';
-import 'package:pet_app/repositories/user_repository.dart';
 
 class HomeScreenController {
   final User user;
@@ -69,10 +68,10 @@ class HomeScreenController {
   Future<Map<String, dynamic>?> fetchUserDocument() async {
     try {
       final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (doc.exists) return doc.data() as Map<String, dynamic>?;
+      if (doc.exists) return doc.data();
       return null;
     } catch (e) {
-      print('Erro ao buscar documento do usuário: $e');
+      debugPrint('Erro ao buscar documento do usuário: $e');
       return null;
     }
   }

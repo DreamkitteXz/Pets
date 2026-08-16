@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pet_app/models/pet_model.dart';
+import 'package:pet_app/utils/firestore_date.dart';
 import 'package:async/async.dart';
 
 class HomeController {
@@ -37,11 +38,9 @@ class HomeController {
       // Vaccines (filtra nextDueDate > now se existir)
       for (final doc in vacsSnap.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        final Timestamp? ts =
-            (data['nextDueDate'] as Timestamp?) ?? (data['date'] as Timestamp?);
-        if (ts == null) continue;
-        final DateTime dt = ts.toDate();
-        if (dt.isBefore(now)) continue;
+        final DateTime? dt = readFirestoreDate(data['nextDueDate']) ??
+            readFirestoreDate(data['date']);
+        if (dt == null || dt.isBefore(now)) continue;
         activities.add({
           'type': 'vaccine',
           'title': data['name'] ?? data['vaccineName'] ?? 'Vacina',
@@ -55,10 +54,8 @@ class HomeController {
       // Deworming
       for (final doc in dewsSnap.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        final Timestamp? ts = data['nextDueDate'] as Timestamp?;
-        if (ts == null) continue;
-        final DateTime dt = ts.toDate();
-        if (dt.isBefore(now)) continue;
+        final DateTime? dt = readFirestoreDate(data['nextDueDate']);
+        if (dt == null || dt.isBefore(now)) continue;
         activities.add({
           'type': 'deworming',
           'title': data['name'] ?? 'Vermífugo',

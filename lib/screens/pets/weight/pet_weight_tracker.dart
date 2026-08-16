@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:pet_app/design/design.dart';
 import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/repositories/pet_weight_repository.dart';
+import 'package:pet_app/utils/firestore_date.dart';
 
 /// Registro de peso pelo TUTOR: GATED (§13.4). A rule de `pets/{petId}` libera
 /// as subcoleções do prontuário (`{record=**}`, o que inclui `weights`) para
@@ -41,14 +41,19 @@ class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
   final PetWeightRepository _weightRepo = PetWeightRepository();
   _Period _period = _Period.month;
 
-  late final Stream<List<WeightRecord>> _stream = _weightRepo
-      .weightsStream(widget.pet.id)
-      .map((rows) => rows
-          .map((data) => WeightRecord(
-                (data['date'] as Timestamp).toDate(),
-                (data['weight'] as num).toDouble(),
-              ))
-          .toList());
+  // Pesagens com data ou peso ilegíveis são descartadas em vez de derrubarem
+  // o stream inteiro.
+  late final Stream<List<WeightRecord>> _stream =
+      _weightRepo.weightsStream(widget.pet.id).map((rows) {
+    final records = <WeightRecord>[];
+    for (final data in rows) {
+      final date = readFirestoreDate(data['date']);
+      final weight = data['weight'];
+      if (date == null || weight is! num) continue;
+      records.add(WeightRecord(date, weight.toDouble()));
+    }
+    return records;
+  });
 
   void _toast(String message) {
     if (!mounted) return;

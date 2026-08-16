@@ -12,6 +12,7 @@ import 'package:pet_app/screens/deworming/pet_dewormings_screen.dart';
 import 'package:pet_app/screens/pets/weight/pet_weight_tracker.dart';
 import 'package:pet_app/screens/vaccines/pets_vaccines_screen.dart';
 import 'package:pet_app/services/pet_assets_service.dart';
+import 'package:pet_app/utils/firestore_date.dart';
 import 'package:pet_app/utils/gender_utils.dart';
 import 'package:pet_app/utils/species_utils.dart';
 
@@ -721,11 +722,8 @@ class _UpcomingSection extends StatelessWidget {
     required this.dewormingStream,
   });
 
-  static DateTime? _readDate(Map<String, dynamic> data, String field) {
-    final value = data[field];
-    if (value is Timestamp) return value.toDate();
-    return null;
-  }
+  static DateTime? _readDate(Map<String, dynamic> data, String field) =>
+      readFirestoreDate(data[field]);
 
   @override
   Widget build(BuildContext context) {
