@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:pet_app/screens/components/text_input_auth.dart';
-import 'package:pet_app/controllers/data_picker.dart';
+import 'package:intl/intl.dart';
+
+import 'package:pet_app/design/design.dart';
+
+/// Formato único das datas do wizard. Os pickers gravavam
+/// "${day}/${month}/${year}" sem zero à esquerda ("5/3/2026"), o que quebrava
+/// a conversão para Timestamp na hora de salvar.
+final DateFormat kWizardDateFormat = DateFormat('dd/MM/yyyy');
 
 class VaccineStep extends StatelessWidget {
   final TextEditingController vacinaController;
@@ -16,7 +22,7 @@ class VaccineStep extends StatelessWidget {
   final void Function(Map<String, dynamic> vaccine)? onVaccineSelected;
 
   const VaccineStep({
-    Key? key,
+    super.key,
     required this.vacinaController,
     required this.dataAplicadaController,
     required this.proximaAplicacaoController,
@@ -28,513 +34,204 @@ class VaccineStep extends StatelessWidget {
     this.availableVaccines = const [],
     this.isLoadingVaccines = false,
     this.onVaccineSelected,
-  }) : super(key: key);
-
-  // Método para criar o InputDecoration padrão baseado na imagem
-  static InputDecoration _buildInputDecoration({
-    required String labelText,
-    String? hintText,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      labelText: labelText,
-      hintText: hintText,
-      labelStyle: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w500,
-        color: Color(0xFF333333),
-      ),
-      hintStyle: const TextStyle(
-        fontSize: 16,
-        color: Color(0xFF999999),
-      ),
-      suffixIcon: suffixIcon,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(
-          color: Color(0xFFE0E0E0),
-          width: 1.5,
-        ),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(
-          color: Color(0xFFE0E0E0),
-          width: 1.5,
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(
-          color: Color(0xFFFBAD36),
-          width: 2.0,
-        ),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(
-          color: Colors.red,
-          width: 1.5,
-        ),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(
-          color: Colors.red,
-          width: 2.0,
-        ),
-      ),
-      filled: true,
-      fillColor: Colors.white,
-    );
-  }
-
-  // Widget personalizado para campos de texto
-  Widget _buildCustomTextField({
-    required String labelText,
-    required TextEditingController controller,
-    String? hintText,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-    Widget? suffixIcon,
-    int maxLines = 1,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          labelText,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          validator: validator,
-          maxLines: maxLines,
-          style: const TextStyle(
-            fontSize: 16,
-            color: Color(0xFF333333),
-          ),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF999999),
-            ),
-            suffixIcon: suffixIcon,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFE0E0E0),
-                width: 1.5,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFE0E0E0),
-                width: 1.5,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFFBAD36),
-                width: 2.0,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 1.5,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 2.0,
-              ),
-            ),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Widget personalizado para campos de data
-  Widget _buildDateField({
-    required String labelText,
-    required TextEditingController controller,
-    String? hintText,
-    String? Function(String?)? validator,
-    VoidCallback? onTap,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          labelText,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          validator: validator,
-          readOnly: true,
-          onTap: onTap,
-          style: const TextStyle(
-            fontSize: 16,
-            color: Color(0xFF333333),
-          ),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF999999),
-            ),
-            suffixIcon: Container(
-              padding: const EdgeInsets.all(12),
-              child: Icon(
-                Icons.calendar_month_outlined,
-                color: Color(0xFF666666),
-                size: 24,
-              ),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFE0E0E0),
-                width: 1.5,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFE0E0E0),
-                width: 1.5,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFFBAD36),
-                width: 2.0,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 1.5,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 2.0,
-              ),
-            ),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Widget personalizado para dropdown
-  Widget _buildDropdownField({
-    required String labelText,
-    required String? value,
-    required List<DropdownMenuItem<String>> items,
-    required void Function(String?) onChanged,
-    String? Function(String?)? validator,
-    String? hintText,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          labelText,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
-          ),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-          validator: validator,
-          style: const TextStyle(
-            fontSize: 16,
-            color: Color(0xFF333333),
-          ),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF999999),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFE0E0E0),
-                width: 1.5,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFE0E0E0),
-                width: 1.5,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFFBAD36),
-                width: 2.0,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 1.5,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 2.0,
-              ),
-            ),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    final c = context.colors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Preencha os dados da vacina aplicada, incluindo o peso atual do pet.',
+          style: AppTypography.footnote.copyWith(color: c.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        if (isLoadingVaccines)
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              'Preencha os dados da vacina aplicada, incluindo o peso atual do pet.',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: AppLoading(),
+          )
+        else
+          _Labeled(
+            label: 'Vacina',
+            child: DropdownButtonFormField<String>(
+              initialValue: vacinaController.text.isNotEmpty
+                  ? vacinaController.text
+                  : null,
+              hint: const Text('Selecione a vacina'),
+              isExpanded: true,
+              items: availableVaccines.map((vaccine) {
+                return DropdownMenuItem<String>(
+                  value: vaccine['name'] as String?,
+                  child: Text(vaccine['name'] as String? ?? ''),
+                );
+              }).toList(),
+              onChanged: (value) {
+                final selected = availableVaccines.firstWhere(
+                  (v) => v['name'] == value,
+                  orElse: () => <String, dynamic>{},
+                );
+                vacinaController.text = value ?? '';
+                farmaceuticaController.text =
+                    selected['manufacturer'] as String? ?? '';
+                onVaccineSelected?.call(selected);
+              },
+              validator: (value) => (value == null || value.isEmpty)
+                  ? 'Selecione a vacina'
+                  : null,
             ),
           ),
+        const SizedBox(height: AppSpacing.lg),
+        _DateField(
+          label: 'Data aplicada',
+          hint: 'Quando a vacina foi aplicada',
+          controller: dataAplicadaController,
+          firstDate: DateTime(2000),
+          lastDate: DateTime.now(),
+          initialDate: DateTime.now(),
+          validatorMessage: 'Selecione a data de aplicação',
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _DateField(
+          label: 'Próxima aplicação',
+          hint: 'Quando vence a próxima dose',
+          controller: proximaAplicacaoController,
+          firstDate: DateTime.now(),
+          lastDate: DateTime(DateTime.now().year + 10),
+          initialDate: DateTime.now().add(const Duration(days: 30)),
+          validatorMessage: 'Selecione a data da próxima aplicação',
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
+          controller: pesoController,
+          label: 'Peso do pet (kg)',
+          hint: 'Ex.: 10,5',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          validator: (value) => (value == null || value.trim().isEmpty)
+              ? 'Informe o peso do pet'
+              : null,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
+          controller: loteController,
+          label: 'Lote',
+          hint: 'Número do lote da vacina',
+          validator: (value) => (value == null || value.trim().isEmpty)
+              ? 'Informe o lote da vacina'
+              : null,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
+          controller: farmaceuticaController,
+          label: 'Farmacêutica',
+          hint: 'Fabricante da vacina',
+          validator: (value) => (value == null || value.trim().isEmpty)
+              ? 'Informe a farmacêutica'
+              : null,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _DateField(
+          label: 'Data de validade',
+          hint: 'Validade impressa no frasco',
+          controller: dataValidadeController,
+          firstDate: DateTime.now(),
+          lastDate: DateTime(DateTime.now().year + 10),
+          initialDate: DateTime.now().add(const Duration(days: 365)),
+          validatorMessage: 'Selecione a data de validade',
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
+          controller: observacoesController,
+          label: 'Observações (opcional)',
+          hint: 'Algo que o veterinário precise saber',
+          keyboardType: TextInputType.multiline,
+          maxLines: 3,
+        ),
+      ],
+    );
+  }
+}
 
-          // Campo Vacina (Dropdown)
-          isLoadingVaccines
-              ? const CircularProgressIndicator()
-              : _buildDropdownField(
-                  labelText: 'Vacina',
-                  value: vacinaController.text.isNotEmpty
-                      ? vacinaController.text
-                      : null,
-                  hintText: 'Selecione a vacina',
-                  items: availableVaccines.map((vaccine) {
-                    return DropdownMenuItem<String>(
-                      value: vaccine['name'],
-                      child: Text(vaccine['name']),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    final selected = availableVaccines.firstWhere(
-                      (v) => v['name'] == value,
-                      orElse: () => {},
-                    );
-                    vacinaController.text = value ?? '';
-                    farmaceuticaController.text =
-                        selected['manufacturer'] ?? '';
-                    if (onVaccineSelected != null) {
-                      onVaccineSelected!(selected);
-                    }
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor, selecione a vacina';
-                    }
-                    return null;
-                  },
-                ),
+class _Labeled extends StatelessWidget {
+  final String label;
+  final Widget child;
+  const _Labeled({required this.label, required this.child});
 
-          const SizedBox(height: 20),
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: AppTypography.subhead
+                .copyWith(color: context.colors.textSecondary)),
+        const SizedBox(height: AppSpacing.sm),
+        child,
+      ],
+    );
+  }
+}
 
-          // Campo Data Aplicada
-          _buildDateField(
-            labelText: 'Data aplicada',
-            controller: dataAplicadaController,
-            hintText: 'Selecione a data de aplicação',
-            onTap: () async {
-              final DateTime? picked = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now(),
-                firstDate: DateTime(2000),
-                lastDate: DateTime.now(),
-              );
-              if (picked != null) {
-                dataAplicadaController.text =
-                    "${picked.day}/${picked.month}/${picked.year}";
-              }
-            },
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor, selecione a data de aplicação';
-              }
-              return null;
-            },
-          ),
+class _DateField extends StatelessWidget {
+  final String label;
+  final String hint;
+  final TextEditingController controller;
+  final DateTime firstDate;
+  final DateTime lastDate;
+  final DateTime initialDate;
+  final String validatorMessage;
 
-          const SizedBox(height: 20),
+  const _DateField({
+    required this.label,
+    required this.hint,
+    required this.controller,
+    required this.firstDate,
+    required this.lastDate,
+    required this.initialDate,
+    required this.validatorMessage,
+  });
 
-          // Campo Próxima Aplicação
-          _buildDateField(
-            labelText: 'Próxima aplicação',
-            controller: proximaAplicacaoController,
-            hintText: 'Selecione a data da próxima dose',
-            onTap: () async {
-              final DateTime? picked = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now().add(Duration(days: 30)),
-                firstDate: DateTime.now(),
-                lastDate: DateTime(2030),
-              );
-              if (picked != null) {
-                proximaAplicacaoController.text =
-                    "${picked.day}/${picked.month}/${picked.year}";
-              }
-            },
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor, selecione a data da próxima aplicação';
-              }
-              return null;
-            },
-          ),
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return _Labeled(
+      label: label,
+      child: TextFormField(
+        controller: controller,
+        readOnly: true,
+        style: AppTypography.callout.copyWith(color: c.textPrimary),
+        decoration: InputDecoration(
+          hintText: hint,
+          suffixIcon: Icon(Icons.calendar_month_rounded,
+              size: 20, color: c.textTertiary),
+        ),
+        validator: (value) =>
+            (value == null || value.isEmpty) ? validatorMessage : null,
+        onTap: () async {
+          DateTime seed = initialDate;
+          if (controller.text.isNotEmpty) {
+            try {
+              seed = kWizardDateFormat.parse(controller.text);
+            } catch (_) {
+              // Texto inválido: cai no initialDate.
+            }
+          }
+          if (seed.isBefore(firstDate)) seed = firstDate;
+          if (seed.isAfter(lastDate)) seed = lastDate;
 
-          const SizedBox(height: 20),
-
-          // Campo Peso
-          _buildCustomTextField(
-            labelText: 'Peso',
-            controller: pesoController,
-            hintText: 'Ex: 10.5 kg',
-            keyboardType: TextInputType.numberWithOptions(decimal: true),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor, insira o peso do pet';
-              }
-              return null;
-            },
-          ),
-
-          const SizedBox(height: 20),
-
-          // Campo Lote
-          _buildCustomTextField(
-            labelText: 'Lote',
-            controller: loteController,
-            hintText: 'Número do lote da vacina',
-            keyboardType: TextInputType.text,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor, insira o lote da vacina';
-              }
-              return null;
-            },
-          ),
-
-          const SizedBox(height: 20),
-
-          // Campo Farmacêutica
-          _buildCustomTextField(
-            labelText: 'Farmacêutica',
-            controller: farmaceuticaController,
-            hintText: 'Nome da farmacêutica',
-            keyboardType: TextInputType.text,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor, insira o nome da farmacêutica';
-              }
-              return null;
-            },
-          ),
-
-          const SizedBox(height: 20),
-
-          // Campo Data de Validade
-          _buildDateField(
-            labelText: 'Data de Validade',
-            controller: dataValidadeController,
-            hintText: 'Selecione a data de validade',
-            onTap: () async {
-              final DateTime? picked = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now().add(Duration(days: 365)),
-                firstDate: DateTime.now(),
-                lastDate: DateTime(2030),
-              );
-              if (picked != null) {
-                dataValidadeController.text =
-                    "${picked.day}/${picked.month}/${picked.year}";
-              }
-            },
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor, selecione a data de validade';
-              }
-              return null;
-            },
-          ),
-
-          const SizedBox(height: 20),
-
-          // Campo Observações
-          _buildCustomTextField(
-            labelText: 'Observações',
-            controller: observacoesController,
-            hintText: 'Observações adicionais (opcional)',
-            keyboardType: TextInputType.multiline,
-            maxLines: 3,
-          ),
-        ],
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: seed,
+            firstDate: firstDate,
+            lastDate: lastDate,
+            helpText: label,
+          );
+          if (picked != null) {
+            controller.text = kWizardDateFormat.format(picked);
+          }
+        },
       ),
     );
   }

@@ -6,87 +6,14 @@ import 'package:pet_app/controllers/vaccines/vaccine_controller.dart';
 import 'package:pet_app/screens/vaccines/vaccine_steps/veterinarian_step.dart';
 import 'package:pet_app/screens/vaccines/vaccine_steps/label_step.dart';
 import 'package:pet_app/screens/vaccines/vaccine_steps/clinic_step.dart';
-import 'package:percent_indicator/percent_indicator.dart';
 import 'package:pet_app/screens/vaccines/vaccine_steps/vaccine_step.dart';
-import 'package:pet_app/screens/components/snackbar.dart';
+import 'package:pet_app/design/design.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// NOVO COMPONENTE: ProgressAppBar
-class ProgressAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String title;
-  final int currentStep;
-  final int totalSteps;
-  final VoidCallback? onBackPressed;
-  final Color progressColor;
-  final Color inactiveColor;
-
-  const ProgressAppBar({
-    Key? key,
-    required this.title,
-    required this.currentStep,
-    required this.totalSteps,
-    this.onBackPressed,
-    this.progressColor = const Color(0xFFFBAD36),
-    this.inactiveColor = const Color(0xFFE0E0E0),
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(
-          Icons.arrow_back_ios,
-          color: Colors.black54,
-          size: 20,
-        ),
-        onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: Colors.black,
-          fontSize: 18,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      centerTitle: true,
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            children: List.generate(
-              totalSteps,
-              (index) => Expanded(
-                child: Container(
-                  height: 4,
-                  margin: EdgeInsets.only(
-                    right: index < totalSteps - 1 ? 8 : 0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: index < currentStep ? progressColor : inactiveColor,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 20);
-}
-
-// ignore: must_be_immutable
 class AddVacPage extends StatefulWidget {
-  String petId;
-  AddVacPage({super.key, required this.petId});
+  final String petId;
+  const AddVacPage({super.key, required this.petId});
 
   @override
   State<AddVacPage> createState() => _AddVacPageState();
@@ -145,6 +72,7 @@ class _AddVacPageState extends State<AddVacPage> {
   final TextEditingController _tutorContactController = TextEditingController();
 
   int _currentStep = 0;
+  bool _saving = false;
 
   String? selectedClinicId;
   List<Map<String, dynamic>> clinics = [];
@@ -283,7 +211,7 @@ class _AddVacPageState extends State<AddVacPage> {
           });
         }
       } catch (e) {
-        print('Error fetching clinic data: $e');
+        debugPrint('Error fetching clinic data: $e');
       }
     }
   }
@@ -438,9 +366,8 @@ class _AddVacPageState extends State<AddVacPage> {
             DropdownButtonFormField<String?>(
               decoration: const InputDecoration(
                 labelText: 'Selecione a Clínica',
-                border: OutlineInputBorder(),
               ),
-              value: selectedClinicId,
+              initialValue: selectedClinicId,
               items: [
                 const DropdownMenuItem<String?>(
                   value: null,
@@ -474,7 +401,14 @@ class _AddVacPageState extends State<AddVacPage> {
     ];
   }
 
-  void _validateStep() async {
+  void _toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  void _validateStep() {
     switch (_currentStep) {
       case 0: // Vaccine step
         if (_formKey.currentState?.validate() ?? false) {
@@ -483,33 +417,19 @@ class _AddVacPageState extends State<AddVacPage> {
         break;
       case 1: // Label step
         if (imageURL.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: CustomSnackBar(
-                errorText: 'Por favor, faça o upload da imagem do rótulo'),
-            backgroundColor: Colors.transparent,
-            behavior: SnackBarBehavior.floating,
-            elevation: 0,
-          ));
+          _toast('Faça o upload da foto do rótulo.');
         } else {
           setState(() => _currentStep += 1);
         }
         break;
       case 2: // Veterinarian step
         if (selectedVetId == null) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: CustomSnackBar(
-                errorText: 'Por favor, selecione um veterinário'),
-            backgroundColor: Colors.transparent,
-            behavior: SnackBarBehavior.floating,
-            elevation: 0,
-          ));
+          _toast('Selecione um veterinário.');
         } else {
           setState(() => _currentStep += 1);
         }
         break;
       case 3: // Clinic step
-        print("SubmitForm: $_currentStep");
-
         _submitForm();
         break;
       default:
@@ -535,136 +455,50 @@ class _AddVacPageState extends State<AddVacPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        // SUBSTITUIÇÃO DA APPBAR ANTIGA PELA NOVA ProgressAppBar
-        appBar: ProgressAppBar(
-          title: _getStepTitle(),
-          currentStep: _currentStep + 1, // +1 porque o progresso começa em 1
-          totalSteps: _buildSteps().length,
-          progressColor: const Color(0xFFFBAD36), // Cor especificada
-          onBackPressed: () {
-            if (_currentStep > 0) {
-              setState(() {
-                _currentStep -= 1;
-              });
-            } else {
-              Navigator.pop(context);
-            }
-          },
-        ),
-        body: Form(
-          // Move Form widget here to wrap all content
-          key: _formKey,
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        child: _buildSteps()[_currentStep].content,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      spreadRadius: 1,
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    if (_currentStep > 0)
-                      Expanded(
-                        flex: 1,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade200,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _currentStep -= 1;
-                            });
-                          },
-                          child:
-                              const Icon(Icons.arrow_back, color: Colors.grey),
-                        ),
-                      ),
-                    if (_currentStep > 0) const SizedBox(width: 12),
-                    Expanded(
-                      flex: 4,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF041A23),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: _validateStep,
-                        child: Text(
-                          _currentStep == _buildSteps().length - 1
-                              ? 'FINALIZAR'
-                              : 'CONTINUAR',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final steps = _buildSteps();
+    return WizardShell(
+      title: 'Nova vacina',
+      stepTitle: _getStepTitle(),
+      currentStep: _currentStep,
+      totalSteps: steps.length,
+      onBack:
+          _currentStep == 0 ? null : () => setState(() => _currentStep -= 1),
+      onNext: _validateStep,
+      isLastStep: _currentStep == steps.length - 1,
+      busy: _saving,
+      formKey: _formKey,
+      child: steps[_currentStep].content,
     );
   }
 
-  void _submitForm() async {
-    print("SubmitForm");
+  /// Datas dos campos chegam como texto dd/MM/yyyy. O restante do sistema
+  /// (web, CFs, os cards do app) lê `Timestamp` — gravar String aqui deixava
+  /// a vacina fora de "Próximos cuidados" e quebrava o cast no dashboard.
+  Timestamp? _asTimestamp(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return null;
+    try {
+      return Timestamp.fromDate(kWizardDateFormat.parse(text));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _submitForm() async {
+    if (_saving) return;
 
     if (imageURL.isEmpty || selectedVetId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: CustomSnackBar(
-            errorText: imageURL.isEmpty
-                ? 'Faça o upload da imagem'
-                : 'Selecione um veterinário'),
-        backgroundColor: Colors.transparent,
-        behavior: SnackBarBehavior.floating,
-        elevation: 0,
-      ));
+      _toast(imageURL.isEmpty
+          ? 'Faça o upload da foto do rótulo.'
+          : 'Selecione um veterinário.');
       return;
     }
 
-    try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const Center(child: CircularProgressIndicator());
-        },
-      );
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _saving = true);
 
+    try {
       DocumentReference petRef =
           FirebaseFirestore.instance.collection('pets').doc(widget.petId);
       String vaccineId = gerarVacsID();
@@ -712,12 +546,14 @@ class _AddVacPageState extends State<AddVacPage> {
           .set({
         'id': vaccineId,
         'name': _vacinaController.text,
-        'administrationDate': _dataAplicadaController.text,
-        'nextDueDate': _proximaAplicacaoController.text,
-        'petWeight': _pesoController.text, // Store as string directly
+        // Datas como Timestamp (eram String dd/MM/yyyy) e peso como número.
+        'administrationDate': _asTimestamp(_dataAplicadaController.text),
+        'nextDueDate': _asTimestamp(_proximaAplicacaoController.text),
+        'petWeight':
+            double.tryParse(_pesoController.text.replaceAll(',', '.')) ?? 0.0,
         'batchNumber': _loteController.text,
         'manufacturer': _farmaceuticaController.text,
-        'expirationDate': _dataValidadeController.text,
+        'expirationDate': _asTimestamp(_dataValidadeController.text),
         'veterinarianName': _nomeVetController.text,
         'crmvNumber': _crmvController.text,
         'labelImage': imageURL,
@@ -765,56 +601,41 @@ class _AddVacPageState extends State<AddVacPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Close loading dialog
-      Navigator.pop(context);
-
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      navigator.pop(true); // true = cadastro concluído
+      messenger.showSnackBar(const SnackBar(
         content:
-            CustomSnackBar(successfulText: 'Vacina adicionada com sucesso!'),
-        backgroundColor: Colors.transparent,
+            Text('Vacina registrada. Aguardando validação do veterinário.'),
         behavior: SnackBarBehavior.floating,
-        elevation: 0,
       ));
-
-      // Navigate back to vaccines page
-      Navigator.pop(context, true); // Pass true to indicate successful addition
     } catch (e) {
-      // Close loading dialog if error occurs
-      Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: CustomSnackBar(errorText: 'Erro ao adicionar vacina: $e'),
-        backgroundColor: Colors.transparent,
+      if (mounted) setState(() => _saving = false);
+      messenger.showSnackBar(SnackBar(
+        content: Text('Erro ao adicionar vacina: $e'),
         behavior: SnackBarBehavior.floating,
-        elevation: 0,
       ));
     }
   }
 
+  /// A localização é registrada junto com a foto do rótulo (onde o registro
+  /// foi feito). Continua obrigatória, mas as mensagens agora explicam o que
+  /// falta — antes vazavam strings em inglês do Geolocator para o snackbar.
   Future<Position> _determinePosition() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    // Test if location services are enabled.
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return Future.error('Location services are disabled.');
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      throw Exception(
+          'Ative a localização do aparelho para registrar a vacina.');
     }
 
-    permission = await Geolocator.checkPermission();
+    var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return Future.error('Location permissions are denied');
-      }
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      return Future.error(
-          'Location permissions are permanently denied, we cannot request permissions.');
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw Exception('Precisamos da localização para registrar onde a foto '
+          'do rótulo foi feita. Libere o acesso nas configurações.');
     }
 
-    return await Geolocator.getCurrentPosition();
+    return Geolocator.getCurrentPosition();
   }
 }
