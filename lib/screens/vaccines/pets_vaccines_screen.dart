@@ -5,6 +5,7 @@ import 'package:open_file/open_file.dart';
 
 import 'package:pet_app/controllers/vaccines/vaccine_controller.dart';
 import 'package:pet_app/design/design.dart';
+import 'package:pet_app/models/deworming_model.dart';
 import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/models/vaccine_model.dart';
 import 'package:pet_app/screens/vaccines/add_vaccine_screen.dart';
@@ -80,22 +81,41 @@ class PetsVaccinesScreen extends StatelessWidget {
 
   Future<void> _exportCard(BuildContext context, Pets currentPet) async {
     final messenger = ScaffoldMessenger.of(context);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     try {
+      final db = FirebaseFirestore.instance;
       // `ownerId` é exigido pela rule de query (ver VaccineRepository).
-      final snapshot = await FirebaseFirestore.instance
-          .collection('vaccines')
-          .where('ownerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-          .where('petId', isEqualTo: currentPet.id)
-          .get();
+      // A carteira cobre vacinas E vermífugos, igual à da web.
+      final results = await Future.wait([
+        db
+            .collection('vaccines')
+            .where('ownerId', isEqualTo: uid)
+            .where('petId', isEqualTo: currentPet.id)
+            .get(),
+        db
+            .collection('deworming')
+            .where('ownerId', isEqualTo: uid)
+            .where('petId', isEqualTo: currentPet.id)
+            .get(),
+      ]);
 
-      final vaccines = snapshot.docs.map((doc) {
+      final vaccines = results[0].docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return Vacinas.fromMap(data);
       }).toList();
 
-      final path =
-          await VaccineCardGenerator.generateVaccineCard(currentPet, vaccines);
+      final dewormings = results[1].docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return Vermifugo.fromMap(data);
+      }).toList();
+
+      final path = await VaccineCardGenerator.generateVaccineCard(
+        currentPet,
+        vaccines,
+        dewormings: dewormings,
+      );
       final result = await OpenFile.open(path, type: 'application/pdf');
       if (result.type != ResultType.done) throw Exception(result.message);
     } catch (e) {

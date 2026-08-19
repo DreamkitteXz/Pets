@@ -22,17 +22,38 @@ class VeterinarianStep extends StatelessWidget {
     final c = context.colors;
 
     if (veterinarians.isEmpty) {
-      return Row(
-        children: [
-          Icon(Icons.info_outline_rounded, size: 20, color: c.textTertiary),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              'Nenhum veterinário ativo disponível no momento.',
-              style: AppTypography.callout.copyWith(color: c.textSecondary),
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: c.tint(c.statusPending, 0.10),
+          borderRadius: const BorderRadius.all(Radius.circular(AppRadius.md)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.schedule_rounded, size: 18, color: c.statusPending),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Nenhum veterinário disponível',
+                    style: AppTypography.subhead.copyWith(color: c.textPrimary),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Você pode registrar a vacina mesmo assim. Ela fica '
+                    'aguardando validação até um veterinário ser associado '
+                    'ao registro.',
+                    style: AppTypography.footnote
+                        .copyWith(color: c.textSecondary),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 

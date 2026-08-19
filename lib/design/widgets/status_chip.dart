@@ -6,11 +6,19 @@ import '../app_spacing.dart';
 /// Eixo único de status clínico (espelha vaccines/deworming.status).
 enum AppStatus { pending, approved, rejected }
 
+/// Espelha `normalizeStatus` da web (src/utils/vaccineStatus.js): mapeia os
+/// status do modelo antigo de dois eixos (vet + tutor) para o eixo único.
+/// Sem isso, um registro legado `vetApproved` cai no `default` e o app mostra
+/// "Aguardando validação" onde o site mostra "Aprovada".
 AppStatus appStatusFromString(String? s) {
   switch (s) {
     case 'approved':
+    case 'vetApproved':
+    case 'tutorApproved':
       return AppStatus.approved;
     case 'rejected':
+    case 'vetRejected':
+    case 'tutorRejected':
       return AppStatus.rejected;
     case 'pending':
     default:

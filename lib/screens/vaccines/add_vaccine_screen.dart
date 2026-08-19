@@ -94,37 +94,56 @@ class _AddVacPageState extends State<AddVacPage> {
     fetchAvailableVaccines();
   }
 
+  /// Lista os veterinários cadastrados.
+  ///
+  /// Hoje a rule de `users` só libera o próprio documento
+  /// (`request.auth.uid == userId`), então nenhuma consulta por `role` é
+  /// satisfazível pelo tutor e isto retorna PERMISSION_DENIED. O erro é
+  /// tratado como "lista vazia" para não travar o cadastro: sem vet, a vacina
+  /// é registrada assim mesmo e a associação fica para depois.
+  /// Quando existir um caminho de leitura no backend, esta consulta passa a
+  /// devolver dados sem mais nenhuma mudança aqui.
   Future<void> fetchVeterinarians() async {
-    final vetsSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('role', isEqualTo: 'veterinarian')
-        .where('status', isEqualTo: 'active')
-        .get();
+    try {
+      final vetsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'veterinarian')
+          .where('status', isEqualTo: 'active')
+          .get();
 
-    setState(() {
-      veterinarians = vetsSnapshot.docs
-          .map((doc) => {
-                'id': doc.id,
-                ...doc.data(),
-              })
-          .toList();
-    });
+      if (!mounted) return;
+      setState(() {
+        veterinarians = vetsSnapshot.docs
+            .map((doc) => {'id': doc.id, ...doc.data()})
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Lista de veterinários indisponível: $e');
+      if (!mounted) return;
+      setState(() => veterinarians = const []);
+    }
   }
 
+  /// Mesma situação da lista de veterinários: a rule de `clinics` exige que o
+  /// solicitante esteja em `veterinarians`, o que nunca vale para o tutor.
   Future<void> fetchClinics() async {
-    final clinicsSnapshot = await FirebaseFirestore.instance
-        .collection('clinics')
-        .where('status', isEqualTo: 'active')
-        .get();
+    try {
+      final clinicsSnapshot = await FirebaseFirestore.instance
+          .collection('clinics')
+          .where('status', isEqualTo: 'active')
+          .get();
 
-    setState(() {
-      clinics = clinicsSnapshot.docs
-          .map((doc) => {
-                'id': doc.id,
-                ...doc.data(),
-              })
-          .toList();
-    });
+      if (!mounted) return;
+      setState(() {
+        clinics = clinicsSnapshot.docs
+            .map((doc) => {'id': doc.id, ...doc.data()})
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Lista de clínicas indisponível: $e');
+      if (!mounted) return;
+      setState(() => clinics = const []);
+    }
   }
 
   Future<void> fetchPetDetails() async {
@@ -423,11 +442,14 @@ class _AddVacPageState extends State<AddVacPage> {
         }
         break;
       case 2: // Veterinarian step
-        if (selectedVetId == null) {
+        // Vet deixou de ser obrigatório: quando não há nenhum disponível o
+        // tutor registra assim mesmo e a associação fica para depois. Só
+        // insiste se existir lista e ele não tiver escolhido.
+        if (selectedVetId == null && veterinarians.isNotEmpty) {
           _toast('Selecione um veterinário.');
-        } else {
-          setState(() => _currentStep += 1);
+          return;
         }
+        setState(() => _currentStep += 1);
         break;
       case 3: // Clinic step
         _submitForm();
@@ -487,10 +509,12 @@ class _AddVacPageState extends State<AddVacPage> {
   Future<void> _submitForm() async {
     if (_saving) return;
 
-    if (imageURL.isEmpty || selectedVetId == null) {
-      _toast(imageURL.isEmpty
-          ? 'Faça o upload da foto do rótulo.'
-          : 'Selecione um veterinário.');
+    if (imageURL.isEmpty) {
+      _toast('Faça o upload da foto do rótulo.');
+      return;
+    }
+    if (selectedVetId == null && veterinarians.isNotEmpty) {
+      _toast('Selecione um veterinário.');
       return;
     }
 

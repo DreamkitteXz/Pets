@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pet_app/utils/firestore_date.dart';
 
 //==========================================================================
 // Descrição: Classe com atributos das Vacinas para melhor manipulação delas.
@@ -59,6 +59,14 @@ class Vacinas {
   bool? tutorAcknowledged;
   DateTime? tutorAcknowledgedAt;
 
+  /// Soft delete: a web marca `active: false` em vez de apagar. A carteira só
+  /// exibe registros com `active != false`.
+  bool? active;
+
+  /// Metadados da foto do rótulo (inclui `location`) — usados como
+  /// comprovação na carteira.
+  Map<String, dynamic>? labelImageMetadata;
+
   // Additional information
   String? labelImage;
   String? notes;
@@ -91,6 +99,8 @@ class Vacinas {
     this.validationDetails,
     this.tutorAcknowledged,
     this.tutorAcknowledgedAt,
+    this.active,
+    this.labelImageMetadata,
     this.labelImage,
     this.notes,
     this.createdAt,
@@ -98,23 +108,9 @@ class Vacinas {
   });
 
   factory Vacinas.fromMap(Map<String, dynamic> map) {
-    DateTime? parseDate(dynamic value) {
-      if (value == null) return null;
-      if (value is Timestamp) return value.toDate();
-      if (value is DateTime) return value;
-      if (value is String) {
-        try {
-          final parts = value.split('/');
-          if (parts.length == 3) {
-            return DateTime(
-                int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
-          }
-        } catch (e) {
-          print('Error parsing date string: $e');
-        }
-      }
-      return null;
-    }
+    // Leitura tolerante compartilhada (Timestamp / DateTime / dd-MM-yyyy /
+    // ISO): há datas gravadas como String na base. Ver utils/firestore_date.
+    const parseDate = readFirestoreDate;
 
     return Vacinas(
       id: map['id'],
@@ -157,6 +153,10 @@ class Vacinas {
           },
       tutorAcknowledged: map['tutorAcknowledged'],
       tutorAcknowledgedAt: parseDate(map['tutorAcknowledgedAt']),
+      active: map['active'],
+      labelImageMetadata: map['labelImageMetadata'] is Map
+          ? Map<String, dynamic>.from(map['labelImageMetadata'] as Map)
+          : null,
       labelImage: map['labelImage'],
       notes: map['notes'],
       createdAt: parseDate(map['createdAt']),

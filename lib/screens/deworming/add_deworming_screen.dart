@@ -54,32 +54,48 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
     fetchClinics();
   }
 
-  // Add these methods to fetch vets and clinics
+  /// Ver a nota em add_vaccine_screen.fetchVeterinarians: a rule de `users`
+  /// não permite ao tutor listar veterinários, então isto cai no catch e o
+  /// cadastro segue sem vet, para associar depois.
   Future<void> fetchVeterinarians() async {
-    final vetsSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('role', isEqualTo: 'veterinarian')
-        .where('status', isEqualTo: 'active')
-        .get();
+    try {
+      final vetsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'veterinarian')
+          .where('status', isEqualTo: 'active')
+          .get();
 
-    setState(() {
-      veterinarians = vetsSnapshot.docs
-          .map((doc) => {'id': doc.id, ...doc.data()})
-          .toList();
-    });
+      if (!mounted) return;
+      setState(() {
+        veterinarians = vetsSnapshot.docs
+            .map((doc) => {'id': doc.id, ...doc.data()})
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Lista de veterinários indisponível: $e');
+      if (!mounted) return;
+      setState(() => veterinarians = const []);
+    }
   }
 
   Future<void> fetchClinics() async {
-    final clinicsSnapshot = await FirebaseFirestore.instance
-        .collection('clinics')
-        .where('status', isEqualTo: 'active')
-        .get();
+    try {
+      final clinicsSnapshot = await FirebaseFirestore.instance
+          .collection('clinics')
+          .where('status', isEqualTo: 'active')
+          .get();
 
-    setState(() {
-      clinics = clinicsSnapshot.docs
-          .map((doc) => {'id': doc.id, ...doc.data()})
-          .toList();
-    });
+      if (!mounted) return;
+      setState(() {
+        clinics = clinicsSnapshot.docs
+            .map((doc) => {'id': doc.id, ...doc.data()})
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Lista de clínicas indisponível: $e');
+      if (!mounted) return;
+      setState(() => clinics = const []);
+    }
   }
 
   // ================================================================

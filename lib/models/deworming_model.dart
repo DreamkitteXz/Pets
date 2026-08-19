@@ -4,7 +4,7 @@
 // Data: 09/03/2024
 //==============================================================================
 
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pet_app/utils/firestore_date.dart';
 
 class Vermifugo {
   String? id;
@@ -38,6 +38,10 @@ class Vermifugo {
 
   // Status and tracking
   String? status;
+
+  /// Soft delete: a web marca `active: false` em vez de apagar. A carteira só
+  /// exibe registros com `active != false`.
+  bool? active;
   String? effectivenessNotes;
   List<String>? sideEffects;
   String? observations;
@@ -69,6 +73,7 @@ class Vermifugo {
     this.clinicName,
     this.clinicAddress,
     this.status = 'pending', // eixo único (F2.1/§3.1); era 'active'
+    this.active,
     this.effectivenessNotes,
     this.sideEffects,
     this.observations,
@@ -78,23 +83,8 @@ class Vermifugo {
   });
 
   factory Vermifugo.fromMap(Map<String, dynamic> map) {
-    DateTime? parseDate(dynamic value) {
-      if (value == null) return null;
-      if (value is Timestamp) return value.toDate();
-      if (value is DateTime) return value;
-      if (value is String) {
-        try {
-          final parts = value.split('/');
-          if (parts.length == 3) {
-            return DateTime(
-                int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
-          }
-        } catch (e) {
-          print('Error parsing date string: $e');
-        }
-      }
-      return null;
-    }
+    // Leitura tolerante compartilhada — ver utils/firestore_date.
+    const parseDate = readFirestoreDate;
 
     return Vermifugo(
       id: map['id'],
@@ -118,6 +108,7 @@ class Vermifugo {
       clinicName: map['clinicName'],
       clinicAddress: Map<String, String>.from(map['clinicAddress'] ?? {}),
       status: map['status'],
+      active: map['active'],
       effectivenessNotes: map['effectivenessNotes'],
       sideEffects: List<String>.from(map['sideEffects'] ?? []),
       observations: map['observations'],
