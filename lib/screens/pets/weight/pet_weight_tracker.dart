@@ -9,10 +9,13 @@ import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/repositories/pet_weight_repository.dart';
 import 'package:pet_app/utils/firestore_date.dart';
 
-/// Registro de peso pelo TUTOR: GATED (§13.4). A rule de `pets/{petId}` libera
-/// as subcoleções do prontuário (`{record=**}`, o que inclui `weights`) para
-/// LEITURA do dono, mas a ESCRITA é do vet vinculado. Enquanto não houver
-/// decisão de produto/rule, o tutor visualiza o histórico e não adiciona.
+/// Escrita do TUTOR no **prontuário** de pesagens (`pets/{petId}/weights`):
+/// GATED (§13.4). A rule libera a subcoleção para LEITURA do dono, mas a
+/// escrita é do vet vinculado — pesagem clínica tem autoridade do vet.
+///
+/// Isso **não** bloqueia o tutor de manter o peso atual do pet: esse valor vai
+/// para `pets/{petId}.weight`, que o dono pode atualizar hoje
+/// (`allow update: if uid == ownerId`). A tela separa as duas fontes.
 /// Fica `final` (não `const`) de propósito: com `const` o analisador marca o
 /// caminho gated como dead_code.
 // ignore: prefer_const_declarations
@@ -40,6 +43,11 @@ class PetWeightTrackingPage extends StatefulWidget {
 class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
   final PetWeightRepository _weightRepo = PetWeightRepository();
   _Period _period = _Period.month;
+
+  /// Peso informado pelo tutor (campo `weight` do doc do pet). Guardado no
+  /// state para a tela refletir a edição sem depender de recarregar o pet.
+  late String? _selfWeight = widget.pet.weight;
+  bool _savingSelfWeight = false;
 
   // Pesagens com data ou peso ilegíveis são descartadas em vez de derrubarem
   // o stream inteiro.
@@ -92,49 +100,80 @@ class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
       bodyPadding: false,
       actions: [
         IconButton(
-          onPressed: _onAddWeight,
-          icon: const Icon(Icons.add_circle_outline_rounded),
+          onPressed: _savingSelfWeight ? null : _onEditSelfWeight,
+          icon: const Icon(Icons.edit_rounded),
           color: context.colors.accentBlue,
-          tooltip: 'Registrar peso',
+          tooltip: 'Atualizar meu registro de peso',
         ),
       ],
       body: StreamBuilder<List<WeightRecord>>(
         stream: _stream,
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const AppErrorState(
-              message: 'Não foi possível carregar o histórico de peso.',
-            );
-          }
-          if (!snapshot.hasData) return const AppLoading();
-
-          final all = snapshot.data!;
-          if (all.isEmpty) {
-            return const AppEmptyState(
-              icon: Icons.monitor_weight_rounded,
-              title: 'Sem pesagens registradas',
-              message:
-                  'As pesagens feitas pelo veterinário aparecem aqui, com a '
-                  'curva de evolução.',
-            );
-          }
-
+          // O histórico é do prontuário (vet). Falha ou vazio nele não pode
+          // esconder o peso informado pelo tutor, que é outra fonte.
+          final all = snapshot.data ?? const <WeightRecord>[];
+          final loadingHistory =
+              !snapshot.hasData && !snapshot.hasError;
           final filtered = _filter(all);
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xxxl),
             children: [
-              _SummaryCard(all: all),
-              const SizedBox(height: AppSpacing.xxl),
-              _PeriodSelector(
-                selected: _period,
-                onChanged: (p) => setState(() => _period = p),
+              _SelfWeightCard(
+                weight: _selfWeight,
+                saving: _savingSelfWeight,
+                onEdit: _onEditSelfWeight,
               ),
-              const SizedBox(height: AppSpacing.lg),
-              _ChartCard(records: filtered),
               const SizedBox(height: AppSpacing.xxl),
-              _RecordsSection(records: filtered),
+              const _SectionLabel(
+                label: 'Histórico clínico',
+                hint: 'Pesagens feitas pelo veterinário',
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (loadingHistory)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+                  child: AppLoading(),
+                )
+              else if (snapshot.hasError)
+                AppCard(
+                  child: Text(
+                    'Não foi possível carregar o histórico de pesagens.',
+                    style: AppTypography.callout
+                        .copyWith(color: context.colors.textSecondary),
+                  ),
+                )
+              else if (all.isEmpty)
+                AppCard(
+                  child: Row(
+                    children: [
+                      Icon(Icons.monitor_weight_rounded,
+                          size: 20, color: context.colors.textTertiary),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Text(
+                          'Nenhuma pesagem do veterinário ainda. Quando '
+                          'houver, a curva de evolução aparece aqui.',
+                          style: AppTypography.callout
+                              .copyWith(color: context.colors.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                _SummaryCard(all: all),
+                const SizedBox(height: AppSpacing.xxl),
+                _PeriodSelector(
+                  selected: _period,
+                  onChanged: (p) => setState(() => _period = p),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _ChartCard(records: filtered),
+                const SizedBox(height: AppSpacing.xxl),
+                _RecordsSection(records: filtered),
+              ],
             ],
           );
         },
@@ -142,23 +181,39 @@ class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
     );
   }
 
-  void _onAddWeight() {
-    if (!kTutorWeightWriteEnabled) {
-      _toast('Registro de peso pelo tutor estará disponível em breve.');
-      return;
-    }
-    final weightController = TextEditingController();
-    showDialog<void>(
+  /// Edita o peso informado pelo tutor (`pets/{petId}.weight`).
+  ///
+  /// Este caminho NÃO passa pelo gate §13.4: ele grava no documento do pet,
+  /// onde a rule permite `update` ao dono. O prontuário de pesagens continua
+  /// sendo escrito só pelo vet.
+  Future<void> _onEditSelfWeight() async {
+    final controller = TextEditingController(
+      text: (_selfWeight ?? '').replaceAll('.', ','),
+    );
+
+    final value = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: context.colors.surfaceElevated,
-        shape: const RoundedRectangleBorder(borderRadius: AppRadius.card_),
-        title: const Text('Registrar peso'),
-        content: AppTextField(
-          controller: weightController,
-          label: 'Peso (kg)',
-          hint: 'Ex.: 14.5',
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        title: const Text('Peso do seu pet'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppTextField(
+              controller: controller,
+              label: 'Peso (kg)',
+              hint: 'Ex.: 14,5',
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Esse é o peso que você acompanha em casa. Ele não substitui a '
+              'pesagem do veterinário.',
+              style: AppTypography.footnote
+                  .copyWith(color: dialogContext.colors.textSecondary),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -166,22 +221,136 @@ class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () async {
-              final value = double.tryParse(
-                  weightController.text.trim().replaceAll(',', '.'));
-              if (value == null || value <= 0) {
-                _toast('Informe um peso válido.');
+            onPressed: () {
+              final parsed = double.tryParse(
+                  controller.text.trim().replaceAll(',', '.'));
+              if (parsed == null || parsed <= 0) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Informe um peso válido.'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
                 return;
               }
-              Navigator.pop(dialogContext);
-              try {
-                await _weightRepo.addWeight(widget.pet.id, value);
-              } catch (e) {
-                _toast('Não foi possível salvar: $e');
-              }
+              Navigator.pop(dialogContext, parsed);
             },
             child: const Text('Salvar'),
           ),
+        ],
+      ),
+    );
+
+    if (value == null) return;
+
+    setState(() => _savingSelfWeight = true);
+    try {
+      await _weightRepo.updateSelfReportedWeight(widget.pet.id, value);
+      if (!mounted) return;
+      setState(() {
+        _selfWeight = value.toString();
+        // Mantém o objeto em memória coerente com o que o hub do pet exibe.
+        widget.pet.weight = _selfWeight;
+        _savingSelfWeight = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _savingSelfWeight = false);
+      _toast('Não foi possível salvar o peso: $e');
+    }
+  }
+}
+
+/// Peso informado pelo tutor — fonte separada do prontuário do veterinário.
+class _SelfWeightCard extends StatelessWidget {
+  final String? weight;
+  final bool saving;
+  final VoidCallback onEdit;
+
+  const _SelfWeightCard({
+    required this.weight,
+    required this.saving,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final parsed = double.tryParse((weight ?? '').replaceAll(',', '.'));
+    final temPeso = parsed != null && parsed > 0;
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('MEU REGISTRO',
+                    style: AppTypography.caption
+                        .copyWith(color: c.textTertiary, letterSpacing: 0.5)),
+              ),
+              if (saving)
+                SizedBox(
+                  height: 14,
+                  width: 14,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: c.accentBlue),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (temPeso)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  parsed.toStringAsFixed(1).replaceAll('.', ','),
+                  style: AppTypography.largeTitle
+                      .copyWith(color: c.textPrimary, fontSize: 40, height: 1),
+                ),
+                const SizedBox(width: 4),
+                Text('kg',
+                    style:
+                        AppTypography.title2.copyWith(color: c.textSecondary)),
+              ],
+            )
+          else
+            Text('Você ainda não informou o peso',
+                style: AppTypography.callout.copyWith(color: c.textSecondary)),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: temPeso ? 'Atualizar peso' : 'Informar peso',
+            icon: Icons.monitor_weight_rounded,
+            variant: AppButtonVariant.secondary,
+            onPressed: saving ? null : onEdit,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Rótulo de seção com uma linha de contexto.
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  final String hint;
+  const _SectionLabel({required this.label, required this.hint});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(),
+              style: AppTypography.caption
+                  .copyWith(color: c.textTertiary, letterSpacing: 0.5)),
+          const SizedBox(height: 2),
+          Text(hint,
+              style: AppTypography.footnote.copyWith(color: c.textTertiary)),
         ],
       ),
     );

@@ -89,6 +89,11 @@ class _PetInformationState extends State<PetInformation> {
                   vaccinesStream: _vaccinesStream,
                   dewormingStream: _dewormingStream,
                   onUnavailable: _toast,
+                  // O tracker pode alterar o peso informado pelo tutor; ao
+                  // voltar, o card de stats precisa refletir o novo valor.
+                  onReturn: () {
+                    if (mounted) setState(() {});
+                  },
                 ),
                 const SizedBox(height: AppSpacing.xxl),
                 _UpcomingSection(
@@ -477,12 +482,14 @@ class _CareSection extends StatelessWidget {
   final Stream<QuerySnapshot<Map<String, dynamic>>> vaccinesStream;
   final Stream<QuerySnapshot<Map<String, dynamic>>> dewormingStream;
   final void Function(String message) onUnavailable;
+  final VoidCallback onReturn;
 
   const _CareSection({
     required this.pet,
     required this.vaccinesStream,
     required this.dewormingStream,
     required this.onUnavailable,
+    required this.onReturn,
   });
 
   @override
@@ -545,12 +552,15 @@ class _CareSection extends StatelessWidget {
                   color: c.accentPurple,
                   title: 'Peso',
                   subtitle: 'Histórico e curva',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => PetWeightTrackingPage(pet: pet),
-                    ),
-                  ),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => PetWeightTrackingPage(pet: pet),
+                      ),
+                    );
+                    onReturn();
+                  },
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
