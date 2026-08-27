@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pet_app/models/pet_model.dart';
+import 'package:pet_app/screens/components/pet_avatar.dart';
 import 'package:pet_app/screens/pets/pet_information.dart' as pet_info;
 import 'package:pet_app/services/pet_assets_service.dart';
 import 'package:pet_app/controllers/pets/pet_controller.dart';
@@ -57,8 +58,6 @@ class PetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final imagePath =
-        PetAssetsService.getImagePath(pet.species, pet.breed, pet.gender);
     final speciesIcon = PetAssetsService.getSpeciesIcon(pet.species);
     final ageString = PetController().calculateAgeString(pet.birthDate);
 
@@ -75,22 +74,7 @@ class PetCard extends StatelessWidget {
         children: [
           Hero(
             tag: 'pet-${pet.id}',
-            child: Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: c.surfaceSecondary,
-                borderRadius:
-                    const BorderRadius.all(Radius.circular(AppRadius.md)),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    Icon(speciesIcon, color: c.textTertiary, size: 28),
-              ),
-            ),
+            child: PetAvatar(pet: pet),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

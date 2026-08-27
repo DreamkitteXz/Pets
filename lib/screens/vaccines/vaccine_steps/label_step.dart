@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:pet_app/design/design.dart';
+import 'package:pet_app/utils/image_upload_utils.dart';
 
 class LabelStep extends StatefulWidget {
   final String imageURL;
@@ -109,7 +110,15 @@ class _LabelStepState extends State<LabelStep> {
     if (_uploading) return;
 
     final messenger = ScaffoldMessenger.of(context);
-    final file = await ImagePicker().pickImage(source: ImageSource.camera);
+    // Recomprime no aparelho: em resolução cheia a foto passa dos 5 MB da
+    // storage.rule e o upload volta como `unauthorized`. 1920px preserva a
+    // legibilidade do lote e da validade impressos no rótulo.
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 88,
+    );
     if (file == null) return;
 
     setState(() => _uploading = true);
@@ -119,13 +128,21 @@ class _LabelStepState extends State<LabelStep> {
 
       // Path canônico do rótulo de vacina. A storage.rule só libera escrita em
       // 'vaccine-labels/'; 'images/' é negado. F1.2/§6.
+      //
+      // O nome PRECISA de extensão: sem ela o SDK manda
+      // `application/octet-stream` e a regra, que exige `image/*`, recusa.
+      // Era só o timestamp — daí o upload do rótulo falhar sempre.
+      final extension = ImageUploadUtils.extensionOf(file.name);
       final ref = FirebaseStorage.instance
           .ref()
           .child('vaccine-labels')
-          .child(DateTime.now().microsecondsSinceEpoch.toString());
+          .child('${DateTime.now().microsecondsSinceEpoch}.$extension');
 
-      await ref.putFile(File(file.path));
-      final imageUrl = await ref.getDownloadURL();
+      final imageUrl = await ImageUploadUtils.upload(
+        ref: ref,
+        file: File(file.path),
+        extension: extension,
+      );
 
       widget.onImageUploaded(imageUrl);
       if (mounted) setState(() => _uploading = false);

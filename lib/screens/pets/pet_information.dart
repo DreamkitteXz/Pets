@@ -1,30 +1,27 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import 'package:pet_app/design/design.dart';
+import 'package:pet_app/models/medication_model.dart';
 import 'package:pet_app/models/pet_model.dart';
+import 'package:pet_app/repositories/medication_repository.dart';
 import 'package:pet_app/screens/deworming/pet_dewormings_screen.dart';
+import 'package:pet_app/screens/medications/pet_medications_screen.dart';
 import 'package:pet_app/screens/pets/weight/pet_weight_tracker.dart';
 import 'package:pet_app/screens/vaccines/pets_vaccines_screen.dart';
 import 'package:pet_app/services/pet_assets_service.dart';
 import 'package:pet_app/utils/firestore_date.dart';
 import 'package:pet_app/utils/gender_utils.dart';
+import 'package:pet_app/utils/image_upload_utils.dart';
 import 'package:pet_app/utils/species_utils.dart';
-
-/// Upload de foto de pet: GATED (§13.5). Hoje o app subia em 'images/pets/',
-/// que a storage.rule NEGA (só 'vaccine-labels/' é liberado). O alvo é
-/// 'pet-photos/', que exige uma rule nova na branch Website. Enquanto a rule
-/// não existir, mantenha `false` — vire `true` quando ela for publicada.
-/// Fica `final` (não `const`) de propósito: com `const` o analisador marca o
-/// caminho gated como dead_code.
-// ignore: prefer_const_declarations
-final bool kPetPhotoUploadEnabled = false;
 
 /// Hub do pet: capa, identidade, atalhos de cuidado (com contagem real de
 /// registros e pendências), próximos vencimentos e ficha detalhada.
@@ -39,6 +36,20 @@ class PetInformation extends StatefulWidget {
 
 class _PetInformationState extends State<PetInformation> {
   Pets get pet => widget.pet;
+
+  /// Upload/remoção de foto em andamento — trava o botão da capa e mostra o
+  /// spinner no lugar do ícone.
+  bool _uploadingPhoto = false;
+
+  /// Etapa atual do envio, exibida sobre a capa. Existe porque o console do
+  /// Flutter nem sempre está à mão (log do dispositivo filtrado, build sem
+  /// debugger): sem isso, uma falha de upload vira spinner mudo.
+  String? _photoStatus;
+
+  void _setPhotoStatus(String? status) {
+    if (status != null) debugPrint('[foto do pet] $status');
+    if (mounted) setState(() => _photoStatus = status);
+  }
 
   // O filtro por ownerId é o que torna a consulta aceitável para a rule:
   // `vaccines`/`deworming` liberam leitura com `isVet() || isOwner()`, e o
@@ -88,7 +99,6 @@ class _PetInformationState extends State<PetInformation> {
                   pet: pet,
                   vaccinesStream: _vaccinesStream,
                   dewormingStream: _dewormingStream,
-                  onUnavailable: _toast,
                   // O tracker pode alterar o peso informado pelo tutor; ao
                   // voltar, o card de stats precisa refletir o novo valor.
                   onReturn: () {
@@ -139,6 +149,7 @@ class _PetInformationState extends State<PetInformation> {
       actions: [
         _CircleAction(
           icon: Icons.photo_camera_rounded,
+          busy: _uploadingPhoto,
           onTap: _onChangePhoto,
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -175,6 +186,28 @@ class _PetInformationState extends State<PetInformation> {
                 ),
               ),
             ),
+            // Estado do envio NA TELA. O mesmo texto vai para o console, mas
+            // aqui não depende de conseguir ler o log do Flutter.
+            if (_photoStatus != null)
+              Align(
+                alignment: Alignment.center,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xl),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.72),
+                    borderRadius: AppRadius.card_,
+                  ),
+                  child: Text(
+                    _photoStatus!,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.footnote
+                        .copyWith(color: Colors.white),
+                  ),
+                ),
+              ),
             // Fade para o fundo agrupado: a capa "derrete" no conteúdo.
             Align(
               alignment: Alignment.bottomCenter,
@@ -261,9 +294,10 @@ class _PetInformationState extends State<PetInformation> {
               Expanded(
                 child: _Stat(
                   icon: Icons.monitor_weight_rounded,
-                  value: (pet.weight != null && pet.weight!.isNotEmpty)
-                      ? '${pet.weight} kg'
-                      : '—',
+                  value: pet.weightValue == null
+                      ? '—'
+                      : '${pet.weightValue!.toStringAsFixed(1)
+                          .replaceAll('.', ',')} kg',
                   label: 'Peso',
                 ),
               ),
@@ -385,12 +419,8 @@ class _PetInformationState extends State<PetInformation> {
   // ---------------------------------------------------------------- foto
 
   void _onChangePhoto() {
-    // GATED (§13.5): sem rule de Storage para foto de pet, nem abrimos o
-    // seletor — evita o usuário escolher uma imagem e tomar erro no upload.
-    if (!kPetPhotoUploadEnabled) {
-      _toast('Foto do pet estará disponível em breve.');
-      return;
-    }
+    if (_uploadingPhoto) return;
+    final hasPhoto = pet.imageUrl != null && pet.imageUrl!.isNotEmpty;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: context.colors.surfaceElevated,
@@ -419,6 +449,16 @@ class _PetInformationState extends State<PetInformation> {
                   _pickAndUpload(ImageSource.gallery);
                 },
               ),
+              if (hasPhoto)
+                AppListTile(
+                  leadingIcon: Icons.delete_outline_rounded,
+                  leadingColor: context.colors.accentRed,
+                  title: 'Remover foto',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _removePhoto();
+                  },
+                ),
               const SizedBox(height: AppSpacing.sm),
             ],
           ),
@@ -428,27 +468,204 @@ class _PetInformationState extends State<PetInformation> {
   }
 
   Future<void> _pickAndUpload(ImageSource source) async {
-    final picked = await ImagePicker().pickImage(source: source);
+    // Redimensiona e recomprime no dispositivo: a rule do Storage recusa acima
+    // de 5 MB, e foto de celular passa disso com folga. 1600px cobre a capa em
+    // qualquer tela.
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 85,
+    );
     if (picked == null) return;
     await _uploadPetImage(picked);
   }
 
   Future<void> _uploadPetImage(XFile pickedFile) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      _toast('Sessão expirada — entre novamente para enviar a foto.');
+      return;
+    }
+
+    setState(() => _uploadingPhoto = true);
+    final previousUrl = pet.imageUrl;
+
     try {
-      // Path alvo quando a rule 'pet-photos/' existir na branch Website.
+      final file = File(pickedFile.path);
+      final extension = ImageUploadUtils.extensionOf(pickedFile.name);
+
+      // Path DENTRO da pasta do usuário: a rule exige
+      // `pet-photos/{uid}/...` com uid == request.auth.uid.
       final storageRef = FirebaseStorage.instance.ref().child(
-          'pet-photos/${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name}');
-      final snapshot = await storageRef.putFile(File(pickedFile.path));
-      final downloadUrl = await snapshot.ref.getDownloadURL();
+          'pet-photos/$uid/${pet.id}_${DateTime.now().millisecondsSinceEpoch}'
+          '.$extension');
+
+      final bytes = await file.length();
+      _setPhotoStatus('Enviando ${(bytes / 1024).round()} KB\n'
+          '${storageRef.fullPath}\n'
+          'bucket: ${FirebaseStorage.instance.bucket}');
+
+      // contentType explícito: a rule exige `image/*`, e o putFile nem sempre
+      // infere o tipo pelo arquivo (vem como application/octet-stream e o
+      // upload é recusado).
+      final task = storageRef.putFile(
+        file,
+        SettableMetadata(
+            contentType: ImageUploadUtils.contentTypeFor(extension)),
+      );
+
+      // Progresso: separa "travou sem sair do lugar" (rede/rule) de "está
+      // subindo devagar". Sem isto, os dois casos parecem o mesmo spinner.
+      final progressSub = task.snapshotEvents.listen((snapshot) {
+        final total = snapshot.totalBytes;
+        final pct = total > 0
+            ? ((snapshot.bytesTransferred / total) * 100).round()
+            : 0;
+        _setPhotoStatus('${snapshot.state.name} · $pct%\n'
+            '${snapshot.bytesTransferred}/$total bytes');
+      }, onError: (Object e) => _setPhotoStatus('Erro na task: $e'));
+
+      try {
+        // Rede de segurança: se nem o retry encurtado devolver, o usuário
+        // recebe uma mensagem em vez de spinner infinito.
+        await task.timeout(
+          const Duration(seconds: 90),
+          onTimeout: () {
+            task.cancel();
+            throw TimeoutException(
+                'O envio passou de 90s sem concluir.');
+          },
+        );
+      } finally {
+        await progressSub.cancel();
+      }
+
+      _setPhotoStatus('Upload concluído — obtendo URL...');
+      final downloadUrl = await storageRef
+          .getDownloadURL()
+          .timeout(const Duration(seconds: 30));
+
+      _setPhotoStatus('Gravando no Firestore...');
       await FirebaseFirestore.instance
           .collection('pets')
           .doc(pet.id)
-          .update({'imageUrl': downloadUrl});
+          .update({
+        'imageUrl': downloadUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }).timeout(const Duration(seconds: 30));
+      debugPrint('[foto do pet] pronto');
+
       if (!mounted) return;
-      setState(() => pet.imageUrl = downloadUrl);
+      setState(() {
+        pet.imageUrl = downloadUrl;
+        _uploadingPhoto = false;
+        _photoStatus = null;
+      });
       _toast('Foto atualizada.');
-    } catch (e) {
-      _toast('Erro ao enviar a foto: $e');
+
+      // Só depois do novo estar gravado: apagar antes deixaria o pet sem foto
+      // se o upload falhasse no meio.
+      await _deleteStoredPhoto(previousUrl);
+    } catch (e, stack) {
+      if (mounted) {
+        setState(() {
+          _uploadingPhoto = false;
+          _photoStatus = null;
+        });
+      }
+      _reportPhotoError('enviar', e, stack);
+    }
+  }
+
+  Future<void> _removePhoto() async {
+    final previousUrl = pet.imageUrl;
+    setState(() => _uploadingPhoto = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('pets')
+          .doc(pet.id)
+          .update({
+        'imageUrl': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (!mounted) return;
+      setState(() {
+        pet.imageUrl = null;
+        _uploadingPhoto = false;
+      });
+      _toast('Foto removida.');
+      await _deleteStoredPhoto(previousUrl);
+    } catch (e, stack) {
+      if (mounted) setState(() => _uploadingPhoto = false);
+      _reportPhotoError('remover', e, stack);
+    }
+  }
+
+  /// Traduz a falha para algo acionável e joga o detalhe cru no console.
+  ///
+  /// O `$e` direto num SnackBar de uma linha corta justamente o código do
+  /// erro, que é a única parte que diz o que fazer.
+  void _reportPhotoError(String action, Object error, StackTrace stack) {
+    debugPrint('[foto do pet] falha ao $action: $error');
+    debugPrintStack(stackTrace: stack, label: 'foto do pet');
+
+    String message;
+    if (error is FirebaseException) {
+      switch (error.code) {
+        case 'unauthorized':
+          message = 'Sem permissão no Storage. As regras de '
+              '`pet-photos/` precisam ser publicadas '
+              '(firebase deploy --only storage).';
+          break;
+        case 'unauthenticated':
+          message = 'Sessão expirada. Entre novamente e tente de novo.';
+          break;
+        case 'retry-limit-exceeded':
+          message = 'A conexão caiu durante o envio. Tente de novo.';
+          break;
+        case 'quota-exceeded':
+          message = 'A cota do Storage do projeto foi excedida.';
+          break;
+        case 'object-not-found':
+          message = 'Arquivo não encontrado no Storage.';
+          break;
+        default:
+          message = 'Falha no Storage (${error.code}): '
+              '${error.message ?? 'sem detalhe'}';
+      }
+    } else if (error is TimeoutException) {
+      message = 'O envio não respondeu a tempo. Verifique a conexão e veja '
+          'o console: as linhas "[foto do pet]" mostram onde parou.';
+    } else {
+      message = 'Não foi possível $action a foto: $error';
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 8),
+      action: SnackBarAction(
+        label: 'Copiar',
+        onPressed: () =>
+            Clipboard.setData(ClipboardData(text: '$error')),
+      ),
+    ));
+  }
+
+  /// Apaga o arquivo antigo do Storage para não acumular órfão a cada troca.
+  /// Falha aqui é silenciosa de propósito: o pet já está com a foto certa, e
+  /// URL de outra origem (ou já apagada) não é erro que interesse ao tutor.
+  Future<void> _deleteStoredPhoto(String? url) async {
+    if (url == null || url.isEmpty) return;
+    if (!url.contains('/pet-photos%2F') && !url.contains('/pet-photos/')) {
+      return; // não é arquivo nosso — não mexe
+    }
+    try {
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {
+      // ignora: arquivo já removido, URL malformada ou sem permissão.
     }
   }
 
@@ -481,14 +698,12 @@ class _CareSection extends StatelessWidget {
   final Pets pet;
   final Stream<QuerySnapshot<Map<String, dynamic>>> vaccinesStream;
   final Stream<QuerySnapshot<Map<String, dynamic>>> dewormingStream;
-  final void Function(String message) onUnavailable;
   final VoidCallback onReturn;
 
   const _CareSection({
     required this.pet,
     required this.vaccinesStream,
     required this.dewormingStream,
-    required this.onUnavailable,
     required this.onReturn,
   });
 
@@ -565,19 +780,72 @@ class _CareSection extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: _CareCard(
-                  icon: Icons.medication_liquid_rounded,
-                  color: c.textTertiary,
-                  title: 'Medicamentos',
-                  subtitle: 'Em breve',
-                  onTap: () =>
-                      onUnavailable('Medicamentos estarão disponíveis em breve.'),
+                child: _MedicationsCareCard(
+                  pet: pet,
+                  color: c.accentTeal,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => MedicamentosPage(pet: pet),
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Medicamentos vivem num array do doc do pet (ver [MedicationRepository]),
+/// não numa coleção — por isso não dá para reusar o [_CountedCareCard], que
+/// conta documentos de um QuerySnapshot. O destaque aqui também é outro: não
+/// há "pendente de validação", e sim quantos estão em uso hoje.
+class _MedicationsCareCard extends StatelessWidget {
+  final Pets pet;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _MedicationsCareCard({
+    required this.pet,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Medicamento>>(
+      stream: MedicationRepository().medicationsStream(pet.id),
+      builder: (context, snapshot) {
+        final medications = snapshot.data;
+        String subtitle;
+        int ongoing = 0;
+
+        if (medications == null) {
+          subtitle = '—';
+        } else {
+          ongoing = medications
+              .where((m) => m.stage == MedicationStage.ongoing)
+              .length;
+          subtitle = medications.isEmpty
+              ? 'Nenhum registro'
+              : '${medications.length} '
+                  '${medications.length == 1 ? 'medicamento' : 'medicamentos'}';
+        }
+
+        return _CareCard(
+          icon: Icons.medication_liquid_rounded,
+          color: color,
+          title: 'Medicamentos',
+          subtitle: subtitle,
+          badge: ongoing > 0 ? '$ongoing em uso' : null,
+          badgeColor: color,
+          badgeIcon: Icons.play_circle_fill_rounded,
+          onTap: onTap,
+        );
+      },
     );
   }
 }
@@ -643,6 +911,11 @@ class _CareCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final String? badge;
+
+  /// Cor e ícone do badge. Sem valor, ficam no laranja de "pendente" — que é
+  /// o sentido do badge nos cards de vacina/vermífugo.
+  final Color? badgeColor;
+  final IconData? badgeIcon;
   final VoidCallback onTap;
 
   const _CareCard({
@@ -652,11 +925,14 @@ class _CareCard extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.badge,
+    this.badgeColor,
+    this.badgeIcon,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final badgeTint = badgeColor ?? c.statusPending;
 
     return AppCard(
       onTap: onTap,
@@ -693,21 +969,21 @@ class _CareCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm,
                   vertical: 3),
               decoration: BoxDecoration(
-                color: c.tint(c.statusPending, 0.12),
+                color: c.tint(badgeTint, 0.12),
                 borderRadius: AppRadius.pill_,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.schedule_rounded,
-                      size: 12, color: c.statusPending),
+                  Icon(badgeIcon ?? Icons.schedule_rounded,
+                      size: 12, color: badgeTint),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(badge!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.caption.copyWith(
-                            color: c.statusPending,
+                            color: badgeTint,
                             fontWeight: FontWeight.w600)),
                   ),
                 ],
@@ -927,7 +1203,15 @@ class _SectionHeader extends StatelessWidget {
 class _CircleAction extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  const _CircleAction({required this.icon, required this.onTap});
+
+  /// Troca o ícone por um spinner e desabilita o toque (upload em curso).
+  final bool busy;
+
+  const _CircleAction({
+    required this.icon,
+    required this.onTap,
+    this.busy = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -938,11 +1222,17 @@ class _CircleAction extends StatelessWidget {
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: onTap,
+          onTap: busy ? null : onTap,
           child: SizedBox(
             width: 36,
             height: 36,
-            child: Icon(icon, size: 17, color: c.textPrimary),
+            child: busy
+                ? Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: c.accentBlue),
+                  )
+                : Icon(icon, size: 17, color: c.textPrimary),
           ),
         ),
       ),
