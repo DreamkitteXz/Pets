@@ -10,6 +10,7 @@ export 'theme_controller.dart';
 
 export 'widgets/app_button.dart';
 export 'widgets/app_card.dart';
+export 'widgets/app_info_group.dart';
 export 'widgets/app_list_tile.dart';
 export 'widgets/app_scaffold.dart';
 export 'widgets/app_state_views.dart';

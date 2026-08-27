@@ -44,7 +44,7 @@ class VermifugoPage extends StatelessWidget {
         children: [
           _statusCard(context, status),
           const SizedBox(height: AppSpacing.lg),
-          _group(context, 'Dados do vermífugo', {
+          AppInfoGroup(header: 'Dados do vermífugo', rows: {
             'Aplicado em': _fmt(v.administrationDate),
             if (v.isReinforcementNeeded == true)
               'Reforço': _fmt(v.reinforcementDate),
@@ -53,18 +53,18 @@ class VermifugoPage extends StatelessWidget {
             if ((v.weight ?? 0) > 0) 'Peso do pet': '${v.weight} kg',
           }),
           const SizedBox(height: AppSpacing.lg),
-          _group(context, 'Veterinário', {
+          AppInfoGroup(header: 'Veterinário', rows: {
             'Nome': v.veterinarianName ?? 'N/D',
             'CRMV': v.crmvNumber ?? 'N/D',
           }),
           if ((v.clinicName ?? '').isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
-            _group(context, 'Clínica', {'Nome': v.clinicName!}),
+            AppInfoGroup(header: 'Clínica', rows: {'Nome': v.clinicName!}),
           ],
           if ((v.effectivenessNotes ?? '').isNotEmpty ||
               (v.observations ?? '').isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
-            _group(context, 'Observações', {
+            AppInfoGroup(header: 'Observações', rows: {
               if ((v.effectivenessNotes ?? '').isNotEmpty)
                 'Efetividade': v.effectivenessNotes!,
               if ((v.observations ?? '').isNotEmpty)
@@ -110,50 +110,6 @@ class VermifugoPage extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _group(BuildContext context, String header, Map<String, String> rows) {
-    final c = context.colors;
-    final entries = rows.entries.toList();
-    final children = <Widget>[];
-    for (var i = 0; i < entries.length; i++) {
-      children.add(Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(entries[i].key,
-                style: AppTypography.callout.copyWith(color: c.textSecondary)),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Text(entries[i].value,
-                  textAlign: TextAlign.right,
-                  style: AppTypography.callout.copyWith(color: c.textPrimary)),
-            ),
-          ],
-        ),
-      ));
-      if (i != entries.length - 1) {
-        children.add(Padding(
-          padding: const EdgeInsets.only(left: AppSpacing.lg),
-          child: Divider(height: 1, thickness: 1, color: c.separator),
-        ));
-      }
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xs, 0, AppSpacing.xs, AppSpacing.sm),
-          child: Text(header.toUpperCase(),
-              style: AppTypography.caption
-                  .copyWith(color: c.textTertiary, letterSpacing: 0.5)),
-        ),
-        AppCard(padding: EdgeInsets.zero, child: Column(children: children)),
-      ],
     );
   }
 }

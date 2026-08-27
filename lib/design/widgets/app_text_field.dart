@@ -20,6 +20,10 @@ class AppTextField extends StatelessWidget {
   final bool readOnly;
   final List<TextInputFormatter>? inputFormatters;
 
+  /// Tap no campo. Combinado com [readOnly], transforma o input num gatilho
+  /// (seletor de data, bottom sheet) sem abrir o teclado.
+  final VoidCallback? onTap;
+
   const AppTextField({
     super.key,
     this.controller,
@@ -35,6 +39,7 @@ class AppTextField extends StatelessWidget {
     this.enabled = true,
     this.readOnly = false,
     this.inputFormatters,
+    this.onTap,
   });
 
   @override
@@ -59,6 +64,7 @@ class AppTextField extends StatelessWidget {
           onChanged: onChanged,
           enabled: enabled,
           readOnly: readOnly,
+          onTap: onTap,
           maxLines: obscureText ? 1 : maxLines,
           style: AppTypography.callout.copyWith(color: c.textPrimary),
           inputFormatters: inputFormatters,
