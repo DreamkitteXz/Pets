@@ -61,3 +61,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Assinatura de release — NUNCA versionar.
+# android/.gitignore já cobre o diretório android/; estes padrões pegam também
+# um keystore solto na raiz do repositório ou em qualquer outra pasta.
+key.properties
+*.jks
+*.keystore
+*.p12

@@ -53,9 +53,12 @@ class DefaultFirebaseOptions {
     measurementId: 'G-Q2NZLHJJ8V',
   );
 
+  // appId do cliente Android `com.kayque.pets` (google-services.json). O
+  // anterior (…90ea1e66…) era do `com.example.pet_app` e deixaria o app
+  // conectando como outro cliente do mesmo projeto.
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyB4Zpf4NcAga2GmRHfvyWUHJNNQZasCS_A',
-    appId: '1:581507658371:android:90ea1e6690ad48e5b7a1b6',
+    appId: '1:581507658371:android:2120a5c2af99d455b7a1b6',
     messagingSenderId: '581507658371',
     projectId: 'pet-app-fccae',
     storageBucket: 'pet-app-fccae.appspot.com',

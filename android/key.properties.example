@@ -1,0 +1,14 @@
+# Modelo do android/key.properties — COPIE para `key.properties` e preencha.
+#
+# O arquivo real NÃO é versionado (android/.gitignore). Este .example é, para
+# quem for publicar saber o formato esperado.
+#
+# storeFile: caminho ABSOLUTO até o .jks, FORA do repositório.
+#   Windows: use barras normais ou escape as invertidas —
+#     C:/Users/seu-usuario/keystores/pet-app-release.jks
+#   (Properties do Java trata "\" como escape; "C:\Users\..." quebraria.)
+
+storeFile=C:/Users/SEU_USUARIO/keystores/pet-app-release.jks
+storePassword=SENHA_DO_KEYSTORE
+keyAlias=pet-app
+keyPassword=SENHA_DA_CHAVE

@@ -14,7 +14,15 @@
       },
       "oauth_client": [
         {
-          "client_id": "581507658371-m7leu6oq76umi200skkd3ctn350pi8ic.apps.googleusercontent.com",
+          "client_id": "581507658371-v07gi393ude2eg0jph0u3smjsf6rmcot.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.pet_app",
+            "certificate_hash": "9bbb3186b2189ef16d8f272bdab59362c395cbb4"
+          }
+        },
+        {
+          "client_id": "581507658371-p4kk8diimb0ve9pg0116pp3e3mb4a261.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -27,14 +35,86 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "581507658371-m7leu6oq76umi200skkd3ctn350pi8ic.apps.googleusercontent.com",
+              "client_id": "581507658371-p4kk8diimb0ve9pg0116pp3e3mb4a261.apps.googleusercontent.com",
               "client_type": 3
             },
             {
-              "client_id": "581507658371-ugopko3bglbf3pt68h0otttn23mpn1q4.apps.googleusercontent.com",
+              "client_id": "581507658371-ufqm5ro0bb6qqperfsdu0a4nb5egjbov.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.petApp"
+                "bundle_id": "com.kayque.pets"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:581507658371:android:2120a5c2af99d455b7a1b6",
+        "android_client_info": {
+          "package_name": "com.kayque.pets"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "581507658371-p4kk8diimb0ve9pg0116pp3e3mb4a261.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4Zpf4NcAga2GmRHfvyWUHJNNQZasCS_A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "581507658371-p4kk8diimb0ve9pg0116pp3e3mb4a261.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "581507658371-ufqm5ro0bb6qqperfsdu0a4nb5egjbov.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.kayque.pets"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:581507658371:android:0575bdf87cb6aec2b7a1b6",
+        "android_client_info": {
+          "package_name": "com.mycompany.kayqueteste"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "581507658371-p4kk8diimb0ve9pg0116pp3e3mb4a261.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4Zpf4NcAga2GmRHfvyWUHJNNQZasCS_A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "581507658371-p4kk8diimb0ve9pg0116pp3e3mb4a261.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "581507658371-ufqm5ro0bb6qqperfsdu0a4nb5egjbov.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.kayque.pets"
               }
             }
           ]
