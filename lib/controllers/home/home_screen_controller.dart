@@ -8,7 +8,6 @@ import 'package:pet_app/repositories/vaccine_repository.dart';
 
 class HomeScreenController {
   final User user;
-  final Future<void> Function() onLogout;
   final void Function(String) onUserData;
   final PetRepository _petRepository = PetRepository();
   final VaccineRepository _vaccineRepository = VaccineRepository();
@@ -16,7 +15,6 @@ class HomeScreenController {
 
   HomeScreenController({
     required this.user,
-    required this.onLogout,
     required this.onUserData,
   });
 
@@ -60,10 +58,13 @@ class HomeScreenController {
     return vaccinesData.map((e) => Vacinas.fromMap(e)).toList();
   }
 
-  Future<void> logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    await onLogout();
-  }
+  /// Encerra a sessão. Quem decide a tela seguinte é o RoteadorTelas, que
+  /// escuta o estado de autenticação — a UI não navega na mão.
+  ///
+  /// Antes isto chamava um callback `onLogout` que, no main_screen, chamava
+  /// este mesmo método de volta: recursão infinita, que só não estourava
+  /// porque nenhuma tela chegava a invocá-lo.
+  Future<void> logout() => FirebaseAuth.instance.signOut();
 
   Future<Map<String, dynamic>?> fetchUserDocument() async {
     try {

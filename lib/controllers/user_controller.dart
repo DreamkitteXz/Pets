@@ -101,13 +101,35 @@ class UserController {
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           });
-        } catch (_) {}
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: CustomSnackBar(successfulText: 'Conta criada com sucesso!'),
-          backgroundColor: Colors.transparent,
-          behavior: SnackBarBehavior.floating,
-          elevation: 0,
-        ));
+        } catch (writeError) {
+          // A escrita do perfil falhando NÃO pode virar "conta criada com
+          // sucesso": o usuário ficaria autenticado sem `users/{uid}`, que é
+          // exatamente o estado quebrado que o roteador trata como erro.
+          // Desfaz a sessão para o cadastro poder ser refeito limpo.
+          debugPrint('[cadastro] falha ao gravar users/${u.uid}: $writeError');
+          await firebaseAuth.signOut();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: CustomSnackBar(
+                  errorText:
+                      'Conta autenticada, mas o perfil não foi salvo. '
+                      'Tente cadastrar novamente.'),
+              backgroundColor: Colors.transparent,
+              behavior: SnackBarBehavior.floating,
+              elevation: 0,
+            ));
+          }
+          return false;
+        }
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                CustomSnackBar(successfulText: 'Conta criada com sucesso!'),
+            backgroundColor: Colors.transparent,
+            behavior: SnackBarBehavior.floating,
+            elevation: 0,
+          ));
+        }
         return true;
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

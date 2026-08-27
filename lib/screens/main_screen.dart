@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pet_app/models/pet_model.dart';
-import 'package:pet_app/screens/auth/login_screen.dart';
 import 'package:pet_app/screens/pets/add_pet.dart';
 import 'package:pet_app/screens/home/home_screen.dart';
 import 'package:pet_app/screens/pets/pets_screen.dart';
 import 'package:pet_app/screens/vaccines/vaccines_screen.dart';
 import 'package:pet_app/screens/profile/profile_screen.dart';
 import 'package:pet_app/controllers/home/home_screen_controller.dart';
-import 'package:pet_app/controllers/user_controller.dart'; // Adicione esta linha
 import 'package:pet_app/design/design.dart';
 
 class HomeScreenPage extends StatefulWidget {
@@ -25,18 +23,23 @@ class HomeScreenPage extends StatefulWidget {
 class _HomeScreenPageState extends State<HomeScreenPage>
     with SingleTickerProviderStateMixin {
   late HomeScreenController _controller;
-  late UserController _userController; // Adicione esta linha
   late TabController _tabController;
   int _selectedIndex = 0;
   late List<Widget> _pages;
   String userName = '';
 
+  /// Incrementado a cada volta para a aba Home. É um ValueNotifier (e não um
+  /// parâmetro no construtor) porque a home vive num IndexedStack: ela nunca
+  /// desmonta ao trocar de aba, então não há `initState` para reagir — e o
+  /// notifier muda de VALOR sem mudar de identidade, dispensando recriar a
+  /// página só para reanimar a saudação.
+  final ValueNotifier<int> _homeTick = ValueNotifier<int>(0);
+
   @override
   void initState() {
     super.initState();
-    _userController = UserController();
-    _controller = HomeScreenController(
-        user: widget.user, onLogout: _logout, onUserData: _onUserData);
+    _controller =
+        HomeScreenController(user: widget.user, onUserData: _onUserData);
     _tabController = TabController(length: 2, vsync: this);
     _pages = List<Widget>.filled(
       5,
@@ -44,58 +47,30 @@ class _HomeScreenPageState extends State<HomeScreenPage>
       growable: false,
     );
 
-    // inicializa sem os dados completos do Firestore (será atualizado em _loadUserData)
+    // A home não recebe mais o usuário por parâmetro: ela lê o
+    // CurrentUserService. Era isso que obrigava a montar duas vezes (uma com
+    // `userData: null`, mostrando "Olá, Usuário", e outra depois da leitura).
     _pages[0] = HomeScreenMainTab(
       tabControllerBuilder: (controller) => _tabController,
+      greetingReplayTrigger: _homeTick,
       onShowAllPets: (List<Pets> pets) {
         setState(() {
           _pages[3] = PetsScreen(pets: pets);
           _selectedIndex = 3;
         });
       },
-      userData: null, // agora passa Users? (null inicialmente)
     );
     _pages[1] = const VacinasScreen();
     // O índice 2 é o botão central de adicionar — não tem página própria.
     _pages[3] = const PetsScreen(pets: []);
+    // Sair = encerrar a sessão e deixar o RoteadorTelas decidir. Empilhar a
+    // LoginPage aqui reproduzia o bug do onboarding ao contrário: ao entrar de
+    // novo, o roteador trocava para a home embaixo e a LoginPage empilhada
+    // continuava cobrindo — "deslogo, logo de novo e não caio na home".
     _pages[4] = ProfileScreen(
       user: widget.user,
-      onLogout: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-        );
-      },
+      onLogout: _logout,
     );
-    _loadUserData(); // Adicione esta linha
-  }
-
-  // Adicione este método
-  Future<void> _loadUserData() async {
-    try {
-      final users = await _userController.getCurrentUser();
-      if (users != null) {
-        // Atualiza displayName no Auth (opcional)
-        await widget.user.updateDisplayName(users.name);
-        await widget.user.reload();
-      }
-
-      setState(() {
-        // Recria a página principal passando o objeto Users (pode ser null)
-        _pages[0] = HomeScreenMainTab(
-          tabControllerBuilder: (controller) => _tabController,
-          onShowAllPets: (List<Pets> pets) {
-            setState(() {
-              _pages[3] = PetsScreen(pets: pets);
-              _selectedIndex = 3;
-            });
-          },
-          userData: users, // aqui vai o Users completo do Firestore
-        );
-      });
-    } catch (e) {
-      debugPrint('Erro ao carregar dados do usuário: $e');
-    }
   }
 
   void _onUserData(String name) {
@@ -107,12 +82,20 @@ class _HomeScreenPageState extends State<HomeScreenPage>
   @override
   void dispose() {
     _tabController.dispose();
+    _homeTick.dispose();
     super.dispose();
   }
 
-  Future<void> _logout() async {
-    await _controller.logout(context);
+  /// Marca a chegada na aba Home para a saudação reanimar.
+  ///
+  /// Só conta quando vem de OUTRA aba: tocar em Home já estando nela não
+  /// deveria reiniciar o efeito.
+  void _selectTab(int index) {
+    if (index == 0 && _selectedIndex != 0) _homeTick.value++;
+    setState(() => _selectedIndex = index);
   }
+
+  Future<void> _logout() => _controller.logout();
 
   @override
   Widget build(BuildContext context) {
@@ -201,7 +184,7 @@ class _HomeScreenPageState extends State<HomeScreenPage>
           });
           return;
         }
-        setState(() => _selectedIndex = index);
+        _selectTab(index);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(
