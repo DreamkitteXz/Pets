@@ -620,8 +620,14 @@ class _AddVacPageState extends State<AddVacPage> {
 
       // Vincula o vet ao pet (canônico). NÃO grava mais pets.vaccines[]
       // (deprecado — verdade é vaccines.petId). F0.3/§2.2.
+      //
+      // Só faz o arrayUnion com vet de verdade: sem lista de veterinários
+      // (rule de `users` nega a consulta ao tutor) `selectedVetId` é null, e
+      // `arrayUnion([null])` enfiava um null em `pets.veterinarians` — campo
+      // que as rules leem para decidir acesso ao prontuário.
       await petRef.update({
-        'veterinarians': FieldValue.arrayUnion([selectedVetId]),
+        if (selectedVetId != null)
+          'veterinarians': FieldValue.arrayUnion([selectedVetId]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
