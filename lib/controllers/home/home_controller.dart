@@ -74,9 +74,13 @@ class HomeController {
   }
 
   // Stream for user's pets (limit 3)
+  //
+  // Sem sessão o stream emite lista vazia — e NÃO `Stream.empty()`: quem usa
+  // `.first` (as ações rápidas da Home) receberia um StateError num stream que
+  // fecha sem emitir nada.
   Stream<List<Pets>> getUserPets({int limit = 3}) {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) return const Stream.empty();
+    if (uid == null) return Stream.value(const <Pets>[]);
     return _firestore
         .collection('pets')
         .where('ownerId', isEqualTo: uid)

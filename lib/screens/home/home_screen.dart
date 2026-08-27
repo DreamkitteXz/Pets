@@ -1,28 +1,41 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:pet_app/controllers/pets/pet_controller.dart';
 import 'package:pet_app/controllers/home/home_controller.dart';
 import 'package:pet_app/models/pet_model.dart';
-import 'package:pet_app/models/user_model.dart';
+import 'package:pet_app/screens/components/pet_avatar.dart';
+import 'package:pet_app/screens/home/greeting.dart';
+import 'package:pet_app/services/current_user_service.dart';
+import 'package:pet_app/screens/deworming/add_deworming_screen.dart';
+import 'package:pet_app/screens/medications/add_medication_screen.dart';
 import 'package:pet_app/screens/pets/add_pet.dart';
 import 'package:pet_app/screens/notifications/notifications_screen.dart';
 import 'package:pet_app/screens/pets/pet_information.dart' as pet_info;
+import 'package:pet_app/screens/pets/weight/pet_weight_tracker.dart';
+import 'package:pet_app/screens/vaccines/add_vaccine_screen.dart';
 import 'package:pet_app/services/notifications_service.dart';
-import 'package:pet_app/services/pet_assets_service.dart';
 import 'package:pet_app/design/design.dart';
 
 /// Aba principal (dashboard) do tutor — repaginada sobre o design system.
-/// Preserva a API pública (usada pelo main_screen): [tabControllerBuilder],
-/// [onShowAllPets], [userData].
+///
+/// Não recebe mais `userData`: o nome do tutor vem do [CurrentUserService]
+/// (ver [HomeGreeting]). Passar o usuário por parâmetro obrigava o main_screen
+/// a montar a home antes da leitura terminar, e o fallback do caminho
+/// (`?? 'Usuário'`) era o que aparecia no primeiro frame.
 class HomeScreenMainTab extends StatelessWidget {
-  final Users? userData;
   final TabController Function(TabController) tabControllerBuilder;
   final void Function(List<Pets> pets)? onShowAllPets;
+
+  /// Incrementado pelo main_screen ao voltar para a aba Home — reanima a
+  /// saudação.
+  final ValueListenable<int>? greetingReplayTrigger;
 
   HomeScreenMainTab({
     required this.tabControllerBuilder,
     this.onShowAllPets,
-    this.userData,
+    this.greetingReplayTrigger,
     super.key,
   });
 
@@ -36,7 +49,7 @@ class HomeScreenMainTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomAppBar(username: userData?.name ?? 'Usuário'),
+          CustomAppBar(greetingReplayTrigger: greetingReplayTrigger),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: Column(
@@ -87,14 +100,40 @@ class HomeScreenMainTab extends StatelessWidget {
               _actionCard(context, 'Novo pet', Icons.pets_rounded, c.accentBlue,
                   () => _open(context, const AddPetScreen())),
               const SizedBox(width: AppSpacing.md),
-              _actionCard(context, 'Vacina', Icons.vaccines_rounded,
-                  c.accentGreen, () => _open(context, const AddPetScreen())),
+              // Os cards abaixo precisam de um pet: pedem qual antes de abrir o
+              // cadastro. Antes todos caíam em AddPetScreen — tocar em "Vacina"
+              // abria o cadastro de PET.
+              _actionCard(
+                  context,
+                  'Vacina',
+                  Icons.vaccines_rounded,
+                  c.accentGreen,
+                  () => _openForPet(context, 'Registrar vacina',
+                      (pet) => AddVacPage(petId: pet.id))),
               const SizedBox(width: AppSpacing.md),
-              _actionCard(context, 'Vermífugo', Icons.medication_rounded,
-                  c.accentOrange, () => _open(context, const AddPetScreen())),
+              _actionCard(
+                  context,
+                  'Vermífugo',
+                  Icons.medication_rounded,
+                  c.accentOrange,
+                  () => _openForPet(context, 'Registrar vermífugo',
+                      (pet) => AddVermifugoPage(petId: pet.id))),
               const SizedBox(width: AppSpacing.md),
-              _actionCard(context, 'Peso', Icons.monitor_weight_rounded,
-                  c.accentPink, () => _open(context, const AddPetScreen())),
+              _actionCard(
+                  context,
+                  'Medicamento',
+                  Icons.medication_liquid_rounded,
+                  c.accentTeal,
+                  () => _openForPet(context, 'Registrar medicamento',
+                      (pet) => AddMedicamentoPage(pet: pet))),
+              const SizedBox(width: AppSpacing.md),
+              _actionCard(
+                  context,
+                  'Peso',
+                  Icons.monitor_weight_rounded,
+                  c.accentPink,
+                  () => _openForPet(context, 'Registrar peso',
+                      (pet) => PetWeightTrackingPage(pet: pet))),
             ],
           ),
         ),
@@ -274,21 +313,7 @@ class HomeScreenMainTab extends StatelessWidget {
       onTap: () => _open(context, pet_info.PetInformation(pet: pet)),
       child: Row(
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: c.surfaceSecondary,
-              borderRadius: const BorderRadius.all(Radius.circular(AppRadius.md)),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Image.asset(
-              PetAssetsService.getImagePath(pet.species, pet.breed, pet.gender),
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Icon(Icons.pets_rounded, color: c.textTertiary, size: 24),
-            ),
-          ),
+          PetAvatar(pet: pet, size: 52),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -354,6 +379,92 @@ class HomeScreenMainTab extends StatelessWidget {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
+  /// Ações que só existem no contexto de um pet (vacina, vermífugo,
+  /// medicamento, peso). Sem pet cadastrado, oferece o cadastro; com um só,
+  /// vai direto; com vários, pergunta qual.
+  Future<void> _openForPet(
+    BuildContext context,
+    String title,
+    Widget Function(Pets pet) builder,
+  ) async {
+    final pets = await _controller.getUserPets(limit: 100).first;
+    if (!context.mounted) return;
+
+    if (pets.isEmpty) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(SnackBar(
+        content: const Text('Cadastre um pet antes de registrar cuidados.'),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Novo pet',
+          onPressed: () => _open(context, const AddPetScreen()),
+        ),
+      ));
+      return;
+    }
+
+    final pet = pets.length == 1
+        ? pets.first
+        : await _pickPet(context, title: title, pets: pets);
+    if (pet == null || !context.mounted) return;
+
+    _open(context, builder(pet));
+  }
+
+  Future<Pets?> _pickPet(
+    BuildContext context, {
+    required String title,
+    required List<Pets> pets,
+  }) {
+    return showModalBottomSheet<Pets>(
+      context: context,
+      backgroundColor: context.colors.surfaceGroupedSecondary,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (sheetContext) {
+        final c = sheetContext.colors;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                    AppSpacing.lg, AppSpacing.lg, AppSpacing.xs),
+                child: Text(title,
+                    style: AppTypography.title2.copyWith(color: c.textPrimary)),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
+                child: Text('Para qual pet?',
+                    style: AppTypography.footnote
+                        .copyWith(color: c.textSecondary)),
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: pets.length,
+                  itemBuilder: (_, i) {
+                    final pet = pets[i];
+                    return AppListTile(
+                      title: pet.name ?? 'Sem nome',
+                      subtitle: pet.breed ?? 'Raça N/D',
+                      leadingIcon: Icons.pets_rounded,
+                      onTap: () => Navigator.pop(sheetContext, pet),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _formatDateTime(DateTime dt) {
     final now = DateTime.now();
     final hm =
@@ -366,26 +477,36 @@ class HomeScreenMainTab extends StatelessWidget {
 }
 
 /// Header do dashboard: data + saudação + sino de notificação + avatar.
-/// Mantém a API antiga (usada como cabeçalho da aba Home).
+///
+/// A saudação NÃO recebe mais o nome por parâmetro: ela lê o
+/// [CurrentUserService] direto (ver [HomeGreeting]). O caminho antigo
+/// (`username` vindo do main_screen) obrigava a home a renderizar antes do
+/// dado chegar, e o `?? 'Usuário'` do meio do caminho era o que aparecia no
+/// primeiro frame.
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String username;
   final VoidCallback? onNotificationTap;
   final VoidCallback? onProfileTap;
   final String? profileImageUrl;
 
+  /// Repassado à saudação para reanimar ao voltar para a aba Home.
+  final ValueListenable<int>? greetingReplayTrigger;
+
   const CustomAppBar({
     super.key,
-    required this.username,
     this.onNotificationTap,
     this.onProfileTap,
     this.profileImageUrl,
+    this.greetingReplayTrigger,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final formattedDate = DateFormat('EEE, d MMM').format(DateTime.now());
-    final initial = username.isNotEmpty ? username[0].toUpperCase() : '?';
+    final initial = CurrentUserService.firstNameOf(
+            context.watch<CurrentUserService>().user?.name)
+        ?.substring(0, 1)
+        .toUpperCase();
 
     return Container(
       color: c.surfaceGrouped,
@@ -402,11 +523,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     style:
                         AppTypography.footnote.copyWith(color: c.textSecondary)),
                 const SizedBox(height: 2),
-                Text('Olá, $username',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.largeTitle
-                        .copyWith(color: c.textPrimary)),
+                HomeGreeting(replayTrigger: greetingReplayTrigger),
               ],
             ),
           ),
@@ -462,10 +579,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       profileImageUrl!.isNotEmpty)
                   ? NetworkImage(profileImageUrl!)
                   : null,
+              // Sem nome ainda (ou sem nome nenhum) o avatar mostra um ícone
+              // neutro — melhor que uma inicial inventada.
               child: (profileImageUrl == null || profileImageUrl!.isEmpty)
-                  ? Text(initial,
-                      style: AppTypography.headline
-                          .copyWith(color: c.accentBlue))
+                  ? (initial == null
+                      ? Icon(Icons.person_rounded,
+                          size: 20, color: c.accentBlue)
+                      : Text(initial,
+                          style: AppTypography.headline
+                              .copyWith(color: c.accentBlue)))
                   : null,
             ),
           ),
