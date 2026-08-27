@@ -58,12 +58,15 @@ class AppButton extends StatelessWidget {
             mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (icon != null) ...[
-                Icon(icon, size: 18, color: fg),
-                AppSpacing.gapSm,
-              ],
-              Text(label,
-                  style: AppTypography.headline.copyWith(color: fg)),
+              if (icon != null) Icon(icon, size: 18, color: fg),
+              // Botão só de ícone (label vazio) não reserva o gap nem um Text
+              // vazio: eram 18 + 8 + 0 = 26px de conteúdo, que estouravam os
+              // 24px úteis do botão de voltar do WizardShell (56 de largura
+              // menos 32 de padding horizontal).
+              if (icon != null && label.isNotEmpty) AppSpacing.gapSm,
+              if (label.isNotEmpty)
+                Text(label,
+                    style: AppTypography.headline.copyWith(color: fg)),
             ],
           );
 
@@ -75,7 +78,12 @@ class AppButton extends StatelessWidget {
           backgroundColor: bg,
           foregroundColor: fg,
           disabledBackgroundColor: bg.withValues(alpha: 0.4),
-          minimumSize: const Size.fromHeight(50),
+          // `Size.fromHeight(50)` é `Size(infinity, 50)`: a largura mínima é
+          // INFINITA. Num pai de largura limitada isso só vira "ocupa tudo",
+          // mas dentro de uma Row (largura ilimitada) força largura infinita e
+          // estoura o layout. Com fullWidth:false o botão precisa poder
+          // encolher para o tamanho do conteúdo.
+          minimumSize: fullWidth ? const Size.fromHeight(50) : const Size(0, 50),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           shape:
               const RoundedRectangleBorder(borderRadius: AppRadius.button_),

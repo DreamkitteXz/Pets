@@ -136,14 +136,19 @@ class WizardShell extends StatelessWidget {
         child: Row(
           children: [
             if (onBack != null) ...[
-              SizedBox(
-                width: 56,
-                child: AppButton(
-                  label: '',
-                  icon: Icons.arrow_back_rounded,
-                  variant: AppButtonVariant.secondary,
-                  fullWidth: false,
-                  onPressed: busy ? null : onBack,
+              // Tooltip dá o nome acessível que um botão só de ícone não
+              // tem (leitor de tela + toque longo).
+              Tooltip(
+                message: 'Voltar',
+                child: SizedBox(
+                  width: 56,
+                  child: AppButton(
+                    label: '',
+                    icon: Icons.arrow_back_rounded,
+                    variant: AppButtonVariant.secondary,
+                    fullWidth: false,
+                    onPressed: busy ? null : onBack,
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
