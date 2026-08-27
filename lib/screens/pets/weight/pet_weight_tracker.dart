@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -7,19 +5,18 @@ import 'package:intl/intl.dart';
 import 'package:pet_app/design/design.dart';
 import 'package:pet_app/models/pet_model.dart';
 import 'package:pet_app/repositories/pet_weight_repository.dart';
-import 'package:pet_app/utils/firestore_date.dart';
 
-/// Escrita do TUTOR no **prontuário** de pesagens (`pets/{petId}/weights`):
-/// GATED (§13.4). A rule libera a subcoleção para LEITURA do dono, mas a
-/// escrita é do vet vinculado — pesagem clínica tem autoridade do vet.
+/// Linha do tempo de peso do pet — UMA só, compartilhada com o site.
 ///
-/// Isso **não** bloqueia o tutor de manter o peso atual do pet: esse valor vai
-/// para `pets/{petId}.weight`, que o dono pode atualizar hoje
-/// (`allow update: if uid == ownerId`). A tela separa as duas fontes.
-/// Fica `final` (não `const`) de propósito: com `const` o analisador marca o
-/// caminho gated como dead_code.
-// ignore: prefer_const_declarations
-final bool kTutorWeightWriteEnabled = false;
+/// A tela tinha duas fontes separadas ("MEU REGISTRO" no doc do pet e o
+/// histórico clínico numa subcoleção) porque a escrita do tutor no prontuário
+/// era GATED (§13.4): a rule só deixava o vet escrever. A rule de
+/// `pets/{petId}/pesos` agora aceita o auto-relato do dono
+/// (`source: 'tutor'`), então tutor e veterinário alimentam a mesma curva —
+/// a mesma que o WeightChart da web desenha.
+///
+/// Cada atualização de peso vira um ponto no gráfico E atualiza
+/// `pets/{petId}.weight` (o peso atual da ficha), no mesmo lote.
 
 /// Períodos do filtro do histórico.
 enum _Period { week, month, year, all }
@@ -43,25 +40,10 @@ class PetWeightTrackingPage extends StatefulWidget {
 class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
   final PetWeightRepository _weightRepo = PetWeightRepository();
   _Period _period = _Period.month;
+  bool _saving = false;
 
-  /// Peso informado pelo tutor (campo `weight` do doc do pet). Guardado no
-  /// state para a tela refletir a edição sem depender de recarregar o pet.
-  late String? _selfWeight = widget.pet.weight;
-  bool _savingSelfWeight = false;
-
-  // Pesagens com data ou peso ilegíveis são descartadas em vez de derrubarem
-  // o stream inteiro.
-  late final Stream<List<WeightRecord>> _stream =
-      _weightRepo.weightsStream(widget.pet.id).map((rows) {
-    final records = <WeightRecord>[];
-    for (final data in rows) {
-      final date = readFirestoreDate(data['date']);
-      final weight = data['weight'];
-      if (date == null || weight is! num) continue;
-      records.add(WeightRecord(date, weight.toDouble()));
-    }
-    return records;
-  });
+  late final Stream<List<WeightEntry>> _stream =
+      _weightRepo.weightsStream(widget.pet.id);
 
   void _toast(String message) {
     if (!mounted) return;
@@ -70,8 +52,8 @@ class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
     );
   }
 
-  /// Records vêm em ordem crescente de data (orderBy no repositório).
-  List<WeightRecord> _filter(List<WeightRecord> all) {
+  /// Entradas vêm em ordem crescente de data (orderBy no repositório).
+  List<WeightEntry> _filter(List<WeightEntry> all) {
     if (_period == _Period.all) return all;
     final now = DateTime.now();
     int days;
@@ -83,9 +65,10 @@ class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
         days = 365;
         break;
       case _Period.month:
-      default:
         days = 30;
         break;
+      case _Period.all:
+        return all;
     }
     final cutoff = now.subtract(Duration(days: days));
     return all.where((r) => r.date.isAfter(cutoff)).toList();
@@ -98,72 +81,54 @@ class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
       subtitle: widget.pet.name,
       showBack: true,
       bodyPadding: false,
-      actions: [
-        IconButton(
-          onPressed: _savingSelfWeight ? null : _onEditSelfWeight,
-          icon: const Icon(Icons.edit_rounded),
-          color: context.colors.accentBlue,
-          tooltip: 'Atualizar meu registro de peso',
-        ),
-      ],
-      body: StreamBuilder<List<WeightRecord>>(
+      body: StreamBuilder<List<WeightEntry>>(
         stream: _stream,
         builder: (context, snapshot) {
-          // O histórico é do prontuário (vet). Falha ou vazio nele não pode
-          // esconder o peso informado pelo tutor, que é outra fonte.
-          final all = snapshot.data ?? const <WeightRecord>[];
-          final loadingHistory =
-              !snapshot.hasData && !snapshot.hasError;
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AppLoading();
+          }
+          if (snapshot.hasError) {
+            return AppErrorState(
+              message: 'Não foi possível carregar o histórico de peso.',
+              onRetry: () => setState(() {}),
+            );
+          }
+
+          final all = snapshot.data ?? const <WeightEntry>[];
           final filtered = _filter(all);
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xxxl),
             children: [
-              _SelfWeightCard(
-                weight: _selfWeight,
-                saving: _savingSelfWeight,
-                onEdit: _onEditSelfWeight,
+              _CurrentWeightCard(
+                all: all,
+                // Peso da ficha do pet: cobre o caso de existir peso cadastrado
+                // sem nenhuma pesagem ainda registrada.
+                fallbackWeight: widget.pet.weightValue,
+                saving: _saving,
+                onRegister: _onRegisterWeight,
               ),
-              const SizedBox(height: AppSpacing.xxl),
-              const _SectionLabel(
-                label: 'Histórico clínico',
-                hint: 'Pesagens feitas pelo veterinário',
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              if (loadingHistory)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-                  child: AppLoading(),
-                )
-              else if (snapshot.hasError)
-                AppCard(
-                  child: Text(
-                    'Não foi possível carregar o histórico de pesagens.',
-                    style: AppTypography.callout
-                        .copyWith(color: context.colors.textSecondary),
-                  ),
-                )
-              else if (all.isEmpty)
+              if (all.isEmpty) ...[
+                const SizedBox(height: AppSpacing.xxl),
                 AppCard(
                   child: Row(
                     children: [
-                      Icon(Icons.monitor_weight_rounded,
+                      Icon(Icons.show_chart_rounded,
                           size: 20, color: context.colors.textTertiary),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text(
-                          'Nenhuma pesagem do veterinário ainda. Quando '
-                          'houver, a curva de evolução aparece aqui.',
+                          'Registre o peso para começar a curva. Pesagens '
+                          'feitas pelo veterinário entram aqui também.',
                           style: AppTypography.callout
                               .copyWith(color: context.colors.textSecondary),
                         ),
                       ),
                     ],
                   ),
-                )
-              else ...[
-                _SummaryCard(all: all),
+                ),
+              ] else ...[
                 const SizedBox(height: AppSpacing.xxl),
                 _PeriodSelector(
                   selected: _period,
@@ -181,184 +146,113 @@ class _PetWeightTrackingPageState extends State<PetWeightTrackingPage> {
     );
   }
 
-  /// Edita o peso informado pelo tutor (`pets/{petId}.weight`).
-  ///
-  /// Este caminho NÃO passa pelo gate §13.4: ele grava no documento do pet,
-  /// onde a rule permite `update` ao dono. O prontuário de pesagens continua
-  /// sendo escrito só pelo vet.
-  Future<void> _onEditSelfWeight() async {
-    final controller = TextEditingController(
-      text: (_selfWeight ?? '').replaceAll('.', ','),
-    );
-
+  /// Registra a pesagem: vira ponto no gráfico e novo peso atual do pet.
+  Future<void> _onRegisterWeight() async {
     final value = await showDialog<double>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Peso do seu pet'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppTextField(
-              controller: controller,
-              label: 'Peso (kg)',
-              hint: 'Ex.: 14,5',
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Esse é o peso que você acompanha em casa. Ele não substitui a '
-              'pesagem do veterinário.',
-              style: AppTypography.footnote
-                  .copyWith(color: dialogContext.colors.textSecondary),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final parsed = double.tryParse(
-                  controller.text.trim().replaceAll(',', '.'));
-              if (parsed == null || parsed <= 0) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Informe um peso válido.'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-                return;
-              }
-              Navigator.pop(dialogContext, parsed);
-            },
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
+      builder: (_) => _WeightDialog(initial: widget.pet.weightValue),
     );
-
     if (value == null) return;
 
-    setState(() => _savingSelfWeight = true);
+    setState(() => _saving = true);
     try {
-      await _weightRepo.updateSelfReportedWeight(widget.pet.id, value);
+      await _weightRepo.registerTutorWeight(widget.pet.id, value);
       if (!mounted) return;
       setState(() {
-        _selfWeight = value.toString();
-        // Mantém o objeto em memória coerente com o que o hub do pet exibe.
-        widget.pet.weight = _selfWeight;
-        _savingSelfWeight = false;
+        // Mantém o objeto em memória coerente com o que a ficha do pet exibe.
+        widget.pet.weight = value.toString();
+        _saving = false;
       });
+      // O gráfico não precisa de refresh: o snapshot da subcoleção reemite.
+      _toast('Peso registrado.');
     } catch (e) {
-      if (mounted) setState(() => _savingSelfWeight = false);
+      if (mounted) setState(() => _saving = false);
       _toast('Não foi possível salvar o peso: $e');
     }
   }
 }
 
-/// Peso informado pelo tutor — fonte separada do prontuário do veterinário.
-class _SelfWeightCard extends StatelessWidget {
-  final String? weight;
-  final bool saving;
-  final VoidCallback onEdit;
-
-  const _SelfWeightCard({
-    required this.weight,
-    required this.saving,
-    required this.onEdit,
-  });
+/// Diálogo de entrada do peso. Stateful para poder descartar o controller.
+class _WeightDialog extends StatefulWidget {
+  final double? initial;
+  const _WeightDialog({this.initial});
 
   @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final parsed = double.tryParse((weight ?? '').replaceAll(',', '.'));
-    final temPeso = parsed != null && parsed > 0;
-
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text('MEU REGISTRO',
-                    style: AppTypography.caption
-                        .copyWith(color: c.textTertiary, letterSpacing: 0.5)),
-              ),
-              if (saving)
-                SizedBox(
-                  height: 14,
-                  width: 14,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: c.accentBlue),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          if (temPeso)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  parsed.toStringAsFixed(1).replaceAll('.', ','),
-                  style: AppTypography.largeTitle
-                      .copyWith(color: c.textPrimary, fontSize: 40, height: 1),
-                ),
-                const SizedBox(width: 4),
-                Text('kg',
-                    style:
-                        AppTypography.title2.copyWith(color: c.textSecondary)),
-              ],
-            )
-          else
-            Text('Você ainda não informou o peso',
-                style: AppTypography.callout.copyWith(color: c.textSecondary)),
-          const SizedBox(height: AppSpacing.md),
-          AppButton(
-            label: temPeso ? 'Atualizar peso' : 'Informar peso',
-            icon: Icons.monitor_weight_rounded,
-            variant: AppButtonVariant.secondary,
-            onPressed: saving ? null : onEdit,
-          ),
-        ],
-      ),
-    );
-  }
+  State<_WeightDialog> createState() => _WeightDialogState();
 }
 
-/// Rótulo de seção com uma linha de contexto.
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  final String hint;
-  const _SectionLabel({required this.label, required this.hint});
+class _WeightDialogState extends State<_WeightDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial == null
+        ? ''
+        : widget.initial!.toStringAsFixed(1).replaceAll('.', ','),
+  );
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final parsed =
+        double.tryParse(_controller.text.trim().replaceAll(',', '.'));
+    if (parsed == null || parsed <= 0) {
+      setState(() => _error = 'Informe um peso válido.');
+      return;
+    }
+    if (parsed > 200) {
+      setState(() => _error = 'Peso acima de 200 kg — confira o valor.');
+      return;
+    }
+    Navigator.pop(context, parsed);
+  }
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-      child: Column(
+    return AlertDialog(
+      title: const Text('Registrar peso'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(),
-              style: AppTypography.caption
-                  .copyWith(color: c.textTertiary, letterSpacing: 0.5)),
-          const SizedBox(height: 2),
-          Text(hint,
-              style: AppTypography.footnote.copyWith(color: c.textTertiary)),
+          AppTextField(
+            controller: _controller,
+            label: 'Peso (kg)',
+            hint: 'Ex.: 14,5',
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) {
+              if (_error != null) setState(() => _error = null);
+            },
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(_error!,
+                style: AppTypography.footnote.copyWith(color: c.accentRed)),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'A pesagem entra no histórico do pet com a data de hoje e aparece '
+            'na curva — para você e para o veterinário.',
+            style: AppTypography.footnote.copyWith(color: c.textSecondary),
+          ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Registrar')),
+      ],
     );
   }
 }
 
 // ====================================================================
-// Resumo — só fatos derivados dos registros reais.
+// Peso atual — só fatos derivados dos registros reais.
 //
 // A faixa de "peso ideal" e o selo Saudável/Atenção que existiam aqui eram
 // MOCK ("Using mock data for demonstration"): números chutados por espécie,
@@ -366,16 +260,27 @@ class _SectionLabel extends StatelessWidget {
 // o veterinário. Se isso virar produto, precisa de fonte de dados real.
 // ====================================================================
 
-class _SummaryCard extends StatelessWidget {
-  final List<WeightRecord> all;
-  const _SummaryCard({required this.all});
+class _CurrentWeightCard extends StatelessWidget {
+  final List<WeightEntry> all;
+  final double? fallbackWeight;
+  final bool saving;
+  final VoidCallback onRegister;
+
+  const _CurrentWeightCard({
+    required this.all,
+    required this.fallbackWeight,
+    required this.saving,
+    required this.onRegister,
+  });
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final current = all.last;
+    final current = all.isEmpty ? null : all.last;
     final previous = all.length > 1 ? all[all.length - 2] : null;
-    final delta = previous == null ? null : current.weight - previous.weight;
+    final delta =
+        (current == null || previous == null) ? null : current.weight - previous.weight;
+    final displayWeight = current?.weight ?? fallbackWeight;
 
     return AppCard(
       child: Column(
@@ -385,60 +290,71 @@ class _SummaryCard extends StatelessWidget {
               style: AppTypography.caption
                   .copyWith(color: c.textTertiary, letterSpacing: 0.5)),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                current.weight.toStringAsFixed(1).replaceAll('.', ','),
-                style: AppTypography.largeTitle.copyWith(
-                  color: c.textPrimary,
-                  fontSize: 44,
-                  height: 1,
+          if (displayWeight != null)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  displayWeight.toStringAsFixed(1).replaceAll('.', ','),
+                  style: AppTypography.largeTitle
+                      .copyWith(color: c.textPrimary, fontSize: 44, height: 1),
                 ),
-              ),
-              const SizedBox(width: 4),
-              Text('kg',
-                  style: AppTypography.title2.copyWith(color: c.textSecondary)),
-              const Spacer(),
-              if (delta != null) _DeltaChip(delta: delta),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Última pesagem em ${DateFormat('dd/MM/yyyy').format(current.date)}',
-            style: AppTypography.footnote.copyWith(color: c.textSecondary),
-          ),
+                const SizedBox(width: 4),
+                Text('kg',
+                    style:
+                        AppTypography.title2.copyWith(color: c.textSecondary)),
+                const Spacer(),
+                if (delta != null) _DeltaChip(delta: delta),
+              ],
+            )
+          else
+            Text('Nenhum peso registrado ainda',
+                style: AppTypography.callout.copyWith(color: c.textSecondary)),
+          if (current != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Registrado em ${DateFormat('dd/MM/yyyy').format(current.date)}'
+              ' · ${_sourceLabel(current.source)}',
+              style: AppTypography.footnote.copyWith(color: c.textSecondary),
+            ),
+          ],
+          if (all.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Divider(height: 1, thickness: 1, color: c.separator),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                Expanded(
+                    child: _MiniStat(label: 'Pesagens', value: '${all.length}')),
+                Container(width: 1, height: 30, color: c.separator),
+                Expanded(
+                  child: _MiniStat(
+                    label: 'Menor',
+                    value: _kg(all
+                        .map((r) => r.weight)
+                        .reduce((a, b) => a < b ? a : b)),
+                  ),
+                ),
+                Container(width: 1, height: 30, color: c.separator),
+                Expanded(
+                  child: _MiniStat(
+                    label: 'Maior',
+                    value: _kg(all
+                        .map((r) => r.weight)
+                        .reduce((a, b) => a > b ? a : b)),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
-          Divider(height: 1, thickness: 1, color: c.separator),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: _MiniStat(
-                  label: 'Pesagens',
-                  value: '${all.length}',
-                ),
-              ),
-              Container(width: 1, height: 30, color: c.separator),
-              Expanded(
-                child: _MiniStat(
-                  label: 'Menor',
-                  value: _kg(all
-                      .map((r) => r.weight)
-                      .reduce((a, b) => a < b ? a : b)),
-                ),
-              ),
-              Container(width: 1, height: 30, color: c.separator),
-              Expanded(
-                child: _MiniStat(
-                  label: 'Maior',
-                  value: _kg(all
-                      .map((r) => r.weight)
-                      .reduce((a, b) => a > b ? a : b)),
-                ),
-              ),
-            ],
+          AppButton(
+            label: 'Registrar peso',
+            icon: Icons.monitor_weight_rounded,
+            variant: AppButtonVariant.secondary,
+            loading: saving,
+            onPressed: saving ? null : onRegister,
           ),
         ],
       ),
@@ -448,6 +364,9 @@ class _SummaryCard extends StatelessWidget {
   static String _kg(double v) =>
       '${v.toStringAsFixed(1).replaceAll('.', ',')} kg';
 }
+
+String _sourceLabel(WeightSource source) =>
+    source == WeightSource.tutor ? 'por você' : 'pelo veterinário';
 
 /// Variação em relação à pesagem anterior. Sem julgamento de valor: ganhar ou
 /// perder peso não é bom nem ruim por si — quem interpreta é o vet.
@@ -574,7 +493,7 @@ class _PeriodSelector extends StatelessWidget {
 // ====================================================================
 
 class _ChartCard extends StatelessWidget {
-  final List<WeightRecord> records;
+  final List<WeightEntry> records;
   const _ChartCard({required this.records});
 
   @override
@@ -583,12 +502,10 @@ class _ChartCard extends StatelessWidget {
     return AppCard(
       child: SizedBox(
         height: 200,
-        child: records.length < 2
+        child: records.isEmpty
             ? Center(
                 child: Text(
-                  records.isEmpty
-                      ? 'Nenhuma pesagem no período selecionado.'
-                      : 'Uma única pesagem no período — sem curva para traçar.',
+                  'Nenhuma pesagem no período selecionado.',
                   textAlign: TextAlign.center,
                   style:
                       AppTypography.callout.copyWith(color: c.textSecondary),
@@ -601,7 +518,7 @@ class _ChartCard extends StatelessWidget {
 }
 
 class _WeightChart extends StatelessWidget {
-  final List<WeightRecord> records;
+  final List<WeightEntry> records;
   const _WeightChart({required this.records});
 
   double get _minWeight =>
@@ -622,6 +539,10 @@ class _WeightChart extends StatelessWidget {
     final labelStyle =
         AppTypography.caption.copyWith(color: c.textTertiary, fontSize: 10);
 
+    // Uma pesagem só não traça curva: o eixo X precisa de largura, então o
+    // ponto único é desenhado no centro de um intervalo artificial.
+    final single = records.length == 1;
+
     return LineChart(
       LineChartData(
         gridData: FlGridData(
@@ -631,8 +552,10 @@ class _WeightChart extends StatelessWidget {
               FlLine(color: c.separator, strokeWidth: 1),
         ),
         titlesData: FlTitlesData(
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -650,12 +573,12 @@ class _WeightChart extends StatelessWidget {
               // No máximo ~5 rótulos no eixo X, para não empilhar texto.
               interval: (records.length / 5).ceilToDouble().clamp(1, 999),
               getTitlesWidget: (value, meta) {
-                final i = value.toInt();
+                final i = value.round();
                 if (i < 0 || i >= records.length) return const SizedBox();
+                if (single && value != 0) return const SizedBox();
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                      DateFormat('dd/MM').format(records[i].date),
+                  child: Text(DateFormat('dd/MM').format(records[i].date),
                       style: labelStyle),
                 );
               },
@@ -678,7 +601,8 @@ class _WeightChart extends StatelessWidget {
                     fontWeight: FontWeight.w700),
                 children: [
                   TextSpan(
-                    text: DateFormat('dd/MM/yyyy').format(record.date),
+                    text: '${DateFormat('dd/MM/yyyy').format(record.date)}'
+                        ' · ${_sourceLabel(record.source)}',
                     style: AppTypography.caption.copyWith(
                         color: c.surfaceGroupedSecondary.withValues(alpha: 0.7),
                         fontWeight: FontWeight.w400),
@@ -688,8 +612,8 @@ class _WeightChart extends StatelessWidget {
             }).toList(),
           ),
         ),
-        minX: 0,
-        maxX: (records.length - 1).toDouble(),
+        minX: single ? -1 : 0,
+        maxX: single ? 1 : (records.length - 1).toDouble(),
         minY: minY,
         maxY: maxY,
         lineBarsData: [
@@ -701,14 +625,20 @@ class _WeightChart extends StatelessWidget {
             barWidth: 3,
             color: c.accentBlue,
             dotData: FlDotData(
+              // Com muitos pontos os círculos viram ruído; com poucos, ajudam.
               show: records.length <= 12,
-              getDotPainter: (spot, percent, barData, index) =>
-                  FlDotCirclePainter(
-                radius: 4,
-                color: c.surfaceGroupedSecondary,
-                strokeWidth: 2.5,
-                strokeColor: c.accentBlue,
-              ),
+              getDotPainter: (spot, percent, barData, index) {
+                // Pesagem do tutor tem miolo azul; a do vet, miolo vazado —
+                // dá para ver na curva de quem veio cada ponto.
+                final isTutor = index < records.length &&
+                    records[index].source == WeightSource.tutor;
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: isTutor ? c.accentBlue : c.surfaceGroupedSecondary,
+                  strokeWidth: 2.5,
+                  strokeColor: c.accentBlue,
+                );
+              },
             ),
             belowBarData: BarAreaData(
               show: true,
@@ -733,7 +663,7 @@ class _WeightChart extends StatelessWidget {
 // ====================================================================
 
 class _RecordsSection extends StatelessWidget {
-  final List<WeightRecord> records;
+  final List<WeightEntry> records;
   const _RecordsSection({required this.records});
 
   @override
@@ -767,7 +697,7 @@ class _RecordsSection extends StatelessWidget {
 }
 
 class _RecordRow extends StatelessWidget {
-  final WeightRecord record;
+  final WeightEntry record;
   final double? delta;
   const _RecordRow({required this.record, required this.delta});
 
@@ -787,7 +717,9 @@ class _RecordRow extends StatelessWidget {
                     style:
                         AppTypography.callout.copyWith(color: c.textPrimary)),
                 const SizedBox(height: 2),
-                Text(DateFormat('HH:mm').format(record.date),
+                Text(
+                    '${DateFormat('HH:mm').format(record.date)}'
+                    ' · ${_sourceLabel(record.source)}',
                     style: AppTypography.footnote
                         .copyWith(color: c.textTertiary)),
               ],
@@ -805,12 +737,4 @@ class _RecordRow extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Uma pesagem: data + peso em kg.
-class WeightRecord {
-  final DateTime date;
-  final double weight;
-
-  WeightRecord(this.date, this.weight);
 }

@@ -27,7 +27,13 @@ class Pets {
   List<String>? allergies;
   String? chronicConditions;
   String? imageUrl;
-  String? weight; // added for local image storage
+
+  /// Peso atual do pet (`pets/{petId}.weight`), mantido pelo tutor.
+  ///
+  /// A web grava Number (schema.js) e o app já gravou String — por isso a
+  /// leitura é tolerante e a escrita, numérica. Guardado como String só para
+  /// exibição; use [weightValue] para conta.
+  String? weight;
 
   Pets(
       {this.name,
@@ -49,7 +55,8 @@ class Pets {
       this.medicalNotes,
       this.allergies,
       this.chronicConditions,
-      this.imageUrl});
+      this.imageUrl,
+      this.weight});
 
   Map<String, dynamic> toMap() {
     return {
@@ -73,6 +80,7 @@ class Pets {
       'allergies': allergies ?? [],
       'chronicConditions': chronicConditions,
       'imageUrl': imageUrl,
+      if (weightValue != null) 'weight': weightValue,
     };
   }
 
@@ -105,6 +113,7 @@ class Pets {
       allergies: List<String>.from(map['allergies'] ?? []),
       chronicConditions: map['chronicConditions'],
       imageUrl: map['imageUrl'],
+      weight: readWeight(map['weight']),
     );
   }
 
@@ -137,7 +146,20 @@ class Pets {
       allergies: List<String>.from(json['allergies'] ?? []),
       chronicConditions: json['chronicConditions'],
       imageUrl: json['imageUrl'],
+      weight: readWeight(json['weight']),
     );
+  }
+
+  /// Peso como número, ou `null` se ausente/ilegível.
+  double? get weightValue =>
+      double.tryParse((weight ?? '').trim().replaceAll(',', '.'));
+
+  /// Lê `weight` tolerando Number (web) e String (app antigo).
+  static String? readWeight(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toString();
+    if (value is String) return value.trim().isEmpty ? null : value.trim();
+    return null;
   }
 
   int get age {
