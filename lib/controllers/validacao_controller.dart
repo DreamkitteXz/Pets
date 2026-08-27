@@ -13,30 +13,35 @@ class ValidacaoController {
   /// (+`updatedAt`); tocar qualquer outro campo dá permission-denied.
   /// F2.2/§5. (Substitui validadeVacTutor/rejectVacTutor, que escreviam
   /// status+validationDetails.tutorValidation e eram negados.)
-  Future<void> darCiencia(String vacId) async {
+  ///
+  /// Retorna `true` se o write passou. Quem chama precisa saber: a UI marca a
+  /// ciência de forma otimista e não pode manter "Ciente" se o Firestore
+  /// recusou.
+  Future<bool> darCiencia(String vacId) async {
     try {
       await firebaseDatabase.collection("vaccines").doc(vacId).update({
         "tutorAcknowledged": true,
         "tutorAcknowledgedAt": FieldValue.serverTimestamp(),
         "updatedAt": FieldValue.serverTimestamp(),
       });
-
-      ScaffoldMessenger.of(NavigationService.navigatorKey.currentContext!)
-          .showSnackBar(SnackBar(
-        content: CustomSnackBar(successfulText: 'Ciência registrada!'),
-        backgroundColor: Colors.transparent,
-        behavior: SnackBarBehavior.floating,
-        elevation: 0,
-      ));
     } catch (e) {
-      ScaffoldMessenger.of(NavigationService.navigatorKey.currentContext!)
-          .showSnackBar(SnackBar(
-        content: CustomSnackBar(errorText: 'Erro ao registrar ciência: $e'),
-        backgroundColor: Colors.transparent,
-        behavior: SnackBarBehavior.floating,
-        elevation: 0,
-      ));
+      _snack(CustomSnackBar(errorText: 'Erro ao registrar ciência: $e'));
+      return false;
     }
+    // Fora do try: falhar em mostrar o snackbar não pode virar "não gravou".
+    _snack(CustomSnackBar(successfulText: 'Ciência registrada!'));
+    return true;
+  }
+
+  void _snack(Widget content) {
+    final context = NavigationService.navigatorKey.currentContext;
+    if (context == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: content,
+      backgroundColor: Colors.transparent,
+      behavior: SnackBarBehavior.floating,
+      elevation: 0,
+    ));
   }
 }
 

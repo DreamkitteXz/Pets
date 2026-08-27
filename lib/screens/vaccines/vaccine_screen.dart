@@ -72,7 +72,7 @@ class _VaccineScreenState extends State<VaccineScreen> {
             const SizedBox(height: AppSpacing.lg),
           ],
 
-          _InfoGroup(header: 'Dados da vacina', rows: {
+          AppInfoGroup(header: 'Dados da vacina', rows: {
             'Aplicada em': _fmt(v.administrationDate),
             'Próxima dose': _fmt(v.nextDueDate),
             'Lote': v.batchNumber ?? 'N/D',
@@ -83,14 +83,14 @@ class _VaccineScreenState extends State<VaccineScreen> {
           }),
           const SizedBox(height: AppSpacing.lg),
 
-          _InfoGroup(header: 'Veterinário', rows: {
+          AppInfoGroup(header: 'Veterinário', rows: {
             'Nome': v.veterinarianName ?? 'N/D',
             'CRMV': v.crmvNumber ?? 'N/D',
           }),
 
           if ((v.clinicName ?? '').isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
-            _InfoGroup(header: 'Clínica', rows: {
+            AppInfoGroup(header: 'Clínica', rows: {
               'Nome': v.clinicName ?? 'N/D',
               if ((v.clinicCnpj ?? '').isNotEmpty) 'CNPJ': v.clinicCnpj!,
               if ((v.clinicAddress?['street'] ?? '').isNotEmpty)
@@ -131,10 +131,11 @@ class _VaccineScreenState extends State<VaccineScreen> {
     );
   }
 
-  void _darCiencia() {
+  Future<void> _darCiencia() async {
     final id = v.id;
     if (id == null) return;
-    ValidacaoController().darCiencia(id);
+    final ok = await ValidacaoController().darCiencia(id);
+    if (!mounted || !ok) return;
     setState(() => _ackedLocally = true);
   }
 
@@ -230,58 +231,6 @@ class _StatusCard extends StatelessWidget {
         const SizedBox(height: 2),
         Text(value,
             style: AppTypography.callout.copyWith(color: c.textPrimary)),
-      ],
-    );
-  }
-}
-
-/// Grupo de informações (label → valor) em card agrupado.
-class _InfoGroup extends StatelessWidget {
-  final String header;
-  final Map<String, String> rows;
-  const _InfoGroup({required this.header, required this.rows});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final entries = rows.entries.toList();
-    final children = <Widget>[];
-    for (var i = 0; i < entries.length; i++) {
-      children.add(Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(entries[i].key,
-                style: AppTypography.callout.copyWith(color: c.textSecondary)),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Text(entries[i].value,
-                  textAlign: TextAlign.right,
-                  style: AppTypography.callout.copyWith(color: c.textPrimary)),
-            ),
-          ],
-        ),
-      ));
-      if (i != entries.length - 1) {
-        children.add(Padding(
-          padding: const EdgeInsets.only(left: AppSpacing.lg),
-          child: Divider(height: 1, thickness: 1, color: c.separator),
-        ));
-      }
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xs, 0, AppSpacing.xs, AppSpacing.sm),
-          child: Text(header.toUpperCase(),
-              style: AppTypography.caption
-                  .copyWith(color: c.textTertiary, letterSpacing: 0.5)),
-        ),
-        AppCard(padding: EdgeInsets.zero, child: Column(children: children)),
       ],
     );
   }
