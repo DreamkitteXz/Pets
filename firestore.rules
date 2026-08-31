@@ -165,6 +165,23 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Canal de versao do app (distribuicao fora da Play Store).
+    //
+    // LEITURA PUBLICA, de proposito: a checagem roda ANTES do login. Se uma
+    // mudanca de schema quebrar a versao antiga, o proprio login pode ser o
+    // que quebra — exigir autenticacao aqui impediria forcar a atualizacao de
+    // quem nao consegue entrar. O documento nao tem nada sensivel: versao,
+    // changelog e URL de download sao informacao de pagina publica de release.
+    //
+    // ESCRITA NEGADA A TODO CLIENTE. So console ou script com service account
+    // (o Admin SDK ignora rules). Este documento controla o killswitch
+    // `minSupportedBuildNumber` — cliente poder escrever seria poder travar o
+    // app de todo mundo.
+    match /app_config/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Deny everything not explicitly covered above.
     match /{document=**} {
       allow read, write: if false;
