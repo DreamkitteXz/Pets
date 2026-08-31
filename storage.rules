@@ -29,6 +29,29 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // APKs de release — distribuicao fora da Play Store.
+    //
+    // LEITURA PUBLICA (`if true`, sem exigir auth): o download acontece depois
+    // de uma checagem que roda ANTES do login, entao exigir autenticacao
+    // impediria justamente o caso de atualizacao obrigatoria de quem nao
+    // consegue entrar.
+    //
+    // Signed URL foi descartada: exigiria uma Cloud Function para emiti-la, e
+    // essa funcao precisaria ser chamavel sem autenticacao — recria o mesmo
+    // acesso publico com mais peca para manter. A integridade do binario vem
+    // do `apkSha256` que o app confere apos baixar, nao do sigilo da URL.
+    //
+    // ESCRITA NEGADA: o APK sobe pelo console ou por script com service
+    // account. Cliente poder escrever aqui seria poder distribuir binario
+    // arbitrario como se fosse o app.
+    // `{version}.apk` e `{version}.json` (manifesto com sha256/tamanho, usado
+    // pelo rollback). Releases anteriores NUNCA sao apagadas: sao elas que dao
+    // para onde voltar.
+    match /releases/android/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Deny everything not explicitly covered above.
     match /{allPaths=**} {
       allow read, write: if false;
