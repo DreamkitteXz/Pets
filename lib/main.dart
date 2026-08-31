@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:pet_app/controllers/validacao_controller.dart';
 import 'package:pet_app/screens/auth/auth_flow.dart';
 import 'package:pet_app/screens/main_screen.dart';
+import 'package:pet_app/screens/update/update_gate.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:pet_app/services/current_user_service.dart';
@@ -118,7 +119,9 @@ class RoteadorTelas extends StatelessWidget {
         if (session.user == null) {
           return PerfilIndisponivel(session: session);
         }
-        return HomeScreenPage(user: authUser);
+        // A checagem de versao entra AQUI: depois do login (so chegamos neste
+        // ramo com sessao e documento prontos) e antes da home ser usavel.
+        return UpdateGate(child: HomeScreenPage(user: authUser));
     }
   }
 }
