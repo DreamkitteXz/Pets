@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gera o keystore de release e escreve android/key.properties.
 
