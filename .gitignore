@@ -69,3 +69,10 @@ key.properties
 *.jks
 *.keystore
 *.p12
+
+# Service account de publicacao (tool/release.dart). Da acesso de ESCRITA ao
+# Firestore e ao Storage do projeto — vazar isso e pior que vazar o keystore,
+# porque permite publicar um APK malicioso como se fosse a atualizacao oficial.
+tool/service-account.json
+service-account*.json
+*-firebase-adminsdk-*.json
