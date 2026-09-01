@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.1+5
+version: 1.0.1+6
 
 environment:
   sdk: '>=2.19.6 <3.0.0'
@@ -91,13 +91,19 @@ flutter_native_splash:
   android: true
   ios: true
 
-flutter_icons:
-  image_path: "assets/app/icon_png.png"
-  ios: true 
-  remove_alpha_ios: true 
-  android: "launcher_icon"
+flutter_launcher_icons:
+  image_path: "assets/app/logo.png"
+  ios: true
+  # iOS recusa icone com canal alfa; a logo tem fundo transparente.
+  remove_alpha_ios: true
+  # `ic_launcher` e o nome que o AndroidManifest referencia. Antes gerava
+  # `launcher_icon`, que ninguem usava — por isso o icone continuava o padrao
+  # do Flutter mesmo com a config no lugar.
+  android: "ic_launcher"
+  # Adaptive icon (Android 8+): o sistema recorta o primeiro plano em varias
+  # formas. Fundo branco porque a logo tem traco escuro e transparencia.
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/app/icon.png"
+  adaptive_icon_foreground: "assets/app/logo.png"
 
 dev_dependencies:
   flutter_test:
