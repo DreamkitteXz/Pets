@@ -18,6 +18,29 @@ import 'package:pet_app/screens/vaccines/add_vaccine_screen.dart';
 import 'package:pet_app/services/notifications_service.dart';
 import 'package:pet_app/design/design.dart';
 
+/// Quantos cards de ação rápida cabem na largura visível.
+///
+/// A fração é proposital: a meia coluna cortada na borda é o que sinaliza que
+/// a lista rola. Um número inteiro faria a fileira terminar exatamente na
+/// margem e pareceria completa.
+const double kActionCardsPerScreen = 3.5;
+
+/// Largura de um card de ação rápida para uma [available] disponível.
+///
+/// Era o literal `86`. Fixo, o card ocupava proporções diferentes conforme o
+/// aparelho: apertado numa tela estreita (e "Medicamento" era cortado em
+/// "Medicam…") e sobrando numa larga. Aqui ele acompanha o viewport.
+///
+/// O piso e o teto existem porque proporção pura degenera nos extremos: num
+/// aparelho minúsculo o card viraria um selo com o ícone espremido, e num
+/// tablet uma placa com muito vazio em volta do ícone de 40px.
+double actionCardWidth(double available) {
+  // Cada "coluna" é o card mais o respiro que o separa do próximo, então o
+  // espaçamento sai da conta antes de virar largura de card.
+  final slot = available / kActionCardsPerScreen;
+  return (slot - AppSpacing.md).clamp(84.0, 120.0);
+}
+
 /// Aba principal (dashboard) do tutor — repaginada sobre o design system.
 ///
 /// Não recebe mais `userData`: o nome do tutor vem do [CurrentUserService]
@@ -91,64 +114,84 @@ class HomeScreenMainTab extends StatelessWidget {
       children: [
         _sectionHeader(context, 'Ações rápidas'),
         const SizedBox(height: AppSpacing.md),
-        SizedBox(
-          height: 92,
-          child: ListView(
+        // Sem altura fixa: `IntrinsicHeight` mede o card mais alto e
+        // `stretch` iguala os outros a ele. Antes eram 92px cravados, que
+        // estouravam assim que o usuário aumentava a fonte do sistema.
+        //
+        // Row dentro de um scroll horizontal em vez de ListView porque o
+        // ListView exige altura no eixo cruzado — era ele que obrigava o
+        // número mágico. São 5 itens fixos, então nada se perde sem
+        // reciclagem.
+        LayoutBuilder(builder: (context, constraints) {
+          final w = actionCardWidth(constraints.maxWidth);
+          return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            children: [
-              _actionCard(context, 'Novo pet', Icons.pets_rounded, c.accentBlue,
-                  () => _open(context, const AddPetScreen())),
-              const SizedBox(width: AppSpacing.md),
-              // Os cards abaixo precisam de um pet: pedem qual antes de abrir o
-              // cadastro. Antes todos caíam em AddPetScreen — tocar em "Vacina"
-              // abria o cadastro de PET.
-              _actionCard(
-                  context,
-                  'Vacina',
-                  Icons.vaccines_rounded,
-                  c.accentGreen,
-                  () => _openForPet(context, 'Registrar vacina',
-                      (pet) => AddVacPage(petId: pet.id))),
-              const SizedBox(width: AppSpacing.md),
-              _actionCard(
-                  context,
-                  'Vermífugo',
-                  Icons.medication_rounded,
-                  c.accentOrange,
-                  () => _openForPet(context, 'Registrar vermífugo',
-                      (pet) => AddVermifugoPage(petId: pet.id))),
-              const SizedBox(width: AppSpacing.md),
-              _actionCard(
-                  context,
-                  'Medicamento',
-                  Icons.medication_liquid_rounded,
-                  c.accentTeal,
-                  () => _openForPet(context, 'Registrar medicamento',
-                      (pet) => AddMedicamentoPage(pet: pet))),
-              const SizedBox(width: AppSpacing.md),
-              _actionCard(
-                  context,
-                  'Peso',
-                  Icons.monitor_weight_rounded,
-                  c.accentPink,
-                  () => _openForPet(context, 'Registrar peso',
-                      (pet) => PetWeightTrackingPage(pet: pet))),
-            ],
-          ),
-        ),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _actionCard(context, w, 'Novo pet', Icons.pets_rounded,
+                      c.accentBlue, () => _open(context, const AddPetScreen())),
+                  const SizedBox(width: AppSpacing.md),
+                  // Os cards abaixo precisam de um pet: pedem qual antes de
+                  // abrir o cadastro. Antes todos caíam em AddPetScreen —
+                  // tocar em "Vacina" abria o cadastro de PET.
+                  _actionCard(
+                      context,
+                      w,
+                      'Vacina',
+                      Icons.vaccines_rounded,
+                      c.accentGreen,
+                      () => _openForPet(context, 'Registrar vacina',
+                          (pet) => AddVacPage(petId: pet.id))),
+                  const SizedBox(width: AppSpacing.md),
+                  _actionCard(
+                      context,
+                      w,
+                      'Vermífugo',
+                      Icons.medication_rounded,
+                      c.accentOrange,
+                      () => _openForPet(context, 'Registrar vermífugo',
+                          (pet) => AddVermifugoPage(petId: pet.id))),
+                  const SizedBox(width: AppSpacing.md),
+                  _actionCard(
+                      context,
+                      w,
+                      'Medicamento',
+                      Icons.medication_liquid_rounded,
+                      c.accentTeal,
+                      () => _openForPet(context, 'Registrar medicamento',
+                          (pet) => AddMedicamentoPage(pet: pet))),
+                  const SizedBox(width: AppSpacing.md),
+                  _actionCard(
+                      context,
+                      w,
+                      'Peso',
+                      Icons.monitor_weight_rounded,
+                      c.accentPink,
+                      () => _openForPet(context, 'Registrar peso',
+                          (pet) => PetWeightTrackingPage(pet: pet))),
+                ],
+              ),
+            ),
+          );
+        }),
       ],
     );
   }
 
-  Widget _actionCard(BuildContext context, String label, IconData icon,
-      Color color, VoidCallback onTap) {
+  Widget _actionCard(BuildContext context, double width, String label,
+      IconData icon, Color color, VoidCallback onTap) {
     final c = context.colors;
     return SizedBox(
-      width: 86,
+      width: width,
       child: AppCard(
+        // Respiro horizontal apertado de propósito: o card é estreito e o
+        // texto é o que sofre. Com `sm` dos dois lados sobravam ~70px para
+        // "Medicamento", que mede ~75px — era essa a origem do "Medicam…".
         padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.md, horizontal: AppSpacing.sm),
+            vertical: AppSpacing.md, horizontal: AppSpacing.xs),
         onTap: onTap,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -156,14 +199,17 @@ class HomeScreenMainTab extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration:
-                  BoxDecoration(color: c.tint(color, 0.12), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                  color: c.tint(color, 0.12), shape: BoxShape.circle),
               child: Icon(icon, color: color, size: 20),
             ),
             const SizedBox(height: AppSpacing.sm),
+            // Duas linhas: "Medicamento" não cabe em uma na largura mínima,
+            // e virava "Medicam…". Com o card medido por IntrinsicHeight, a
+            // segunda linha empurra a fileira toda em vez de estourar.
             Text(label,
                 textAlign: TextAlign.center,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: AppTypography.caption.copyWith(color: c.textSecondary)),
           ],
@@ -183,7 +229,8 @@ class HomeScreenMainTab extends StatelessWidget {
           stream: _controller.getUpcomingActivities(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const AppCard(child: SizedBox(height: 72, child: AppLoading()));
+              return const AppCard(
+                  child: SizedBox(height: 72, child: AppLoading()));
             }
             final activities = snapshot.data ?? const [];
             if (activities.isEmpty) {
@@ -237,8 +284,8 @@ class HomeScreenMainTab extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration:
-                BoxDecoration(color: c.tint(color, 0.12), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+                color: c.tint(color, 0.12), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -253,8 +300,8 @@ class HomeScreenMainTab extends StatelessWidget {
                         AppTypography.callout.copyWith(color: c.textPrimary)),
                 const SizedBox(height: 2),
                 Text(time == null ? '' : _formatDateTime(time),
-                    style:
-                        AppTypography.footnote.copyWith(color: c.textSecondary)),
+                    style: AppTypography.footnote
+                        .copyWith(color: c.textSecondary)),
               ],
             ),
           ),
@@ -277,7 +324,8 @@ class HomeScreenMainTab extends StatelessWidget {
           stream: _controller.getUserPets(limit: 3),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const AppCard(child: SizedBox(height: 72, child: AppLoading()));
+              return const AppCard(
+                  child: SizedBox(height: 72, child: AppLoading()));
             }
             final pets = snapshot.data ?? const [];
             if (pets.isEmpty) {
@@ -326,8 +374,8 @@ class HomeScreenMainTab extends StatelessWidget {
                 Text('${pet.breed ?? 'Raça N/D'} · $age',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        AppTypography.footnote.copyWith(color: c.textSecondary)),
+                    style: AppTypography.footnote
+                        .copyWith(color: c.textSecondary)),
               ],
             ),
           ),
@@ -430,8 +478,8 @@ class HomeScreenMainTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
-                    AppSpacing.lg, AppSpacing.lg, AppSpacing.xs),
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xs),
                 child: Text(title,
                     style: AppTypography.title2.copyWith(color: c.textPrimary)),
               ),
@@ -520,8 +568,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(formattedDate,
-                    style:
-                        AppTypography.footnote.copyWith(color: c.textSecondary)),
+                    style: AppTypography.footnote
+                        .copyWith(color: c.textSecondary)),
                 const SizedBox(height: 2),
                 HomeGreeting(replayTrigger: greetingReplayTrigger),
               ],
@@ -575,10 +623,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             child: CircleAvatar(
               radius: 18,
               backgroundColor: c.tint(c.accentBlue, 0.15),
-              backgroundImage: (profileImageUrl != null &&
-                      profileImageUrl!.isNotEmpty)
-                  ? NetworkImage(profileImageUrl!)
-                  : null,
+              backgroundImage:
+                  (profileImageUrl != null && profileImageUrl!.isNotEmpty)
+                      ? NetworkImage(profileImageUrl!)
+                      : null,
               // Sem nome ainda (ou sem nome nenhum) o avatar mostra um ícone
               // neutro — melhor que uma inicial inventada.
               child: (profileImageUrl == null || profileImageUrl!.isEmpty)
