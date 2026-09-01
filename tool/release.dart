@@ -142,6 +142,12 @@ Future<void> _publish(List<String> args) async {
       // nativo ou de asset mudou desde então — sem isso não haveria como saber
       // o que o APK instalado já contém.
       if (currentCommit() != null) 'gitCommit': currentCommit(),
+      // O APK é empacotado a partir do DISCO, não do commit. Publicando com a
+      // árvore suja, `gitCommit` descreve MENOS do que o binário contém, e o
+      // guarda do patch passa a acusar como "mudou desde a release" arquivos
+      // que já estavam dentro dela. A flag avisa o guarda de que a comparação
+      // é imprecisa (ele a lê e degrada o bloqueio para aviso).
+      'gitDirty': workingTreeIsDirty(),
     };
     await uploadObject(
       client,
