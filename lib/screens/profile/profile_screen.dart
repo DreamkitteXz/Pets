@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:pet_app/design/design.dart';
+import 'package:pet_app/services/current_user_service.dart';
 
 /// Perfil do tutor — repaginado sobre o design system.
 /// Inclui o toggle de tema real (ThemeController). Removidos os "stats"
@@ -22,10 +23,14 @@ class ProfileScreen extends StatelessWidget {
     final theme = context.watch<ThemeController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final name = (user.displayName != null && user.displayName!.isNotEmpty)
-        ? user.displayName!
-        : 'Tutor';
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    // Mesma fonte da saudação da home: `users/{uid}.name`, não o displayName do
+    // Auth. O cadastro grava o nome no Firestore e nunca chama
+    // updateDisplayName, então o displayName é nulo até algo copiar — e aqui
+    // caía em "Tutor", um genérico com a mesma cara do "Usuário" da home.
+    final session = context.watch<CurrentUserService>();
+    final fullName = session.user?.name?.trim();
+    final hasName = fullName != null && fullName.isNotEmpty;
+
     final photo = user.photoURL;
 
     return Scaffold(
@@ -48,16 +53,33 @@ class ProfileScreen extends StatelessWidget {
                       backgroundImage: (photo != null && photo.isNotEmpty)
                           ? NetworkImage(photo)
                           : null,
-                      child: (photo == null || photo.isEmpty)
-                          ? Text(initial,
-                              style: AppTypography.largeTitle
-                                  .copyWith(color: c.accentBlue))
-                          : null,
+                      // Sem nome, um ícone neutro em vez de inicial inventada.
+                      child: (photo != null && photo.isNotEmpty)
+                          ? null
+                          : (hasName
+                              ? Text(fullName[0].toUpperCase(),
+                                  style: AppTypography.largeTitle
+                                      .copyWith(color: c.accentBlue))
+                              : Icon(Icons.person_rounded,
+                                  size: 40, color: c.accentBlue)),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  Text(name,
-                      style: AppTypography.title1.copyWith(color: c.textPrimary)),
+                  // Enquanto carrega, placeholder — nunca um nome genérico
+                  // piscando antes do real.
+                  if (session.isLoading)
+                    Container(
+                      width: 160,
+                      height: (AppTypography.title1.fontSize ?? 22) * 0.8,
+                      decoration: BoxDecoration(
+                        color: c.surfaceSecondary,
+                        borderRadius: AppRadius.pill_,
+                      ),
+                    )
+                  else
+                    Text(hasName ? fullName : 'Meu perfil',
+                        style:
+                            AppTypography.title1.copyWith(color: c.textPrimary)),
                   const SizedBox(height: AppSpacing.xs),
                   Text(user.email ?? '',
                       style:
