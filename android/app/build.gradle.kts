@@ -138,21 +138,6 @@ val checkReleaseVersionCode by tasks.registering {
     }
 }
 
-val recordReleaseVersionCode by tasks.registering {
-    val currentVersionCode = flutter.versionCode
-    val last = lastReleasedVersionCode
-    val gateFile = versionGateFile
-
-    doLast {
-        if (currentVersionCode > last) {
-            gateFile.writeText("$currentVersionCode\n")
-            logger.lifecycle(
-                "versionCode $currentVersionCode registrado em ${gateFile.name} " +
-                    "— faça commit desse arquivo."
-            )
-        }
-    }
-}
 
 // As verificações entram em `preReleaseBuild`, que é o primeiro passo da
 // variante de release: assim a falha aparece em segundos. Penduradas em
@@ -162,9 +147,13 @@ tasks.matching { it.name == "preReleaseBuild" }.configureEach {
     dependsOn(checkReleaseSigning, checkReleaseVersionCode)
 }
 
-// O registro fica no fim, e só de APK/AAB de release de verdade: `assemble`
-// pode rodar sem gerar artefato distribuível.
-tasks.matching { it.name.matches(Regex("^(assemble|bundle)Release$")) }
-    .configureEach {
-        finalizedBy(recordReleaseVersionCode)
-    }
+// O Gradle NÃO registra o versionCode publicado — quem faz isso é
+// `tool/release.dart`, depois de o canal de versão ser efetivamente
+// atualizado.
+//
+// Antes o build gravava sozinho, e isso criava dois registros que divergiam:
+// "buildei a versão N" não é a mesma coisa que "publiquei a versão N". Um
+// build bem-sucedido cujo upload falhasse depois já bloqueava o build
+// seguinte, com uma mensagem citando uma publicação que nunca existiu.
+//
+// O arquivo continua sendo a fonte deste portão; só o momento da escrita mudou.
