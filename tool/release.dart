@@ -472,9 +472,12 @@ Future<void> _patch(List<String> args) async {
   final force = args.contains('--force');
 
   final targetIndex = args.indexOf('--release-version');
+  // `tag` (1.0.1+5), não `versionName` (1.0.1): o Shorebird identifica a
+  // release pelo par completo. Só com o versionName ele responde
+  // "Release not found".
   final target = targetIndex != -1 && targetIndex + 1 < args.length
       ? args[targetIndex + 1]
-      : version.versionName;
+      : version.tag;
 
   stdout.writeln('\nPatch para a release $target\n');
 
@@ -502,7 +505,26 @@ Future<void> _patch(List<String> args) async {
     stdout.writeln('${changed.length} arquivo(s) alterado(s) desde a release '
         '(${baseCommit.substring(0, 8)}).');
 
-    if (blocking.isNotEmpty) {
+    final wasDirty = manifest?['gitDirty'] == true;
+
+    // Release publicada com a árvore suja: o commit registrado descreve MENOS
+    // do que o APK contém, então "mudou desde o commit" não prova que o arquivo
+    // ficou de fora da release. Vira aviso, e o dry-run do Shorebird — que
+    // compara artefatos compilados, não caminhos — dá a palavra final.
+    if (blocking.isNotEmpty && wasDirty) {
+      stdout.writeln('\n${'─' * 62}');
+      stdout.writeln('  AVISO — comparação imprecisa');
+      stdout.writeln('─' * 62);
+      stdout.writeln(
+        'A release foi publicada com mudanças não commitadas, então o commit\n'
+        'registrado descreve menos do que o APK contém. Estes arquivos podem\n'
+        'JÁ estar dentro dela:\n',
+      );
+      for (final f in blocking.take(20)) {
+        stdout.writeln('  $f');
+      }
+      stdout.writeln('\nDeixando o --dry-run do Shorebird decidir.\n');
+    } else if (blocking.isNotEmpty) {
       stdout.writeln('\n${'─' * 62}');
       stdout.writeln('  ESTA MUDANÇA EXIGE RELEASE, NÃO PATCH');
       stdout.writeln('─' * 62);
@@ -531,12 +553,14 @@ Future<void> _patch(List<String> args) async {
   // e pega o que a minha checagem de caminhos não veria (ex.: um plugin que
   // trouxe código nativo novo sem alterar arquivo em android/).
   stdout.writeln('Validando com o Shorebird (dry-run)...\n');
-  final dryRun = await _runShorebird(
-      ['patch', 'android', '--release-version', target, '--dry-run']);
-  if (dryRun != 0) {
+  final dryRun = await _runShorebirdCaptured(
+      ['patch', 'android', '--release-version', target, '--dry-run'],
+      isPatch: true);
+  if (!dryRun.ok) {
     throw StateError(
-        'O dry-run do Shorebird recusou este patch (código $dryRun).\n'
-        'Leia a saída acima: normalmente é diff nativo ou de asset.');
+        'O dry-run do Shorebird recusou este patch.\n'
+        'Leia a saída acima: normalmente é diff nativo, de asset, ou release '
+        'inexistente.');
   }
 
   stdout.writeln('\n${'─' * 62}');
@@ -551,8 +575,9 @@ Future<void> _patch(List<String> args) async {
     return;
   }
 
-  final code =
-      await _runShorebird(['patch', 'android', '--release-version', target]);
+  final code = await _runShorebird(
+      ['patch', 'android', '--release-version', target],
+      isPatch: true);
   if (code != 0) {
     throw StateError('shorebird patch falhou (código $code).');
   }
@@ -561,12 +586,13 @@ Future<void> _patch(List<String> args) async {
       'O atualizador in-app (APK) segue valendo para mudanças nativas.\n');
 }
 
-Future<int> _runShorebird(List<String> args) async {
+Future<int> _runShorebird(List<String> args, {bool isPatch = false}) async {
   final process = await Process.start(
     _shorebirdExecutable(),
     args,
     runInShell: true,
     mode: ProcessStartMode.inheritStdio,
+    environment: isPatch ? {'PETS_PATCH_BUILD': '1'} : null,
   );
   return process.exitCode;
 }
@@ -609,4 +635,57 @@ void _recordGate(int buildNumber) {
     // Não é motivo para falhar: a publicação já aconteceu.
     stdout.writeln('Aviso: não consegui atualizar ${file.path}: $e');
   }
+}
+
+/// Resultado de uma execução do Shorebird cuja saída foi inspecionada.
+class _ShorebirdRun {
+  final int exitCode;
+  final String output;
+  const _ShorebirdRun(this.exitCode, this.output);
+
+  /// Frases que o Shorebird imprime ao recusar, mesmo saindo com código 0.
+  static const _failureMarkers = [
+    'Release not found',
+    'Exception',
+    'Failed to',
+    'aborting',
+    'Patches can only be published',
+    'Detected changes',
+  ];
+
+  /// Exit code 0 NÃO basta: o `patch --dry-run` já recusou com "Release not
+  /// found" e ainda assim saiu 0, o que fez o script anunciar "dry-run passou"
+  /// sobre uma validação que falhou.
+  bool get ok =>
+      exitCode == 0 &&
+      !_failureMarkers.any((m) => output.toLowerCase().contains(m.toLowerCase()));
+}
+
+/// Roda o Shorebird ecoando a saída E guardando-a para inspeção.
+Future<_ShorebirdRun> _runShorebirdCaptured(List<String> args,
+    {bool isPatch = false}) async {
+  final process = await Process.start(
+    _shorebirdExecutable(),
+    args,
+    runInShell: true,
+    // Sinaliza ao Gradle que este build e de patch: ele recompila na MESMA
+    // versao, e o portao de versionCode precisa deixar passar.
+    environment: isPatch ? {'PETS_PATCH_BUILD': '1'} : null,
+  );
+  final buffer = StringBuffer();
+
+  void tee(Stream<List<int>> stream, IOSink sink) {
+    stream.transform(utf8.decoder).listen((chunk) {
+      buffer.write(chunk);
+      sink.write(chunk);
+    });
+  }
+
+  tee(process.stdout, stdout);
+  tee(process.stderr, stderr);
+
+  final code = await process.exitCode;
+  // Dá um instante para o restante do stream ser drenado antes de avaliar.
+  await Future<void>.delayed(const Duration(milliseconds: 200));
+  return _ShorebirdRun(code, buffer.toString());
 }

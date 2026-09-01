@@ -76,3 +76,12 @@ key.properties
 tool/service-account.json
 service-account*.json
 *-firebase-adminsdk-*.json
+
+# O site (React/Firebase) vive num repositorio git PROPRIO clonado aqui dentro.
+# Sem esta linha o git o registraria como gitlink apontando para um submodulo
+# que nao existe — clone limpo viria com a pasta vazia.
+/Pets/
+
+# Cache do Firebase CLI (deploy de hosting) e config gerada pelo DevTools.
+.firebase/
+devtools_options.yaml

@@ -31,11 +31,20 @@ val lastReleasedVersionCode: Int =
         ?.toIntOrNull()
         ?: 0
 
-// Escape hatch para reconstruir a MESMA versão de propósito (ex.: corrigir algo
-// antes de distribuir):  flutter build apk --release --dart-define=x  \
-//   ... ou:  ./gradlew assembleRelease -PallowSameVersionCode=true
-val allowSameVersionCode =
-    (project.findProperty("allowSameVersionCode") as String?)?.toBoolean() ?: false
+// Build de PATCH (Shorebird code push) recompila na MESMA versão de propósito —
+// é a definição de patch: 1.0.1+5 recebe código novo sem virar +6. O portão
+// existe para impedir DISTRIBUIR um APK sem subir a versão, não para impedir
+// compilar. Sem esta exceção ele bloqueia todo `shorebird patch`.
+//
+// Vem por variável de ambiente porque o Shorebird chama `flutter build` por
+// dentro e não repassa `-P` ao Gradle. `tool/release.dart` define ao rodar o
+// patch.
+val isPatchBuild = System.getenv("PETS_PATCH_BUILD") == "1"
+
+// Escape hatch manual para reconstruir a MESMA versão (ex.: corrigir algo
+// antes de distribuir):  ./gradlew assembleRelease -PallowSameVersionCode=true
+val allowSameVersionCode = isPatchBuild ||
+    ((project.findProperty("allowSameVersionCode") as String?)?.toBoolean() ?: false)
 
 android {
     namespace = "com.kayque.pets"

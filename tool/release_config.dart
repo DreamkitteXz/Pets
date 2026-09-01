@@ -221,8 +221,16 @@ String bytesToMb(int bytes) =>
 
 bool confirm(String question) {
   stdout.write('$question [s/N] ');
-  final answer = stdin.readLineSync()?.trim().toLowerCase();
-  return answer == 's' || answer == 'sim';
+  try {
+    final answer = stdin.readLineSync()?.trim().toLowerCase();
+    return answer == 's' || answer == 'sim';
+  } on StdinException {
+    // Sem terminal (CI, saída redirecionada) `readLineSync` LANÇA — não
+    // devolve null. Sem alguém para confirmar, a resposta segura é não
+    // publicar.
+    stdout.writeln('\n(sem terminal interativo — assumindo "não")');
+    return false;
+  }
 }
 
 // ── Guarda de patch ─────────────────────────────────────────────────────────
@@ -256,6 +264,18 @@ String? git(List<String> args) {
 }
 
 String? currentCommit() => git(['rev-parse', 'HEAD']);
+
+/// Há mudanças não commitadas agora?
+///
+/// Importa no release: o `gitCommit` do manifesto registra o HEAD, mas o APK é
+/// construído a partir do DISCO. Publicar com a árvore suja faz o commit
+/// registrado descrever menos do que foi de fato empacotado — e o guarda do
+/// patch, que compara com esse commit, passa a acusar como "mudou desde a
+/// release" arquivos que já estavam dentro dela.
+bool workingTreeIsDirty() {
+  final status = git(['status', '--porcelain']);
+  return status != null && status.trim().isNotEmpty;
+}
 
 /// Arquivos alterados entre [fromCommit] e o estado ATUAL do working tree.
 ///
