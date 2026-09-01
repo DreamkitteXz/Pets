@@ -20,23 +20,33 @@ import 'release_config.dart';
 /// canal apontando para versão quebrada chega no aparelho do cliente na hora.
 Future<void> main(List<String> args) async {
   try {
-    if (args.contains('--help') || args.contains('-h')) {
+    if (args.isEmpty || args.contains('--help') || args.contains('-h')) {
       _printUsage();
       return;
     }
-    if (args.contains('--list')) {
-      await _list();
-      return;
+    final command = args.first;
+    final rest = args.skip(1).toList();
+
+    switch (command) {
+      case 'release':
+        await _publish(rest);
+        break;
+      case 'patch':
+        await _patch(rest);
+        break;
+      case 'list':
+        await _list();
+        break;
+      case 'rollback':
+        if (rest.isEmpty) {
+          throw StateError('rollback exige a versão, ex.: rollback 1.0.0+1');
+        }
+        await _rollback(rest.first);
+        break;
+      default:
+        throw StateError('Comando desconhecido: "$command".\n'
+            'Use: release | patch | list | rollback');
     }
-    final rollbackIndex = args.indexOf('--rollback');
-    if (rollbackIndex != -1) {
-      if (rollbackIndex + 1 >= args.length) {
-        throw StateError('--rollback exige a versão, ex.: --rollback 1.0.0+1');
-      }
-      await _rollback(args[rollbackIndex + 1]);
-      return;
-    }
-    await _publish(args);
   } on StateError catch (e) {
     stderr.writeln('\n${e.message}\n');
     exitCode = 1;
@@ -45,13 +55,24 @@ Future<void> main(List<String> args) async {
 
 void _printUsage() {
   stdout.writeln('''
-Publicação de release Android.
+Publicação Android — dois caminhos.
 
-  dart run tool/release.dart                 publica a versão do pubspec.yaml
-  dart run tool/release.dart --list          lista os releases publicados
-  dart run tool/release.dart --rollback TAG  aponta o canal para TAG (ex 1.0.0+1)
-  dart run tool/release.dart --min N         define minSupportedBuildNumber
-  dart run tool/release.dart --skip-build    usa o APK já em build/
+  dart run tool/release.dart release    APK NOVO (mudanca nativa, asset,
+                                        permissao, plugin ou upgrade de Flutter)
+  dart run tool/release.dart patch      CODE PUSH (so codigo Dart)
+  dart run tool/release.dart list       releases publicados
+  dart run tool/release.dart rollback TAG    aponta o canal para TAG
+
+Opcoes de `release`:
+  --skip-build     reaproveita o APK ja em build/
+  --min N          define minSupportedBuildNumber (trava versoes anteriores)
+
+Opcoes de `patch`:
+  --force          publica mesmo com aviso de mudanca nativa/asset
+  --release-version TAG   alvo do patch (padrao: a versao do pubspec)
+
+Na duvida entre os dois: `patch` avisa e recusa quando a mudanca exige
+`release`. O contrario nao e verdade — `release` sempre funciona.
 ''');
 }
 
@@ -78,19 +99,13 @@ Future<void> _publish(List<String> args) async {
     }
     stdout.writeln('Último publicado: ${published ?? "(nenhum)"} — ok\n');
 
-    // 2. Build
-    final apk = File('build/app/outputs/flutter-apk/app-release.apk');
+    // 2. Build via Shorebird (ver _runShorebirdRelease)
     if (args.contains('--skip-build')) {
-      if (!apk.existsSync()) {
-        throw StateError('--skip-build mas não há APK em ${apk.path}');
-      }
       stdout.writeln('--skip-build: usando o APK existente.\n');
     } else {
-      await _runFlutterBuild();
+      await _runShorebirdRelease();
     }
-    if (!apk.existsSync()) {
-      throw StateError('Build terminou mas o APK não apareceu em ${apk.path}');
-    }
+    final apk = _findReleaseApk();
 
     // Confere que o APK gerado é mesmo a versão esperada — evita publicar um
     // binário antigo se o build falhou silenciosamente.
@@ -123,6 +138,10 @@ Future<void> _publish(List<String> args) async {
       'apkSizeBytes': bytes.length,
       'changelog': changelog,
       'releasedAt': DateTime.now().toUtc().toIso8601String(),
+      // Commit da release. O `patch` diffa contra ele para descobrir se algo
+      // nativo ou de asset mudou desde então — sem isso não haveria como saber
+      // o que o APK instalado já contém.
+      if (currentCommit() != null) 'gitCommit': currentCommit(),
     };
     await uploadObject(
       client,
@@ -144,6 +163,11 @@ Future<void> _publish(List<String> args) async {
     }
 
     await _writeChannelFrom(client, manifest, minSupported);
+
+    // Só agora o portão do Gradle é atualizado: "publicado" significa que o
+    // canal aponta para esta versão, não que o build passou.
+    _recordGate(version.buildNumber);
+
     stdout.writeln('\nCanal atualizado. Clientes na ${published ?? "?"} ou '
         'anterior receberão o aviso.\n');
   } finally {
@@ -151,20 +175,48 @@ Future<void> _publish(List<String> args) async {
   }
 }
 
-Future<void> _runFlutterBuild() async {
-  // APK universal, NÃO --split-per-abi. Ver a justificativa no README do tool.
-  stdout.writeln('Rodando flutter build apk --release...');
-  final process = await Process.start(
-    Platform.isWindows ? 'flutter.bat' : 'flutter',
-    ['build', 'apk', '--release'],
-    runInShell: true,
-    mode: ProcessStartMode.inheritStdio,
-  );
-  final code = await process.exitCode;
+/// `shorebird release android`, NAO `flutter build apk`.
+///
+/// So o APK produzido pelo Shorebird carrega o updater embutido — um APK feito
+/// com `flutter build` nunca recebe patch, e o erro so apareceria meses depois,
+/// quando o primeiro `patch` nao chegasse em ninguem.
+///
+/// APK universal, sem --split-per-abi: com distribuicao manual, tres APKs
+/// significam escolher o certo por aparelho, e instalar a ABI errada da erro
+/// generico dificil de diagnosticar a distancia.
+Future<void> _runShorebirdRelease() async {
+  stdout.writeln('Rodando shorebird release android --artifact=apk...');
+  // `--artifact=apk` é obrigatório aqui: o padrão do Shorebird é `aab`, que
+  // serve para a Play Store. Distribuindo o arquivo direto, o cliente precisa
+  // de APK — um AAB não instala em aparelho nenhum.
+  final code =
+      await _runShorebird(['release', 'android', '--artifact=apk']);
   if (code != 0) {
-    throw StateError('flutter build falhou (código $code).');
+    throw StateError('shorebird release falhou (código $code).');
   }
   stdout.writeln('');
+}
+
+/// APK de release, entre os dois caminhos que Shorebird e Flutter usam.
+///
+/// Devolve o MAIS RECENTE, não o primeiro encontrado: `flutter build apk`
+/// deixa um artefato em `flutter-apk/` que sobrevive a builds seguintes, e
+/// pegá-lo por ordem de lista faria o script publicar um binário velho. (O
+/// `_assertApkMatches` ainda barra isso depois, mas errar aqui gasta um build
+/// inteiro para descobrir.)
+File _findReleaseApk() {
+  const candidates = [
+    'build/app/outputs/apk/release/app-release.apk',
+    'build/app/outputs/flutter-apk/app-release.apk',
+  ];
+  final found = candidates.map(File.new).where((f) => f.existsSync()).toList();
+  if (found.isEmpty) {
+    throw StateError('APK de release não encontrado. Procurei em:\n  '
+        '${candidates.join("\n  ")}\n\n'
+        'Se o build gerou um .aab, faltou `--artifact=apk`.');
+  }
+  found.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+  return found.first;
 }
 
 /// Lê versionName/versionCode do APK e compara com o pubspec.
@@ -404,5 +456,157 @@ Future<void> _rollback(String tag) async {
         'downgrade automático. O rollback vale para quem ainda não atualizou.\n');
   } finally {
     client.close();
+  }
+}
+
+// ── Patch (code push) ───────────────────────────────────────────────────────
+
+/// Envia só código Dart para quem já tem o APK instalado.
+///
+/// Antes de chamar o Shorebird, faz a própria checagem contra o commit da
+/// release: se algo nativo ou de asset mudou, avisa e RECUSA. O Shorebird
+/// também detecta isso, mas depois de compilar — aqui o aviso vem em segundos
+/// e diz exatamente quais arquivos são o problema.
+Future<void> _patch(List<String> args) async {
+  final version = ReleaseVersion.fromPubspec();
+  final force = args.contains('--force');
+
+  final targetIndex = args.indexOf('--release-version');
+  final target = targetIndex != -1 && targetIndex + 1 < args.length
+      ? args[targetIndex + 1]
+      : version.versionName;
+
+  stdout.writeln('\nPatch para a release $target\n');
+
+  final client = await authenticate();
+  Map<String, dynamic>? manifest;
+  try {
+    // O manifesto da release alvo carrega o commit em que ela foi gerada.
+    final raw = await downloadObjectAsString(
+        client, '$kStorageFolder/${version.tag}.json');
+    if (raw != null) manifest = jsonDecode(raw) as Map<String, dynamic>;
+  } finally {
+    client.close();
+  }
+
+  final baseCommit = manifest?['gitCommit'] as String?;
+  if (baseCommit == null) {
+    stdout.writeln(
+        'Sem commit registrado para ${version.tag} — não consigo comparar o\n'
+        'que mudou desde a release. Seguindo direto para a checagem do\n'
+        'Shorebird, que também detecta diffs nativos.\n');
+  } else {
+    final changed = changedFilesSince(baseCommit);
+    final blocking = blockingChanges(changed);
+
+    stdout.writeln('${changed.length} arquivo(s) alterado(s) desde a release '
+        '(${baseCommit.substring(0, 8)}).');
+
+    if (blocking.isNotEmpty) {
+      stdout.writeln('\n${'─' * 62}');
+      stdout.writeln('  ESTA MUDANÇA EXIGE RELEASE, NÃO PATCH');
+      stdout.writeln('─' * 62);
+      for (final f in blocking.take(20)) {
+        stdout.writeln('  $f');
+      }
+      if (blocking.length > 20) {
+        stdout.writeln('  ... e mais ${blocking.length - 20}');
+      }
+      stdout.writeln('─' * 62);
+      stdout.writeln(
+        'Patch carrega APENAS código Dart. Código nativo, assets, permissões\n'
+        'e dependências fazem parte do APK e não são atualizados por patch.\n\n'
+        'Use: dart run tool/release.dart release\n',
+      );
+      if (!force) {
+        throw StateError('Abortado. (--force ignora este aviso, por sua conta.)');
+      }
+      stdout.writeln('--force: seguindo mesmo assim.\n');
+    } else {
+      stdout.writeln('Nenhuma mudança nativa ou de asset — patch é seguro.\n');
+    }
+  }
+
+  // Dry-run do Shorebird: valida sem publicar. É a segunda rede de proteção,
+  // e pega o que a minha checagem de caminhos não veria (ex.: um plugin que
+  // trouxe código nativo novo sem alterar arquivo em android/).
+  stdout.writeln('Validando com o Shorebird (dry-run)...\n');
+  final dryRun = await _runShorebird(
+      ['patch', 'android', '--release-version', target, '--dry-run']);
+  if (dryRun != 0) {
+    throw StateError(
+        'O dry-run do Shorebird recusou este patch (código $dryRun).\n'
+        'Leia a saída acima: normalmente é diff nativo ou de asset.');
+  }
+
+  stdout.writeln('\n${'─' * 62}');
+  stdout.writeln('  Dry-run passou. O patch ainda NÃO foi publicado.');
+  stdout.writeln('─' * 62);
+  stdout.writeln('  release alvo   $target');
+  stdout.writeln('  versão local   ${version.tag}');
+  stdout.writeln('─' * 62);
+
+  if (!confirm('Publicar o patch para os clientes?')) {
+    stdout.writeln('\nCancelado. Nada foi enviado.\n');
+    return;
+  }
+
+  final code =
+      await _runShorebird(['patch', 'android', '--release-version', target]);
+  if (code != 0) {
+    throw StateError('shorebird patch falhou (código $code).');
+  }
+  stdout.writeln('\nPatch publicado. Os aparelhos aplicam na próxima abertura '
+      'do app.\n'
+      'O atualizador in-app (APK) segue valendo para mudanças nativas.\n');
+}
+
+Future<int> _runShorebird(List<String> args) async {
+  final process = await Process.start(
+    _shorebirdExecutable(),
+    args,
+    runInShell: true,
+    mode: ProcessStartMode.inheritStdio,
+  );
+  return process.exitCode;
+}
+
+/// Caminho do executável do Shorebird.
+///
+/// Não confia só no PATH: um terminal (ou processo pai) aberto ANTES da
+/// instalação não enxerga a entrada nova, e o erro que aparece —
+/// "'shorebird.bat' não é reconhecido" — parece instalação quebrada quando na
+/// verdade é só herança de ambiente.
+String _shorebirdExecutable() {
+  final name = Platform.isWindows ? 'shorebird.bat' : 'shorebird';
+  final home = Platform.environment['USERPROFILE'] ??
+      Platform.environment['HOME'] ??
+      '';
+  final candidates = [
+    if (home.isNotEmpty) '$home${Platform.pathSeparator}.shorebird'
+        '${Platform.pathSeparator}bin${Platform.pathSeparator}$name',
+  ];
+  for (final path in candidates) {
+    if (File(path).existsSync()) return path;
+  }
+  // Cai no PATH: em CI o Shorebird costuma estar em outro lugar.
+  return name;
+}
+
+/// Grava o versionCode publicado no portão do Gradle.
+///
+/// Chamado só depois de o canal apontar para esta versão. O Gradle usa esse
+/// arquivo para recusar um build de release que não subiu a versão; se ele
+/// fosse escrito no fim do build, "buildado" e "publicado" virariam sinônimos
+/// e um upload que falhasse deixaria o portão bloqueando à toa.
+void _recordGate(int buildNumber) {
+  final file = File('android/last_release_version_code.txt');
+  try {
+    file.writeAsStringSync('$buildNumber\n');
+    stdout.writeln('Portão do Gradle atualizado para $buildNumber '
+        '(${file.path}) — faça commit desse arquivo.');
+  } catch (e) {
+    // Não é motivo para falhar: a publicação já aconteceu.
+    stdout.writeln('Aviso: não consegui atualizar ${file.path}: $e');
   }
 }

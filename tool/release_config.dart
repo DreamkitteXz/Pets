@@ -224,3 +224,58 @@ bool confirm(String question) {
   final answer = stdin.readLineSync()?.trim().toLowerCase();
   return answer == 's' || answer == 'sim';
 }
+
+// ── Guarda de patch ─────────────────────────────────────────────────────────
+
+/// Caminhos cuja alteração EXIGE release novo — patch não os carrega.
+///
+/// `lib/assets/` está aqui junto de `assets/`: este projeto declara imagens
+/// nos dois lugares (ver a lista `assets:` do pubspec), e patch de asset não é
+/// suportado pelo Shorebird.
+const List<String> kNativeOrAssetPaths = [
+  'android/',
+  'ios/',
+  'macos/',
+  'windows/',
+  'linux/',
+  'assets/',
+  'lib/assets/',
+  'pubspec.yaml',
+  'pubspec.lock',
+];
+
+/// Roda git e devolve stdout, ou `null` se o comando falhar.
+String? git(List<String> args) {
+  try {
+    final res = Process.runSync('git', args);
+    if (res.exitCode != 0) return null;
+    return '${res.stdout}'.trim();
+  } catch (_) {
+    return null;
+  }
+}
+
+String? currentCommit() => git(['rev-parse', 'HEAD']);
+
+/// Arquivos alterados entre [fromCommit] e o estado ATUAL do working tree.
+///
+/// Inclui commits e mudanças não commitadas: o que vai para o patch é o que
+/// está no disco, não o que está no último commit.
+List<String> changedFilesSince(String fromCommit) {
+  final committed = git(['diff', '--name-only', fromCommit, 'HEAD']) ?? '';
+  final working = git(['diff', '--name-only', 'HEAD']) ?? '';
+  final untracked =
+      git(['ls-files', '--others', '--exclude-standard']) ?? '';
+  return {
+    ...committed.split('\n'),
+    ...working.split('\n'),
+    ...untracked.split('\n'),
+  }.where((f) => f.trim().isNotEmpty).toList()
+    ..sort();
+}
+
+/// Subconjunto de [files] que impede um patch.
+List<String> blockingChanges(List<String> files) => files
+    .where((f) => kNativeOrAssetPaths.any((p) =>
+        p.endsWith('/') ? f.startsWith(p) : f == p))
+    .toList();
