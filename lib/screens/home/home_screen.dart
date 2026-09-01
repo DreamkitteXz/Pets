@@ -221,7 +221,12 @@ class HomeScreenMainTab extends StatelessWidget {
   // ── Próximas atividades ──────────────────────────────────────────────────────
   Widget _activitySection(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      // `stretch`, não `start`: com `start` o Column passa restrição frouxa
+      // aos filhos e o card encolhe até a largura do próprio texto. Era por
+      // isso que "Nenhuma atividade futura" e "Nenhum pet cadastrado" tinham
+      // larguras diferentes entre si e sobrava um vão à direita — cada um
+      // media o seu texto em vez de ocupar a coluna.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionHeader(context, 'Próximas atividades'),
         const SizedBox(height: AppSpacing.md),
@@ -313,7 +318,8 @@ class HomeScreenMainTab extends StatelessWidget {
   // ── Seus pets ──────────────────────────────────────────────────────────────
   Widget _petsSection(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      // Ver a nota em _activitySection: `start` fazia o card medir o texto.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionHeader(context, 'Seus pets', onSeeAll: () async {
           final pets = await _controller.getUserPets(limit: 100).first;
