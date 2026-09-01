@@ -94,28 +94,36 @@ class _AddVacPageState extends State<AddVacPage> {
     fetchAvailableVaccines();
   }
 
-  /// Lista os veterinários cadastrados.
+  /// Lista os veterinários disponíveis para associação.
   ///
-  /// Hoje a rule de `users` só libera o próprio documento
-  /// (`request.auth.uid == userId`), então nenhuma consulta por `role` é
-  /// satisfazível pelo tutor e isto retorna PERMISSION_DENIED. O erro é
-  /// tratado como "lista vazia" para não travar o cadastro: sem vet, a vacina
-  /// é registrada assim mesmo e a associação fica para depois.
-  /// Quando existir um caminho de leitura no backend, esta consulta passa a
-  /// devolver dados sem mais nenhuma mudança aqui.
+  /// Lê `vet_directory`, não `users`. O documento em `users` guarda cpf, email,
+  /// phone e o endereço residencial do veterinário — abrir consulta por `role`
+  /// ali entregaria tudo isso a qualquer tutor. `vet_directory` é a projeção
+  /// pública (name, crmv, specialties, yearsOfExperience), escrita só pela
+  /// Function `mirrorVetDirectory` a partir de `users`.
+  ///
+  /// Sem filtro por status: a Function só publica veterinário ativo e com
+  /// CRMV, e remove o documento quando deixa de ser. Estar no diretório já é a
+  /// condição de elegibilidade — refiltrar aqui duplicaria a regra em dois
+  /// lugares que podem divergir.
+  ///
+  /// Falha vira lista vazia de propósito: sem vet a vacina ainda é registrada,
+  /// e a associação fica pendente de validação.
   Future<void> fetchVeterinarians() async {
     try {
-      final vetsSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'veterinarian')
-          .where('status', isEqualTo: 'active')
-          .get();
+      final vetsSnapshot =
+          await FirebaseFirestore.instance.collection('vet_directory').get();
 
       if (!mounted) return;
       setState(() {
         veterinarians = vetsSnapshot.docs
             .map((doc) => {'id': doc.id, ...doc.data()})
-            .toList();
+            .toList()
+          // Ordem alfabética: a do Firestore é por ID do documento, que aqui é
+          // o uid — ou seja, aleatória para quem lê.
+          ..sort((a, b) => (a['name'] as String? ?? '')
+              .toLowerCase()
+              .compareTo((b['name'] as String? ?? '').toLowerCase()));
       });
     } catch (e) {
       debugPrint('Lista de veterinários indisponível: $e');
@@ -124,8 +132,12 @@ class _AddVacPageState extends State<AddVacPage> {
     }
   }
 
-  /// Mesma situação da lista de veterinários: a rule de `clinics` exige que o
-  /// solicitante esteja em `veterinarians`, o que nunca vale para o tutor.
+  /// Lista as clínicas ativas.
+  ///
+  /// A rule de `clinics` passou a permitir leitura a qualquer autenticado: o
+  /// documento só tem dado comercial (nome, CNPJ, telefone, endereço do
+  /// estabelecimento). A escrita continua restrita aos veterinários da própria
+  /// clínica.
   Future<void> fetchClinics() async {
     try {
       final clinicsSnapshot = await FirebaseFirestore.instance
@@ -202,65 +214,61 @@ class _AddVacPageState extends State<AddVacPage> {
     }
   }
 
-  void _updateVeterinarianFields(String vetId) async {
+  /// Clínica à qual [vetId] pertence, ou `null`.
+  ///
+  /// O vínculo mora em `clinics.veterinarians`, não no documento do
+  /// veterinário: `users` nunca teve `clinicId`, e a versão anterior lia esse
+  /// campo inexistente — por isso o preenchimento automático da clínica nunca
+  /// acontecia, mesmo quando havia vet selecionado.
+  ///
+  /// Resolve na lista já carregada em vez de consultar o Firestore de novo.
+  Map<String, dynamic>? _clinicOfVet(String vetId) {
+    for (final clinic in clinics) {
+      final members = clinic['veterinarians'];
+      if (members is List && members.contains(vetId)) return clinic;
+    }
+    return null;
+  }
+
+  /// Ponto único de preenchimento dos campos de clínica.
+  ///
+  /// `null` limpa tudo e marca "sem clínica". Antes as mesmas seis atribuições
+  /// existiam em dois lugares, e ambas indexavam `address` direto — um
+  /// documento sem `address` derrubava a tela com NoSuchMethodError.
+  void _applyClinic(Map<String, dynamic>? clinic) {
+    final address = (clinic?['address'] as Map?) ?? const {};
+    setState(() {
+      selectedClinicId = clinic?['id'] as String?;
+      hasNoClinic = clinic == null;
+      _cnpjController.text = clinic?['cnpj'] as String? ?? '';
+      _clinicaController.text = clinic?['name'] as String? ?? '';
+      _ruaController.text = address['street'] as String? ?? '';
+      _bairroController.text = address['neighborhood'] as String? ?? '';
+      _numeroController.text = address['number'] as String? ?? '';
+      _cidadeController.text = address['city'] as String? ?? '';
+    });
+  }
+
+  void _updateVeterinarianFields(String vetId) {
     final vet = veterinarians.firstWhere((v) => v['id'] == vetId);
     setState(() {
-      selectedVetId = vetId; // Make sure to store the vetId
-      _nomeVetController.text = vet['name'] ?? '';
-      _crmvController.text = vet['crmv'] ?? '';
+      selectedVetId = vetId;
+      _nomeVetController.text = vet['name'] as String? ?? '';
+      _crmvController.text = vet['crmv'] as String? ?? '';
     });
 
-    if (vet['clinicId'] != null) {
-      try {
-        final clinicDoc = await FirebaseFirestore.instance
-            .collection('clinics')
-            .doc(vet['clinicId'])
-            .get();
-
-        if (clinicDoc.exists) {
-          final clinicData = clinicDoc.data()!;
-          setState(() {
-            _cnpjController.text = clinicData['cnpj'] ?? '';
-            _clinicaController.text = clinicData['name'] ?? '';
-            _ruaController.text = clinicData['address']['street'] ?? '';
-            _bairroController.text =
-                clinicData['address']['neighborhood'] ?? '';
-            _numeroController.text = clinicData['address']['number'] ?? '';
-            _cidadeController.text = clinicData['address']['city'] ?? '';
-          });
-        }
-      } catch (e) {
-        debugPrint('Error fetching clinic data: $e');
-      }
-    }
+    // Só preenche se o vet pertencer a alguma clínica. Não encontrando, deixa
+    // a escolha manual intacta em vez de zerar o que o tutor já preencheu.
+    final clinic = _clinicOfVet(vetId);
+    if (clinic != null) _applyClinic(clinic);
   }
 
   void _updateClinicFields(String? clinicId) {
     if (clinicId == null) {
-      setState(() {
-        selectedClinicId = null;
-        _cnpjController.text = '';
-        _clinicaController.text = '';
-        _ruaController.text = '';
-        _bairroController.text = '';
-        _numeroController.text = '';
-        _cidadeController.text = '';
-        hasNoClinic = true;
-      });
+      _applyClinic(null);
       return;
     }
-
-    final clinic = clinics.firstWhere((c) => c['id'] == clinicId);
-    setState(() {
-      selectedClinicId = clinicId;
-      hasNoClinic = false;
-      _cnpjController.text = clinic['cnpj'] ?? '';
-      _clinicaController.text = clinic['name'] ?? '';
-      _ruaController.text = clinic['address']['street'] ?? '';
-      _bairroController.text = clinic['address']['neighborhood'] ?? '';
-      _numeroController.text = clinic['address']['number'] ?? '';
-      _cidadeController.text = clinic['address']['city'] ?? '';
-    });
+    _applyClinic(clinics.firstWhere((c) => c['id'] == clinicId));
   }
 
   List<Step> _buildSteps() {
