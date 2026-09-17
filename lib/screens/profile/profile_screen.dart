@@ -28,7 +28,9 @@ class ProfileScreen extends StatelessWidget {
     // updateDisplayName, então o displayName é nulo até algo copiar — e aqui
     // caía em "Tutor", um genérico com a mesma cara do "Usuário" da home.
     final session = context.watch<CurrentUserService>();
-    final fullName = session.user?.name?.trim();
+    // `displayName` normaliza a caixa: a base guarda o nome como a pessoa
+    // digitou, e vinha tudo minúsculo ou tudo MAIÚSCULO direto para a tela.
+    final fullName = session.displayName;
     final hasName = fullName != null && fullName.isNotEmpty;
 
     final photo = user.photoURL;
@@ -78,12 +80,12 @@ class ProfileScreen extends StatelessWidget {
                     )
                   else
                     Text(hasName ? fullName : 'Meu perfil',
-                        style:
-                            AppTypography.title1.copyWith(color: c.textPrimary)),
+                        style: AppTypography.title1
+                            .copyWith(color: c.textPrimary)),
                   const SizedBox(height: AppSpacing.xs),
                   Text(user.email ?? '',
-                      style:
-                          AppTypography.callout.copyWith(color: c.textSecondary)),
+                      style: AppTypography.callout
+                          .copyWith(color: c.textSecondary)),
                 ],
               ),
             ),

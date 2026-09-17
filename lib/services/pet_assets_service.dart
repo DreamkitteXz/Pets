@@ -17,7 +17,14 @@ class PetAssetsService {
     }
   }
 
-  static String getImagePath(String? species, String? race, String? gender) {
+  /// Caminho da ilustração para a combinação espécie/raça/sexo, ou `null`
+  /// quando não existe uma.
+  ///
+  /// Devolver `null` é o ponto todo: antes o fallback era `beagleMaleImage` —
+  /// um CACHORRO. Como o catálogo só cobre um punhado de raças, qualquer gato
+  /// fora dessa lista aparecia ilustrado como beagle. Quem chama trata o nulo
+  /// caindo no ícone da espécie, que é genérico mas não mente.
+  static String? getImagePath(String? species, String? race, String? gender) {
     _checkInitialization();
     if (_configuration == null) {
       throw Exception('PetAssetsService not initialized');
@@ -27,12 +34,10 @@ class PetAssetsService {
     final raceKey = race?.toLowerCase() ?? '';
     final genderKey = gender?.toLowerCase() ?? 'male';
 
-    print('speciesKey: $speciesKey, raceKey: $raceKey, genderKey: $genderKey');
-
     final imageKey = _configuration!["types"][speciesKey]?["races"]?[raceKey]
         ?["gender"]?[genderKey]?["imageKey"] as String?;
 
-    if (imageKey == null) return AssetPaths.beagleMaleImage; // default fallback
+    if (imageKey == null) return null;
 
     return getImagePathFromKey(imageKey);
   }

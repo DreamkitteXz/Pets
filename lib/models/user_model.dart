@@ -8,6 +8,7 @@ class Users {
   String? id;
   String? phone;
   String? state;
+  String? city;
   String? cep;
   String? street;
   String? number;
@@ -26,6 +27,7 @@ class Users {
     this.id,
     this.phone,
     this.state,
+    this.city,
     this.cep,
     this.street,
     this.number,
@@ -50,6 +52,7 @@ class Users {
         'street': street,
         'number': number,
         'neighborhood': neighbourhood,
+        'city': city,
         'complement': addressDetails,
         'state': state,
         'zipCode': cep,
@@ -82,6 +85,7 @@ class Users {
       id: map['id'],
       phone: map['phone'],
       state: address != null ? address['state'] : null,
+      city: address != null ? address['city'] : null,
       cep: address != null ? address['zipCode'] : null,
       street: address != null ? address['street'] : null,
       number: address != null ? address['number'] : null,

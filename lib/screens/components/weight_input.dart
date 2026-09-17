@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pet_app/utils/weight_utils.dart';
 
 class WeightInput extends StatelessWidget {
   final TextEditingController controller;
@@ -38,20 +39,19 @@ class WeightInput extends StatelessWidget {
             controller: controller,
             readOnly: readOnly,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-            ],
+            // Aceita vírgula E ponto. O formatter anterior era
+            // `^\d*\.?\d{0,2}`, que descartava a vírgula ao digitar — mas
+            // outras telas de peso sugeriam "10,5" no hint. O usuário aprendia
+            // uma notação numa tela e ela sumia na outra.
+            inputFormatters: WeightUtils.inputFormatters,
             validator: validator ??
                 (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Por favor, insira o peso';
                   }
-                  final weight = double.tryParse(value);
+                  final weight = WeightUtils.parse(value);
                   if (weight == null) {
                     return 'Por favor, insira um peso válido';
-                  }
-                  if (weight <= 0) {
-                    return 'O peso deve ser maior que 0';
                   }
                   if (weight > 200) {
                     return 'Por favor, verifique o peso inserido';
@@ -59,7 +59,7 @@ class WeightInput extends StatelessWidget {
                   return null;
                 },
             decoration: InputDecoration(
-              hintText: 'Digite o peso (ex: 12.5)',
+              hintText: 'Digite o peso (ex.: 12,5)',
               helperText: 'Peso em quilogramas (kg)',
               helperStyle: const TextStyle(
                 color: Colors.grey,

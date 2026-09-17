@@ -74,8 +74,10 @@ class VaccineStep extends StatelessWidget {
                   orElse: () => <String, dynamic>{},
                 );
                 vacinaController.text = value ?? '';
-                farmaceuticaController.text =
-                    selected['manufacturer'] as String? ?? '';
+                // A farmacêutica NÃO é preenchida a partir do catálogo. Uma
+                // mesma vacina é fabricada por várias empresas, e sugerir uma
+                // delas de saída parece indicação — além de virar o valor
+                // gravado quando o usuário não repara e só avança.
                 onVaccineSelected?.call(selected);
               },
               validator: (value) => (value == null || value.isEmpty)
@@ -138,7 +140,11 @@ class VaccineStep extends StatelessWidget {
           controller: dataValidadeController,
           firstDate: DateTime.now(),
           lastDate: DateTime(DateTime.now().year + 10),
-          initialDate: DateTime.now().add(const Duration(days: 365)),
+          // Abre em HOJE, não um ano à frente. Este campo é transcrição do
+          // que está impresso no frasco — adiantar o calendário em 12 meses
+          // sugeria uma validade que o app não tem como saber, e quem não
+          // reparasse gravava o palpite como se fosse leitura do rótulo.
+          initialDate: DateTime.now(),
           validatorMessage: 'Selecione a data de validade',
         ),
         const SizedBox(height: AppSpacing.lg),

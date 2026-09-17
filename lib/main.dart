@@ -26,7 +26,8 @@ void main() async {
   // travado, sem printar nada. 45s é tempo de sobra para uma foto de <5 MB e
   // devolve o erro enquanto o usuário ainda está olhando.
   FirebaseStorage.instance.setMaxUploadRetryTime(const Duration(seconds: 45));
-  FirebaseStorage.instance.setMaxOperationRetryTime(const Duration(seconds: 20));
+  FirebaseStorage.instance
+      .setMaxOperationRetryTime(const Duration(seconds: 20));
 
   // Force portrait orientation
   await SystemChrome.setPreferredOrientations([
@@ -72,7 +73,7 @@ class MyApp extends StatelessWidget {
     final theme = context.watch<ThemeController>();
     return MaterialApp(
       navigatorKey: NavigationService.navigatorKey,
-      title: 'Tutor App',
+      title: 'Pets',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
@@ -155,4 +156,3 @@ class PerfilIndisponivel extends StatelessWidget {
     );
   }
 }
-  

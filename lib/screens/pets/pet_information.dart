@@ -192,8 +192,7 @@ class _PetInformationState extends State<PetInformation> {
               Align(
                 alignment: Alignment.center,
                 child: Container(
-                  margin: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl),
+                  margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                   padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.lg, vertical: AppSpacing.md),
                   decoration: BoxDecoration(
@@ -203,8 +202,7 @@ class _PetInformationState extends State<PetInformation> {
                   child: Text(
                     _photoStatus!,
                     textAlign: TextAlign.center,
-                    style: AppTypography.footnote
-                        .copyWith(color: Colors.white),
+                    style: AppTypography.footnote.copyWith(color: Colors.white),
                   ),
                 ),
               ),
@@ -233,10 +231,22 @@ class _PetInformationState extends State<PetInformation> {
     );
   }
 
-  Widget _fallbackImage() => Image.asset(
-        PetAssetsService.getImagePath(pet.species, pet.breed, pet.gender),
-        fit: BoxFit.cover,
+  Widget _fallbackImage() {
+    final path =
+        PetAssetsService.getImagePath(pet.species, pet.breed, pet.gender);
+    // Sem ilustração para a raça, um ícone neutro. Antes vinha um beagle —
+    // e um gato sem ilustração própria aparecia como cachorro.
+    if (path == null) {
+      return Builder(
+        builder: (context) => ColoredBox(
+          color: context.colors.surfaceSecondary,
+          child: Icon(Icons.pets_rounded,
+              color: context.colors.textTertiary, size: 56),
+        ),
       );
+    }
+    return Image.asset(path, fit: BoxFit.cover);
+  }
 
   // ----------------------------------------------------------- identidade
 
@@ -284,9 +294,8 @@ class _PetInformationState extends State<PetInformation> {
               Expanded(
                 child: _Stat(
                   icon: Icons.cake_rounded,
-                  value: pet.birthDate != null
-                      ? _formatAge(pet.birthDate!)
-                      : '—',
+                  value:
+                      pet.birthDate != null ? _formatAge(pet.birthDate!) : '—',
                   label: 'Idade',
                 ),
               ),
@@ -296,8 +305,7 @@ class _PetInformationState extends State<PetInformation> {
                   icon: Icons.monitor_weight_rounded,
                   value: pet.weightValue == null
                       ? '—'
-                      : '${pet.weightValue!.toStringAsFixed(1)
-                          .replaceAll('.', ',')} kg',
+                      : '${pet.weightValue!.toStringAsFixed(1).replaceAll('.', ',')} kg',
                   label: 'Peso',
                 ),
               ),
@@ -519,9 +527,8 @@ class _PetInformationState extends State<PetInformation> {
       // subindo devagar". Sem isto, os dois casos parecem o mesmo spinner.
       final progressSub = task.snapshotEvents.listen((snapshot) {
         final total = snapshot.totalBytes;
-        final pct = total > 0
-            ? ((snapshot.bytesTransferred / total) * 100).round()
-            : 0;
+        final pct =
+            total > 0 ? ((snapshot.bytesTransferred / total) * 100).round() : 0;
         _setPhotoStatus('${snapshot.state.name} · $pct%\n'
             '${snapshot.bytesTransferred}/$total bytes');
       }, onError: (Object e) => _setPhotoStatus('Erro na task: $e'));
@@ -533,8 +540,7 @@ class _PetInformationState extends State<PetInformation> {
           const Duration(seconds: 90),
           onTimeout: () {
             task.cancel();
-            throw TimeoutException(
-                'O envio passou de 90s sem concluir.');
+            throw TimeoutException('O envio passou de 90s sem concluir.');
           },
         );
       } finally {
@@ -547,10 +553,7 @@ class _PetInformationState extends State<PetInformation> {
           .timeout(const Duration(seconds: 30));
 
       _setPhotoStatus('Gravando no Firestore...');
-      await FirebaseFirestore.instance
-          .collection('pets')
-          .doc(pet.id)
-          .update({
+      await FirebaseFirestore.instance.collection('pets').doc(pet.id).update({
         'imageUrl': downloadUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       }).timeout(const Duration(seconds: 30));
@@ -582,10 +585,7 @@ class _PetInformationState extends State<PetInformation> {
     final previousUrl = pet.imageUrl;
     setState(() => _uploadingPhoto = true);
     try {
-      await FirebaseFirestore.instance
-          .collection('pets')
-          .doc(pet.id)
-          .update({
+      await FirebaseFirestore.instance.collection('pets').doc(pet.id).update({
         'imageUrl': null,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -648,8 +648,7 @@ class _PetInformationState extends State<PetInformation> {
       duration: const Duration(seconds: 8),
       action: SnackBarAction(
         label: 'Copiar',
-        onPressed: () =>
-            Clipboard.setData(ClipboardData(text: '$error')),
+        onPressed: () => Clipboard.setData(ClipboardData(text: '$error')),
       ),
     ));
   }
@@ -897,7 +896,8 @@ class _CountedCareCard extends StatelessWidget {
           color: color,
           title: title,
           subtitle: subtitle,
-          badge: pending > 0 ? '$pending pendente${pending > 1 ? 's' : ''}' : null,
+          badge:
+              pending > 0 ? '$pending pendente${pending > 1 ? 's' : ''}' : null,
           onTap: onTap,
         );
       },
@@ -952,7 +952,8 @@ class _CareCard extends StatelessWidget {
                 child: Icon(icon, color: color, size: 21),
               ),
               const Spacer(),
-              Icon(Icons.chevron_right_rounded, color: c.textTertiary, size: 20),
+              Icon(Icons.chevron_right_rounded,
+                  color: c.textTertiary, size: 20),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -966,8 +967,8 @@ class _CareCard extends StatelessWidget {
           if (badge != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm,
-                  vertical: 3),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: 3),
               decoration: BoxDecoration(
                 color: c.tint(badgeTint, 0.12),
                 borderRadius: AppRadius.pill_,
@@ -983,8 +984,7 @@ class _CareCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.caption.copyWith(
-                            color: badgeTint,
-                            fontWeight: FontWeight.w600)),
+                            color: badgeTint, fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -1097,9 +1097,7 @@ class _UpcomingSection extends StatelessWidget {
                               padding:
                                   const EdgeInsets.only(left: AppSpacing.lg),
                               child: Divider(
-                                  height: 1,
-                                  thickness: 1,
-                                  color: c.separator),
+                                  height: 1, thickness: 1, color: c.separator),
                             ),
                           _DueRow(item: visible[i], now: now),
                         ],
@@ -1138,7 +1136,8 @@ class _DueRow extends StatelessWidget {
             height: 34,
             decoration: BoxDecoration(
               color: c.tint(tone, 0.12),
-              borderRadius: const BorderRadius.all(Radius.circular(AppRadius.sm)),
+              borderRadius:
+                  const BorderRadius.all(Radius.circular(AppRadius.sm)),
             ),
             child: Icon(item.icon, size: 18, color: tone),
           ),

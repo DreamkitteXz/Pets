@@ -46,4 +46,42 @@ void main() {
     expect(CurrentUserStatus.values, contains(CurrentUserStatus.ready));
     expect(CurrentUserStatus.values, contains(CurrentUserStatus.signedOut));
   });
+
+  /// Capitalização é regra de EXIBIÇÃO, separada da extração acima.
+  ///
+  /// A base guarda o nome como a pessoa digitou — há registros todo minúsculo
+  /// e todo MAIÚSCULO — e isso ia cru para a saudação e o perfil.
+  group('capitalizeName', () {
+    test('primeira letra de cada palavra em maiúscula', () {
+      expect(CurrentUserService.capitalizeName('joão pedro'), 'João Pedro');
+      expect(CurrentUserService.capitalizeName('kayque'), 'Kayque');
+    });
+
+    test('normaliza nome gravado todo em maiúsculas', () {
+      expect(CurrentUserService.capitalizeName('KAYQUE SILVA FERNANDES'),
+          'Kayque Silva Fernandes');
+    });
+
+    test('mantém partícula minúscula — é a grafia correta', () {
+      expect(CurrentUserService.capitalizeName('maria da silva'),
+          'Maria da Silva');
+      expect(CurrentUserService.capitalizeName('joao dos santos'),
+          'Joao dos Santos');
+    });
+
+    test('partícula no início vira nome próprio', () {
+      // "Da Silva" sozinho é sobrenome usado como nome; deixá-lo minúsculo
+      // abriria a saudação com letra pequena, que é o defeito relatado.
+      expect(CurrentUserService.capitalizeName('da silva'), 'Da Silva');
+    });
+
+    test('preserva acento', () {
+      expect(CurrentUserService.capitalizeName('ângela souza'), 'Ângela Souza');
+    });
+
+    test('entradas inúteis viram null, não string estranha', () {
+      expect(CurrentUserService.capitalizeName(null), isNull);
+      expect(CurrentUserService.capitalizeName('   '), isNull);
+    });
+  });
 }

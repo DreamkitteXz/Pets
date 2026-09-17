@@ -158,8 +158,8 @@ class VaccineCardGenerator {
     final document = PdfDocument();
     document.pageSettings.margins.all = 40;
 
-    final titleFont = PdfStandardFont(PdfFontFamily.helvetica, 17,
-        style: PdfFontStyle.bold);
+    final titleFont =
+        PdfStandardFont(PdfFontFamily.helvetica, 17, style: PdfFontStyle.bold);
     final captionFont = PdfStandardFont(PdfFontFamily.helvetica, 9);
     final labelFont =
         PdfStandardFont(PdfFontFamily.helvetica, 8, style: PdfFontStyle.bold);
@@ -208,7 +208,7 @@ class VaccineCardGenerator {
       ['PET', _ou(pet.name)],
       ['ESPÉCIE / RAÇA', _especieRaca(pet)],
       ['IDADE', _idade(pet.birthDate)],
-      ['TUTOR', _ou(pet.ownerName)],
+      ['RESPONSÁVEL', _ou(pet.ownerName)],
       ['MICROCHIP', _ou(pet.chipNumber)],
       ['SEXO', _sexoDisplay(pet.gender)],
     ];

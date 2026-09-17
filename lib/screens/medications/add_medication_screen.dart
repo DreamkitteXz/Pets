@@ -51,9 +51,8 @@ class _AddMedicamentoPageState extends State<AddMedicamentoPage> {
   late String? _route = widget.medicamento?.route;
   late DateTime? _startDate = widget.medicamento?.startDate ?? DateTime.now();
   late DateTime? _endDate = widget.medicamento?.endDate;
-  late bool _continuous = widget.medicamento == null
-      ? false
-      : widget.medicamento!.isContinuous;
+  late bool _continuous =
+      widget.medicamento == null ? false : widget.medicamento!.isContinuous;
 
   bool _saving = false;
 
@@ -91,7 +90,11 @@ class _AddMedicamentoPageState extends State<AddMedicamentoPage> {
                   AppTextField(
                     controller: _name,
                     label: 'Nome do medicamento',
-                    hint: 'Ex.: Apoquel',
+                    // Sem exemplo de marca. O hint anterior era "Ex.: Apoquel"
+                    // — um produto comercial de um laboratório específico —, e
+                    // citar um nome dentro do campo lê como indicação do app,
+                    // não como exemplo de formato.
+                    hint: 'Como está escrito na receita',
                     validator: (value) => (value ?? '').trim().isEmpty
                         ? 'Informe o nome do medicamento'
                         : null,
@@ -243,7 +246,8 @@ class _AddMedicamentoPageState extends State<AddMedicamentoPage> {
       }
       if (!mounted) return;
       Navigator.pop(context, medication);
-      _toast(_isEditing ? 'Medicamento atualizado.' : 'Medicamento registrado.');
+      _toast(
+          _isEditing ? 'Medicamento atualizado.' : 'Medicamento registrado.');
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -359,8 +363,7 @@ class _RouteField extends StatelessWidget {
                 showCheckmark: false,
                 side: BorderSide.none,
                 // Tocar de novo na via já escolhida limpa o campo (é opcional).
-                onSelected: (selected) =>
-                    onChanged(selected ? route : null),
+                onSelected: (selected) => onChanged(selected ? route : null),
               ),
           ],
         ),

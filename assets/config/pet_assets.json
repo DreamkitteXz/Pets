@@ -259,11 +259,11 @@
       }
     },
     "cat": {
-      "icon": "catching_pokemon",
+      "icon": "pets",
       "color": "orange",
       "races": {
         "somali": {
-          "icon": "catching_pokemon",
+          "icon": "pets",
           "color": "orange",
           "gender": {
             "male": {

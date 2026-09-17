@@ -10,6 +10,7 @@ import 'package:pet_app/screens/vaccines/vaccine_steps/vaccine_step.dart';
 import 'package:pet_app/design/design.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pet_app/utils/weight_utils.dart';
 
 class AddVacPage extends StatefulWidget {
   final String petId;
@@ -76,7 +77,10 @@ class _AddVacPageState extends State<AddVacPage> {
 
   String? selectedClinicId;
   List<Map<String, dynamic>> clinics = [];
-  bool hasNoClinic = false;
+  // Nao existe mais um `hasNoClinic` separado: ele nascia `false` enquanto
+  // `selectedClinicId` ja era null, e as duas variaveis discordavam no
+  // primeiro frame — por isso os campos de clinica apareciam vazios mesmo com
+  // "Sem vinculo com clinica" selecionado. A unica fonte e `selectedClinicId`.
 
   List<Map<String, dynamic>> availableVaccines = [];
   bool isLoadingVaccines = false;
@@ -239,7 +243,6 @@ class _AddVacPageState extends State<AddVacPage> {
     final address = (clinic?['address'] as Map?) ?? const {};
     setState(() {
       selectedClinicId = clinic?['id'] as String?;
-      hasNoClinic = clinic == null;
       _cnpjController.text = clinic?['cnpj'] as String? ?? '';
       _clinicaController.text = clinic?['name'] as String? ?? '';
       _ruaController.text = address['street'] as String? ?? '';
@@ -409,7 +412,7 @@ class _AddVacPageState extends State<AddVacPage> {
               ],
               onChanged: _updateClinicFields,
             ),
-            if (!hasNoClinic) ...[
+            if (selectedClinicId != null) ...[
               const SizedBox(height: 20),
               ClinicStep(
                 cnpjController: _cnpjController,
@@ -535,7 +538,7 @@ class _AddVacPageState extends State<AddVacPage> {
           FirebaseFirestore.instance.collection('pets').doc(widget.petId);
       String vaccineId = gerarVacsID();
 
-      Map<String, dynamic> clinicData = hasNoClinic
+      Map<String, dynamic> clinicData = selectedClinicId == null
           ? {}
           : {
               'clinicId': selectedClinicId,
@@ -581,8 +584,7 @@ class _AddVacPageState extends State<AddVacPage> {
         // Datas como Timestamp (eram String dd/MM/yyyy) e peso como número.
         'administrationDate': _asTimestamp(_dataAplicadaController.text),
         'nextDueDate': _asTimestamp(_proximaAplicacaoController.text),
-        'petWeight':
-            double.tryParse(_pesoController.text.replaceAll(',', '.')) ?? 0.0,
+        'petWeight': WeightUtils.parse(_pesoController.text) ?? 0.0,
         'batchNumber': _loteController.text,
         'manufacturer': _farmaceuticaController.text,
         'expirationDate': _asTimestamp(_dataValidadeController.text),

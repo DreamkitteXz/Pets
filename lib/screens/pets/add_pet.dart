@@ -120,7 +120,8 @@ class _AddPetScreenState extends State<AddPetScreen> {
                         // Raças mudam com a espécie: limpa a seleção anterior.
                         _breedController.clear();
                       }),
-                      validator: (v) => v == null ? 'Selecione a espécie' : null,
+                      validator: (v) =>
+                          v == null ? 'Selecione a espécie' : null,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -148,9 +149,8 @@ class _AddPetScreenState extends State<AddPetScreen> {
                               InputDecoration(hintText: 'Buscar raça...'),
                         ),
                       ),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'Selecione a raça'
-                          : null,
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Selecione a raça' : null,
                       autoValidateMode: AutovalidateMode.onUserInteraction,
                     ),
                   ),
@@ -268,7 +268,11 @@ class _AddPetScreenState extends State<AddPetScreen> {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _birthDate ?? DateTime(now.year - 1, now.month, now.day),
+      // Abre no ANO CORRENTE. Antes abria em `now.year - 1`, então quem
+      // tocasse no dia de hoje sem reparar no ano saía com uma data de um ano
+      // atrás — e o pet nascido hoje aparecia com "1 ano". O cálculo de idade
+      // estava certo; o seletor é que mentia sobre a data escolhida.
+      initialDate: _birthDate ?? now,
       firstDate: DateTime(now.year - 40),
       lastDate: now,
       helpText: 'Data de nascimento',

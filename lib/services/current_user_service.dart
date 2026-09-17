@@ -71,23 +71,68 @@ class CurrentUserService extends ChangeNotifier {
   bool get isMissingProfile =>
       _status == CurrentUserStatus.ready && _user == null;
 
-  /// Primeiro nome do tutor, ou `null` quando não há nome utilizável.
+  /// Primeiro nome do responsável, pronto para exibir.
   ///
   /// `null` cobre três casos que a UI trata igual (saudação sem nome):
   /// carregando, deslogado, e documento sem `name`. Quem precisa distinguir
   /// olha [status].
-  String? get firstName => firstNameOf(_user?.name);
+  String? get firstName => capitalizeName(firstNameOf(_user?.name));
+
+  /// Nome completo do responsável, pronto para exibir.
+  String? get displayName => capitalizeName(_user?.name);
 
   /// Primeiro token não vazio do nome completo.
   ///
   /// Separado e estático para ser testável sem Firebase. Trata os casos reais
   /// da base: `null`, string vazia, só espaços, espaços no meio.
+  ///
+  /// EXTRAÇÃO PURA: devolve o token como está na base. Quem exibe passa por
+  /// [capitalizeName] — separar os dois evita que uma regra de apresentação
+  /// se disfarce de regra de dado.
   static String? firstNameOf(String? fullName) {
     if (fullName == null) return null;
     for (final part in fullName.trim().split(RegExp(r'\s+'))) {
       if (part.isNotEmpty) return part;
     }
     return null;
+  }
+
+  /// Primeira letra de cada palavra em maiúscula, para exibição.
+  ///
+  /// A base tem nome gravado como o usuário digitou — inclusive tudo
+  /// minúsculo e tudo MAIÚSCULO —, e isso aparecia cru na saudação e no
+  /// perfil. Normaliza só na exibição: o documento continua com o que a
+  /// pessoa escreveu.
+  ///
+  /// Não mexe em partícula ("da", "de", "dos"): mantê-las minúsculas é a
+  /// grafia correta em português, e forçá-las a maiúscula pioraria nomes que
+  /// já estavam certos.
+  static const Set<String> _particulas = {
+    'da',
+    'de',
+    'di',
+    'do',
+    'das',
+    'dos',
+    'e'
+  };
+
+  static String? capitalizeName(String? name) {
+    if (name == null) return null;
+    final partes = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    if (partes.isEmpty) return null;
+
+    final saida = <String>[];
+    for (final parte in partes) {
+      final minuscula = parte.toLowerCase();
+      // Partícula nunca abre o nome: "Da Silva" sozinho não é nome próprio.
+      if (saida.isNotEmpty && _particulas.contains(minuscula)) {
+        saida.add(minuscula);
+      } else {
+        saida.add(minuscula[0].toUpperCase() + minuscula.substring(1));
+      }
+    }
+    return saida.join(' ');
   }
 
   void _onAuthChanged(User? authUser) {
@@ -120,9 +165,11 @@ class CurrentUserService extends ChangeNotifier {
     _setStatus(CurrentUserStatus.loading);
 
     _docSub?.cancel();
-    _docSub =
-        _firestore.collection('users').doc(uid).snapshots().listen(_onDocument,
-            onError: (Object error) {
+    _docSub = _firestore
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen(_onDocument, onError: (Object error) {
       debugPrint('[usuário] falha ao ler users/$uid: $error');
       _user = null;
       _error = error;

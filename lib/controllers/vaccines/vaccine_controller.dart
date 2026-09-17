@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pet_app/models/vaccine_model.dart';
 import 'package:pet_app/repositories/vaccine_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pet_app/utils/weight_utils.dart';
 
 class VaccineController {
   final VaccineRepository _repository = VaccineRepository();
@@ -55,7 +56,7 @@ class VaccineController {
       'administrationDate': _parseDate(administrationDate),
       'nextDueDate': _parseDate(nextDueDate),
       'petId': petId,
-      'petWeight': double.tryParse(weight) ?? 0.0,
+      'petWeight': WeightUtils.parse(weight) ?? 0.0,
       'ownerId': user.uid,
       'ownerName': user.displayName,
       'ownerContact': user.email,

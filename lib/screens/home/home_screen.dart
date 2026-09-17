@@ -451,7 +451,14 @@ class HomeScreenMainTab extends StatelessWidget {
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: 'Novo pet',
-          onPressed: () => _open(context, const AddPetScreen()),
+          onPressed: () {
+            // Fecha o snackbar ANTES de navegar. O ScaffoldMessenger fica
+            // acima do Navigator, então ele sobrevive ao push e continua
+            // flutuando sobre a tela de cadastro — bem em cima do botão
+            // "Adicionar pet", que ficava intocável até o aviso expirar.
+            messenger.hideCurrentSnackBar();
+            _open(context, const AddPetScreen());
+          },
         ),
       ));
       return;

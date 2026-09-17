@@ -9,6 +9,7 @@ import 'deworming_steps/vermifugo_basic_info_step.dart';
 import 'deworming_steps/vermifugo_dates_step.dart';
 import 'deworming_steps/vermifugo_observations_step.dart';
 import 'deworming_steps/vermifugo_veterinarian_step.dart';
+import 'package:pet_app/utils/weight_utils.dart';
 
 class AddVermifugoPage extends StatefulWidget {
   final String? petId;
@@ -135,7 +136,7 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
         'name': vermifugoController.text,
         'manufacturer': manufacturerController.text,
         'dosage': dosageController.text,
-        'weight': double.tryParse(pesoController.text) ?? 0.0,
+        'weight': WeightUtils.parse(pesoController.text) ?? 0.0,
         'administrationDate': Timestamp.fromDate(
             DateFormat('dd/MM/yyyy').parse(primeiraDoseController.text)),
         'nextDueDate': _mostrarReforco
@@ -151,7 +152,7 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
         // Pet information
         'petId': widget.petId,
         'petName': petData['name'],
-        'petWeight': double.tryParse(pesoController.text) ?? 0.0,
+        'petWeight': WeightUtils.parse(pesoController.text) ?? 0.0,
 
         // Owner information
         'ownerId': petData['ownerId'],
@@ -293,9 +294,7 @@ class _AddVermifugoPageState extends State<AddVermifugoPage> {
       currentStep: _currentStep,
       totalSteps: steps.length,
       stepTitle: (steps[_currentStep].title as Text).data ?? '',
-      onBack: _currentStep == 0
-          ? null
-          : () => setState(() => _currentStep--),
+      onBack: _currentStep == 0 ? null : () => setState(() => _currentStep--),
       onNext: _validateStep,
       isLastStep: _currentStep == steps.length - 1,
       busy: _saving,
