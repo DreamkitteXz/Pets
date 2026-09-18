@@ -105,11 +105,42 @@ service cloud.firestore {
       allow create: if request.auth != null;
     }
 
-    // Clinics — only veterinarians listed in the clinic's `veterinarians`
-    // array can read or write it (associated professionals only).
+    // Clínicas — leitura aberta a qualquer autenticado.
+    //
+    // O tutor precisa escolher a clínica ao registrar uma vacina no app, e o
+    // documento só tem dado comercial: nome, CNPJ, telefone, e-mail e endereço
+    // do estabelecimento. Nada disso é privado — é o que está na fachada e no
+    // cadastro público da Receita.
+    //
+    // O array `veterinarians` também fica visível, e é justamente ele que
+    // permite ao app derivar a clínica de um veterinário sem duplicar o
+    // vínculo em outro lugar. São uids, não credenciais.
+    //
+    // ESCRITA inalterada: continua exigindo que o solicitante seja um dos
+    // veterinários da clínica. Como `resource.data` é nulo num create, isso
+    // também segue impedindo que um cliente crie clínica — só console ou
+    // Admin SDK.
     match /clinics/{clinicId} {
-      allow read, write: if request.auth != null &&
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
         resource.data.veterinarians.hasAny([request.auth.uid]);
+    }
+
+    // Diretório público de veterinários — projeção de `users`.
+    //
+    // Existe porque o app precisa listar veterinários para o tutor associar a
+    // uma vacina, mas o documento em `users` guarda cpf, email, phone e o
+    // endereço residencial completo. Abrir consulta por `role` em `users`
+    // entregaria tudo isso a qualquer tutor; então `users` continua fechado e
+    // este documento carrega só name, crmv, specialties e yearsOfExperience.
+    //
+    // ESCRITA NEGADA A TODO CLIENTE. Quem preenche é a Function
+    // `mirrorVetDirectory`, disparada por escrita em `users/{uid}` — o Admin
+    // SDK ignora rules. Se o cliente pudesse escrever aqui, qualquer um
+    // publicaria um CRMV falso e apareceria como veterinário no app.
+    match /vet_directory/{uid} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
     // Deworming — mesmo padrão de vaccines (eixo único de status + ciência + soft-delete).

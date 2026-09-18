@@ -95,7 +95,7 @@ const Settings = () => {
   const [formData, setFormData] = useState({
     name: '', email: '', phone: '', cpf: '',
     street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '',
-    crmv: '', specialties: [], yearsOfExperience: 0, clinicId: '',
+    crmv: '', specialties: [], yearsOfExperience: 0,
     notifications: false, darkMode: false, language: 'pt-BR', twoFactorAuth: false,
   });
 
@@ -107,7 +107,7 @@ const Settings = () => {
         complement: userData.address?.complement || '', neighborhood: userData.address?.neighborhood || '',
         city: userData.address?.city || '', state: userData.address?.state || '', zipCode: userData.address?.zipCode || '',
         crmv: userData.crmv || '', specialties: userData.specialties || [],
-        yearsOfExperience: userData.yearsOfExperience || 0, clinicId: userData.clinicId || '',
+        yearsOfExperience: userData.yearsOfExperience || 0,
         notifications: userData.notifications || false, darkMode: userData.darkMode || false,
         language: userData.language || 'pt-BR', twoFactorAuth: userData.twoFactorAuth || false,
       });
@@ -299,7 +299,6 @@ const Settings = () => {
                 >
                   <Field label="CRMV"><Input type="text" name="crmv" value={formData.crmv} onChange={handleChange} /></Field>
                   <Field label="Anos de Experiência"><Input type="number" name="yearsOfExperience" value={formData.yearsOfExperience} onChange={handleChange} /></Field>
-                  <Field label="ID da Clínica"><Input type="text" name="clinicId" value={formData.clinicId} onChange={handleChange} /></Field>
                 </div>
 
                 <div className="rounded-[16px] p-5" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>

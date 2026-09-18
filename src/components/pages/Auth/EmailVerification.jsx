@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Mail, RefreshCw } from 'lucide-react';
 import { auth } from '../../../config/firebase';
 import { verifyOtp, sendOtp, classifyOtpError } from '../../../services/firebase/otpService';
-import LogoBlack from '../../../assets/logo_black';
+import LogoBlack from '../../../assets/logos/logo_black';
 
 const DASHED_TOP    = '/assets/auth/dashed-curve-top.svg';
 const DASHED_BOTTOM = '/assets/auth/dashed-curve-bottom.svg';
@@ -116,7 +116,7 @@ const EmailVerification = () => {
   const handleSuccess = useCallback(() => {
     clearInterval(pollingRef.current);
     setStage('success');
-    redirectRef.current = setTimeout(() => navigate('/'), 1800);
+    redirectRef.current = setTimeout(() => navigate('/app'), 1800);
   }, [navigate]);
 
   const handleVerify = useCallback(async (code) => {

@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
 
 const NAV_LINKS = [
   { label: 'Funcionalidades', href: '#servicos' },
   { label: 'Sobre',           href: '#sobre'    },
-  { label: 'Contato',         href: '#contato'  },
 ];
 
 const Navbar = () => {
   const [scrolled, setScrolled]   = useState(false);
   const [activeLink, setActiveLink] = useState(null);
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 30);
@@ -35,7 +37,7 @@ const Navbar = () => {
   };
 
   const linkStyle = (label) => ({
-    fontFamily: 'system-ui, -apple-system, Roboto, sans-serif',
+    fontFamily: 'SF Pro Display',
     fontWeight: 500,
     fontSize: '15px',
     letterSpacing: '-0.01em',
@@ -61,16 +63,15 @@ const Navbar = () => {
         <a
           href="#"
           style={{
-            fontFamily: 'Inter, sans-serif',
-            fontStyle: 'italic',
-            fontWeight: 500,
+            fontFamily: 'SF Pro Display',
+            fontWeight: 600,
             fontSize: '20px',
-            color: '#000',
+            color: '#032b43',
             textDecoration: 'none',
             letterSpacing: '-0.02em',
           }}
         >
-          Logo
+          Pets
         </a>
 
         {/* Thin divider */}
@@ -100,8 +101,10 @@ const Navbar = () => {
         {/* Auth buttons */}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
           <button
+            disabled={loading}
+            onClick={() => navigate(user ? '/app' : '/auth')}
             style={{
-              fontFamily: 'system-ui, -apple-system, Roboto, sans-serif',
+              fontFamily: 'SF Pro Display',
               fontWeight: 500,
               fontSize: '13px',
               letterSpacing: '-0.01em',
@@ -115,10 +118,11 @@ const Navbar = () => {
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)',
-              cursor: 'pointer',
+              cursor: loading ? 'default' : 'pointer',
+              opacity: loading ? 0.6 : 1,
               transition: 'background 0.2s, transform 0.15s, box-shadow 0.2s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,232,228,0.9)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = 'rgba(220,232,228,0.9)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(240,244,243,0.8)'; e.currentTarget.style.transform = 'translateY(0)'; }}
           >
             Entrar
@@ -126,7 +130,7 @@ const Navbar = () => {
           <Link to="/auth" tabIndex={-1}>
             <button
               style={{
-                fontFamily: 'system-ui, -apple-system, Roboto, sans-serif',
+                fontFamily: 'SF Pro Display',
                 fontWeight: 500,
                 fontSize: '13px',
                 letterSpacing: '-0.01em',

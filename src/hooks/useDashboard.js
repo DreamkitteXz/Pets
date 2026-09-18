@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import logger from '../utils/logger';
+import { toDate } from '../utils/dates';
+
+const DAY = 24 * 60 * 60 * 1000;
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export function useDashboard() {
   const [dashboardData, setDashboardData] = useState(null);
@@ -15,48 +19,63 @@ export function useDashboard() {
       try {
         if (!user?.uid) return;
 
-        // Get today's start and end
-        const today = new Date();
-        const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-        const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+        const now = new Date();
+        const startOfDay = new Date(new Date().setHours(0, 0, 0, 0));
+        const endOfDay = new Date(new Date().setHours(23, 59, 59, 999));
+        const in30 = new Date(now.getTime() + 30 * DAY);
 
-        // Fetch pets
-        const petsRef = collection(db, 'pets');
-        const petsQuery = query(petsRef, where('veterinarians', 'array-contains', user.uid));
-        const petsSnapshot = await getDocs(petsQuery);
-        
-        // Fetch all appointments for the vet
-        const appointmentsRef = collection(db, 'appointments');
-        const appointmentsQuery = query(
-          appointmentsRef, 
-          where('veterinarianId', '==', user.uid)
+        // ── Parallel fetches scoped to the vet ───────────────────────────────
+        // Vacinas próximas e vermífugos vencidos usam QUERY INDEXADA por nextDueDate
+        // (índice composto veterinarianId+nextDueDate) — sem baixar tudo e filtrar.
+        const [petsSnapshot, appointmentsSnapshot, upcomingVacSnap, overdueDewSnap] = await Promise.all([
+          getDocs(query(collection(db, 'pets'), where('veterinarians', 'array-contains', user.uid))),
+          getDocs(query(collection(db, 'appointments'), where('veterinarianId', '==', user.uid))),
+          getDocs(query(collection(db, 'vaccines'),
+            where('veterinarianId', '==', user.uid),
+            where('nextDueDate', '>=', now),
+            where('nextDueDate', '<=', in30),
+            orderBy('nextDueDate', 'asc'))),
+          getDocs(query(collection(db, 'deworming'),
+            where('veterinarianId', '==', user.uid),
+            where('nextDueDate', '<', now),
+            orderBy('nextDueDate', 'asc'))),
+        ]);
+
+        const appointments = appointmentsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          date: toDate(doc.data().date),
+        }));
+
+        // Today's appointments
+        const todayAppointments = appointments.filter(a =>
+          a.date && a.date >= startOfDay && a.date <= endOfDay
         );
-        const appointmentsSnapshot = await getDocs(appointmentsQuery);
 
-        // Filter appointments for today in memory
-        const todayAppointments = appointmentsSnapshot.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            date: doc.data().date?.toDate()
-          }))
-          .filter(appointment => {
-            const appointmentDate = appointment.date;
-            return appointmentDate >= startOfDay && appointmentDate <= endOfDay;
-          });
+        // ── Weekly distribution (current week, Sun→Sat) for the bar chart ────
+        const startOfWeek = new Date(startOfDay);
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+        const endOfWeek = new Date(startOfWeek.getTime() + 7 * DAY);
+        const weeklyData = WEEKDAYS.map(label => ({ day: label, consultas: 0 }));
+        let weekAppointments = 0;
+        appointments.forEach(a => {
+          if (a.date && a.date >= startOfWeek && a.date < endOfWeek) {
+            weeklyData[a.date.getDay()].consultas += 1;
+            weekAppointments += 1;
+          }
+        });
 
-        // Count critical cases from pets data
-        const criticalCases = petsSnapshot.docs
-          .filter(doc => doc.data().status === 'critical')
-          .length;
+        // Contadores a partir da query indexada — só resta excluir soft-deleted
+        // (filtro barato sobre o resultado já recortado pelo índice).
+        const upcomingVaccines = upcomingVacSnap.docs.filter(d => d.data().active !== false).length;
+        const overdueDewormings = overdueDewSnap.docs.filter(d => d.data().active !== false).length;
 
-        // Get recent pets
         const recentPets = petsSnapshot.docs
           .map(doc => ({
             id: doc.id,
             ...doc.data(),
-            birthDate: doc.data().birthDate?.toDate(),
-            lastVisit: doc.data().lastVisit?.toDate()
+            birthDate: toDate(doc.data().birthDate),
+            lastVisit: toDate(doc.data().lastVisit),
           }))
           .sort((a, b) => (b.lastVisit || 0) - (a.lastVisit || 0))
           .slice(0, 5);
@@ -64,10 +83,13 @@ export function useDashboard() {
         setDashboardData({
           totalPets: petsSnapshot.size,
           todayAppointments,
-          criticalCases,
-          recentPets
+          weekAppointments,
+          weeklyData,
+          upcomingVaccines,
+          overdueDewormings,
+          recentPets,
         });
-        
+
         setLoading(false);
       } catch (err) {
         logger.error('Error fetching dashboard data:', err);

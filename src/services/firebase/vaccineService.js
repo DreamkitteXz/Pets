@@ -3,11 +3,10 @@ import {
   query, 
   where, 
   getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  deleteDoc, 
-  serverTimestamp 
+  addDoc,
+  updateDoc,
+  doc,
+  serverTimestamp
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
@@ -53,30 +52,54 @@ export const vaccineService = {
     }
   },
 
-  // Create new vaccine record
-  async createVaccine(vaccineData, labelImage) {
+  // Cria um registro de "aplicação" (vacina ou vermífugo) — lógica compartilhada.
+  // `data.status` é respeitado (padrão 'pending'); o cadastro feito pelo vet chega
+  // com 'approved' + vetValidation. `data.location` (opcional) vai para
+  // labelImageMetadata.location. A foto reusa o upload com EXIF strip.
+  async createApplication(collectionName, data, labelImage) {
     try {
-      // Upload image if provided
+      const { location, status, ...rest } = data;
+
       let imageUrl = null;
+      let labelImageMetadata = null;
       if (labelImage) {
         imageUrl = await vaccineService.uploadLabelImage(labelImage);
+        labelImageMetadata = {
+          name: labelImage.name || '',
+          size: labelImage.size || 0,
+          contentType: labelImage.type || 'image/jpeg',
+          timeCreated: serverTimestamp(),
+          updated: serverTimestamp(),
+          ...(location ? { location } : {}),
+        };
       }
 
-      const vaccineRef = collection(db, 'vaccines');
-      const newVaccine = {
-        ...vaccineData,
+      const ref = collection(db, collectionName);
+      const newDoc = {
+        ...rest,
         labelImage: imageUrl,
-        status: 'pending',
+        ...(labelImageMetadata ? { labelImageMetadata } : {}),
+        status: status || 'pending',
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       };
 
-      const docRef = await addDoc(vaccineRef, newVaccine);
+      const docRef = await addDoc(ref, newDoc);
       return docRef.id;
     } catch (error) {
-      logger.error('Error creating vaccine:', error);
+      logger.error(`Error creating application in '${collectionName}':`, error);
       throw error;
     }
+  },
+
+  // Vacina (coleção `vaccines`).
+  async createVaccine(vaccineData, labelImage) {
+    return vaccineService.createApplication('vaccines', vaccineData, labelImage);
+  },
+
+  // Vermífugo (coleção `deworming`) — mesmo fluxo/validação da vacina.
+  async createDeworming(dewormingData, labelImage) {
+    return vaccineService.createApplication('deworming', dewormingData, labelImage);
   },
 
   // Update vaccine status
@@ -99,13 +122,37 @@ export const vaccineService = {
     }
   },
 
-  // Delete vaccine record
-  async deleteVaccine(vaccineId) {
+  // Edição de campos clínicos (permitida só enquanto pending — as regras impedem
+  // edição após validação). Não toca status/validationDetails.
+  async updateApplication(collectionName, id, data) {
     try {
-      await deleteDoc(doc(db, 'vaccines', vaccineId));
+      await updateDoc(doc(db, collectionName, id), {
+        ...data,
+        updatedAt: serverTimestamp(),
+      });
     } catch (error) {
-      logger.error('Error deleting vaccine:', error);
+      logger.error(`Error updating ${collectionName}/${id}:`, error);
       throw error;
     }
-  }
+  },
+  async updateVaccine(id, data) { return vaccineService.updateApplication('vaccines', id, data); },
+  async updateDeworming(id, data) { return vaccineService.updateApplication('deworming', id, data); },
+
+  // Exclusão LÓGICA (soft-delete) — preserva o registro e a foto para auditoria.
+  // `deletedBy` deve ser o uid do veterinário responsável (exigido pelas regras).
+  async softDelete(collectionName, id, deletedBy) {
+    try {
+      await updateDoc(doc(db, collectionName, id), {
+        active: false,
+        deletedAt: serverTimestamp(),
+        deletedBy,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      logger.error(`Error soft-deleting ${collectionName}/${id}:`, error);
+      throw error;
+    }
+  },
+  async deleteVaccine(vaccineId, deletedBy) { return vaccineService.softDelete('vaccines', vaccineId, deletedBy); },
+  async deleteDeworming(dewormingId, deletedBy) { return vaccineService.softDelete('deworming', dewormingId, deletedBy); },
 };

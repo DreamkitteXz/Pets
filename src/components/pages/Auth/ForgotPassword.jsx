@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Mail } from 'lucide-react';
-import LogoBlack from '../../../assets/logo_black';
+import LogoBlack from '../../../assets/logos/logo_black';
 import AuthBackground from './assets/auth_background.svg';
 import { sendPasswordReset } from '../../../services/firebase/authService';
 

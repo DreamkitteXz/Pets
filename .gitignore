@@ -1,5 +1,5 @@
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
 
@@ -31,3 +31,14 @@ firebase-debug.log
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Artefatos do Flutter que apareceram dentro do repositorio do SITE.
+# Nada disso e fonte: locks do Gradle, caches do dart_tool e diretorios
+# `ephemeral/` gerados pelo toolchain. Os `flutter_export_environment.sh`
+# ainda carregam caminhos absolutos da maquina de quem gerou, que nao tem por
+# que ir para um repositorio publico.
+.dart_tool/
+.flutter-plugins-dependencies
+/android/
+/ios/
+/macos/

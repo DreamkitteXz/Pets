@@ -16,6 +16,7 @@
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onDocumentWritten }  = require('firebase-functions/v2/firestore');
 const { defineSecret }       = require('firebase-functions/params');
 const logger                 = require('firebase-functions/logger');
 const admin                  = require('firebase-admin');
@@ -264,7 +265,7 @@ exports.verifyOtp = onCall(
     await auth.updateUser(uid, { emailVerified: true });
     await db.collection('users').doc(uid).update({
       emailVerified: true,
-      updatedAt:     new Date().toISOString(),
+      updatedAt:     admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return { success: true };
@@ -360,17 +361,25 @@ exports.updateVaccineStatus = onCall(
       throw new HttpsError('failed-precondition', 'Esta vacina não está pendente de validação.');
     }
 
-    const newStatus = isApproved ? 'vetApproved' : 'vetRejected';
+    // Busca CRMV/nome do veterinário para compor o bloco de validação.
+    const vetSnap  = await db.collection('users').doc(request.auth.uid).get();
+    const vetData  = vetSnap.exists ? vetSnap.data() : {};
+
+    // Eixo único de status: aprovação/rejeição do vet define o status diretamente.
+    const newStatus = isApproved ? 'approved' : 'rejected';
 
     await vaccineRef.update({
       status: newStatus,
       'validationDetails.vetValidation': {
-        status: isApproved ? 'approved' : 'rejected',
-        validatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        validatedBy: request.auth.uid,
+        status:          newStatus,
+        validatedAt:     admin.firestore.FieldValue.serverTimestamp(),
+        validatedBy:     request.auth.uid,
+        validatedByName: vetData.name || '',
+        validatedByCrmv: vetData.crmv || '',
         notes:           notes || '',
         rejectionReason: isApproved ? '' : rejectionReason,
       },
+      updatedBy: request.auth.uid,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -386,5 +395,78 @@ exports.updateVaccineStatus = onCall(
     }
 
     return { success: true, status: newStatus };
+  }
+);
+
+/* ── Diretório público de veterinários ───────────────────────────────────────
+ *
+ * O app precisa listar veterinários para o tutor associar a uma vacina, mas o
+ * documento em `users` guarda cpf, email, phone e o endereço residencial
+ * completo (street, number, neighborhood, city, state, zipCode). Liberar
+ * consulta por `role` em `users` exporia tudo isso a qualquer tutor.
+ *
+ * Então `users` continua fechado e esta função espelha APENAS o subconjunto
+ * público em `vet_directory/{uid}`, que a rule abre para leitura autenticada e
+ * fecha para escrita de todo cliente — só o Admin SDK escreve aqui.
+ */
+
+/**
+ * Lista de PERMITIDOS, não de proibidos.
+ *
+ * Deliberado: com uma lista de proibidos, um campo sensível adicionado ao
+ * perfil no futuro viraria público por esquecimento. Aqui o padrão é não
+ * publicar, e incluir algo novo exige uma edição consciente desta linha.
+ *
+ * `clinicId` NÃO entra: o vínculo vet↔clínica mora em `clinics.veterinarians`,
+ * e duplicá-lo aqui exigiria um segundo trigger sobre `clinics` para não
+ * desincronizar. O app deriva a clínica da lista que já carrega.
+ */
+const VET_PUBLIC_FIELDS = ['name', 'crmv', 'specialties', 'yearsOfExperience'];
+
+exports.mirrorVetDirectory = onDocumentWritten(
+  { document: 'users/{uid}', region: 'southamerica-east1' },
+  async (event) => {
+    const uid    = event.params.uid;
+    const before = event.data?.before?.data();
+    const after  = event.data?.after?.data();
+
+    // O trigger cobre TODA escrita em `users`, e a maioria é de tutor. Sem
+    // esta saída, cada atualização de perfil de tutor gastaria um `delete` num
+    // documento que nunca existiu.
+    const tocaVet =
+      before?.role === 'veterinarian' || after?.role === 'veterinarian';
+    if (!tocaVet) return;
+
+    const ref = db.collection('vet_directory').doc(uid);
+
+    // Só veterinário ATIVO aparece. Perfil incompleto ainda não tem crmv, e
+    // listar um vet sem CRMV daria ao tutor uma escolha que a validação da
+    // vacina depois recusaria.
+    const publishable =
+      after &&
+      after.role === 'veterinarian' &&
+      after.status === 'active' &&
+      !!after.crmv;
+
+    if (!publishable) {
+      // Virou tutor, foi desativado ou o documento sumiu: sai do diretório.
+      // Sem isto um vet removido continuaria selecionável para sempre.
+      await ref.delete().catch((err) => {
+        logger.warn('vet_directory: falha ao remover', { uid, err: err.message });
+      });
+      return;
+    }
+
+    const projection = { uid };
+    for (const field of VET_PUBLIC_FIELDS) {
+      if (after[field] !== undefined) projection[field] = after[field];
+    }
+    projection.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+    // `set` sem merge: o documento é derivado por inteiro de `users`, então
+    // apagar um campo lá tem que apagá-lo aqui. Com merge, um campo removido
+    // do perfil ficaria fossilizado no diretório público.
+    await ref.set(projection);
+    logger.info('vet_directory atualizado', { uid });
   }
 );

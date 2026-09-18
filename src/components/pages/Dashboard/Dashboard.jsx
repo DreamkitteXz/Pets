@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
+import { BarChart, Bar, ResponsiveContainer, Cell } from 'recharts';
 import { useDashboard } from '../../../hooks/useDashboard';
 import { useAuth } from '../../../context/AuthContext';
 import { formatDate } from '../../../utils/formatters';
 import LoadingScreen from '../../ui/LoadingScreen';
-import { Heart, Calendar, AlertTriangle, Clock } from 'lucide-react';
+import { Heart, Calendar, Syringe, ShieldAlert, Clock } from 'lucide-react';
 
 // ── Status badges — opacity-based colors work in light & dark mode ─────────
 const STATUS = {
@@ -53,7 +54,8 @@ const Dashboard = () => {
     weekday: 'long', day: 'numeric', month: 'long',
   }).format(new Date());
 
-  const hasCritical = dashboardData.criticalCases > 0;
+  const hasOverdue = dashboardData.overdueDewormings > 0;
+  const todayIdx = new Date().getDay();
 
   // Shared card style — uses surface token so it adapts to dark mode
   const cardStyle = {
@@ -98,7 +100,7 @@ const Dashboard = () => {
 
         {/* ── KPI 1 — Pacientes Totais (dark hero — looks good in both modes) */}
         <div
-          className="col-span-12 md:col-span-4 fade-in-up rounded-[20px] overflow-hidden relative p-6 flex flex-col justify-between min-h-[152px]"
+          className="col-span-12 md:col-span-3 fade-in-up rounded-[20px] overflow-hidden relative p-6 flex flex-col justify-between min-h-[152px]"
           style={{
             animationDelay: '50ms',
             background: 'linear-gradient(135deg, #023047 0%, #033c5c 100%)',
@@ -118,52 +120,84 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* ── KPI 2 — Consultas Hoje ──────────────────────────────────── */}
+        {/* ── KPI 2 — Consultas na Semana (com mini-gráfico) ────────────── */}
         <div
-          className="col-span-12 md:col-span-4 fade-in-up rounded-[20px] p-6 flex flex-col justify-between min-h-[152px] hover:scale-[1.01] transition-all duration-200"
+          className="col-span-12 md:col-span-5 fade-in-up rounded-[20px] p-6 flex flex-col justify-between min-h-[152px]"
           style={{ animationDelay: '100ms', ...cardStyle }}
         >
           <div className="flex items-center justify-between">
-            <div className="w-9 h-9 rounded-[10px] flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
-              <Calendar size={18} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-[10px] flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
+                <Calendar size={18} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
+              </div>
+              <div>
+                <div className="text-[28px] font-bold tracking-[-0.03em] leading-none" style={{ color: 'var(--apple-blue)' }}>
+                  {dashboardData.weekAppointments}
+                </div>
+                <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>consultas nesta semana</div>
+              </div>
             </div>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--text-tertiary)' }}>Hoje</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--text-tertiary)' }}>Semana</span>
           </div>
-          <div className="mt-3">
-            <div className="text-[44px] font-bold tracking-[-0.03em] leading-none" style={{ color: 'var(--apple-blue)' }}>
-              {dashboardData.todayAppointments.length}
+          {/* Mini bar chart */}
+          <div className="mt-3" style={{ height: '52px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dashboardData.weeklyData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} barCategoryGap="22%">
+                <Bar dataKey="consultas" radius={[3, 3, 0, 0]}>
+                  {dashboardData.weeklyData.map((entry, idx) => (
+                    <Cell key={idx} fill={idx === todayIdx ? 'var(--apple-blue)' : 'rgba(10,132,255,0.25)'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="flex justify-between mt-1 px-0.5">
+              {dashboardData.weeklyData.map((d, idx) => (
+                <span key={idx} className="text-[9px] font-medium"
+                  style={{ color: idx === todayIdx ? 'var(--apple-blue)' : 'var(--text-tertiary)', flex: 1, textAlign: 'center' }}>
+                  {d.day}
+                </span>
+              ))}
             </div>
-            <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>consultas agendadas</div>
           </div>
         </div>
 
-        {/* ── KPI 3 — Casos Críticos ──────────────────────────────────── */}
+        {/* ── KPI 3 — Vacinas Próximas ──────────────────────────────────── */}
         <div
-          className="col-span-12 md:col-span-4 fade-in-up rounded-[20px] p-6 flex flex-col justify-between min-h-[152px] hover:scale-[1.01] transition-all duration-200"
-          style={{
-            animationDelay: '150ms',
-            background: hasCritical ? 'rgba(255,59,48,0.08)' : 'var(--surface-grouped-secondary)',
-            boxShadow: hasCritical ? '0 2px 16px rgba(255,59,48,0.12)' : '0 1px 4px rgba(0,0,0,0.08)',
-            border: `1px solid ${hasCritical ? 'rgba(255,59,48,0.2)' : 'var(--separator)'}`,
-          }}
+          className="col-span-6 md:col-span-2 fade-in-up rounded-[20px] p-5 flex flex-col justify-between min-h-[152px] hover:scale-[1.01] transition-all duration-200"
+          style={{ animationDelay: '150ms', ...cardStyle }}
         >
-          <div className="flex items-center justify-between">
-            <div className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-              style={{ background: hasCritical ? 'rgba(255,59,48,0.12)' : 'rgba(142,142,147,0.1)' }}>
-              <AlertTriangle size={18} strokeWidth={1.5} style={{ color: hasCritical ? 'var(--apple-red)' : 'var(--text-tertiary)' }} />
-            </div>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]"
-              style={{ color: hasCritical ? 'var(--apple-red)' : 'var(--text-tertiary)' }}>
-              Atenção
-            </span>
+          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center" style={{ background: 'rgba(255,149,0,0.12)' }}>
+            <Syringe size={18} strokeWidth={1.5} style={{ color: 'var(--apple-orange)' }} />
           </div>
           <div className="mt-3">
-            <div className="text-[44px] font-bold tracking-[-0.03em] leading-none"
-              style={{ color: hasCritical ? 'var(--apple-red)' : 'var(--text-primary)' }}>
-              {dashboardData.criticalCases}
+            <div className="text-[34px] font-bold tracking-[-0.03em] leading-none" style={{ color: 'var(--apple-orange)' }}>
+              {dashboardData.upcomingVaccines}
             </div>
-            <div className="text-sm mt-1" style={{ color: hasCritical ? 'var(--apple-red)' : 'var(--text-secondary)', opacity: hasCritical ? 0.8 : 1 }}>
-              {hasCritical ? 'necessitam atenção urgente' : 'nenhum caso crítico'}
+            <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>vacinas em 30 dias</div>
+          </div>
+        </div>
+
+        {/* ── KPI 4 — Vermifugações Vencidas ───────────────────────────── */}
+        <div
+          className="col-span-6 md:col-span-2 fade-in-up rounded-[20px] p-5 flex flex-col justify-between min-h-[152px] hover:scale-[1.01] transition-all duration-200"
+          style={{
+            animationDelay: '200ms',
+            background: hasOverdue ? 'rgba(255,59,48,0.08)' : 'var(--surface-grouped-secondary)',
+            boxShadow: hasOverdue ? '0 2px 16px rgba(255,59,48,0.12)' : '0 1px 4px rgba(0,0,0,0.08)',
+            border: `1px solid ${hasOverdue ? 'rgba(255,59,48,0.2)' : 'var(--separator)'}`,
+          }}
+        >
+          <div className="w-9 h-9 rounded-[10px] flex items-center justify-center"
+            style={{ background: hasOverdue ? 'rgba(255,59,48,0.12)' : 'rgba(142,142,147,0.1)' }}>
+            <ShieldAlert size={18} strokeWidth={1.5} style={{ color: hasOverdue ? 'var(--apple-red)' : 'var(--text-tertiary)' }} />
+          </div>
+          <div className="mt-3">
+            <div className="text-[34px] font-bold tracking-[-0.03em] leading-none"
+              style={{ color: hasOverdue ? 'var(--apple-red)' : 'var(--text-primary)' }}>
+              {dashboardData.overdueDewormings}
+            </div>
+            <div className="text-xs mt-1" style={{ color: hasOverdue ? 'var(--apple-red)' : 'var(--text-secondary)', opacity: hasOverdue ? 0.85 : 1 }}>
+              vermífugos vencidos
             </div>
           </div>
         </div>

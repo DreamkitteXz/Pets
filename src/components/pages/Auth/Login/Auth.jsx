@@ -74,7 +74,7 @@ const VetAuthPage = () => {
   const [googleAccount,       setGoogleAccount]       = useState(null);
 
   const passwordStrength = !isLogin && password ? getPasswordStrength(password) : null;
-  const redirectTo       = location.state?.from?.pathname || '/';
+  const redirectTo       = location.state?.from?.pathname || '/app';
 
   /* Pick up a previously used Google account for the personalised button. */
   useEffect(() => {
