@@ -1,899 +1,223 @@
-# AUDITORIA COMPLETA DO SISTEMA — Pets Platform
-**Data:** 2026-06-02 | **Auditor:** Staff Engineer | **Versão da App:** 3.3.0
+# Auditoria do Sistema — Software Veterinário (Controle de Pacientes + Validação de Vacinas/Vermífugos)
+
+> Auditoria conduzida sob a ótica de consultoria em software para medicina veterinária, focada no **propósito declarado**: controle dos pacientes do veterinário e **validação de vacinas e vermífugos aplicados**. Não se avalia gestão completa de clínica (financeiro, estoque, agenda complexa) — exceto onde algo se mostra **essencial** para o propósito.
+
+**Data:** 2026-06-23
+**Escopo analisado:** código (React + hooks + services + Cloud Functions), modelagem de dados (Firestore), telas, fluxos do veterinário e do tutor, regras de segurança.
+**Nota:** existe uma auditoria técnica anterior (genérica, de 2026-06-02) arquivada em `AUDITORIA_SISTEMA_2026-06-02_tecnica.md`. Vários itens dela já foram resolvidos nesta base (onboarding/completar perfil, papel de tutor, telas de clínicas e prontuário). **Este relatório reflete o estado atual.**
+
+**Legenda de severidade:** 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🔵 Baixo
 
 ---
 
-## Índice
+## 1. Resumo executivo
 
-1. [Arquitetura Atual](#1-arquitetura-atual)
-2. [Mapeamento Firestore](#2-mapeamento-firestore)
-3. [Mapeamento Frontend](#3-mapeamento-frontend)
-4. [Análise Firebase (Auth · Storage · Functions · Rules)](#4-análise-firebase)
-5. [Mapa Firestore → Frontend](#5-mapa-firestore--frontend)
-6. [Relatório de Cobertura de Funcionalidades](#6-relatório-de-cobertura-de-funcionalidades)
-7. [Inconsistências e Problemas](#7-inconsistências-e-problemas)
-8. [Recomendações Priorizadas](#8-recomendações-priorizadas)
+O sistema tem um **propósito claro e bem delimitado** e já entrega a espinha dorsal certa: pacientes vinculados ao veterinário, registro de vacinas com **forte mecanismo de comprovação** (foto do rótulo com remoção de EXIF + geolocalização + mapa) e validação com **autoridade no servidor** (Cloud Function que confere CRMV/dono e estado pendente). O prontuário por animal (consultas, peso com gráfico, vacinas, vermífugos) é um ótimo alicerce clínico.
 
----
+Porém, o software **ainda não fecha o ciclo do seu próprio propósito**. Os três achados mais graves:
 
-## 1. Arquitetura Atual
+1. **🔴 O veterinário não consegue registrar uma vacina nem um vermífugo pelo sistema.** Só existe a etapa de *validar* algo que veio de outro lugar. A função de criação (`vaccineService.createVaccine`) existe mas está **desconectada** (código órfão). Para "ter controle das vacinas/vermífugos aplicados", falta a porta de entrada do dado dentro da ferramenta do vet.
+2. **🔴 Vermífugo é metade do propósito e está praticamente ausente.** Há modelo de dados e exibição somente-leitura no prontuário — mas **nenhum cadastro, nenhuma validação, nenhum alerta**. O produto promete validar vacinas *e* vermífugos; hoje valida (parcialmente) só vacinas.
+3. **🔴 Inconsistência na estrutura de validação quebra a tela.** A Cloud Function grava `validationDetails.vetValidation` (aninhado) e status `vetApproved`/`vetRejected`, mas o modal de detalhes lê `validationDetails.validatedAt` (plano) e só mostra o histórico de validação quando o status é `approved`/`rejected`. Resultado: **após validar, o veterinário não vê o registro da validação que acabou de fazer.**
 
-### Stack
+Há ainda **camadas de código mortas** (service + controller + modais de editar/excluir que não fazem nada), uma **máquina de estados de validação excessivamente complexa** (7 status, validação em duas partes) para um produto "enxuto", e **riscos de integridade no banco** (tipos de data misturados, exclusão física de registro clínico, redundância de vínculos que pode dessincronizar, e regras que permitem o tutor sobrescrever a validação do veterinário).
 
-| Camada | Tecnologia |
-|---|---|
-| Frontend | React 18.2 + CRA (react-scripts 5) |
-| Roteamento | React Router v6 |
-| Estilos | Tailwind CSS 3.4 + CSS custom properties |
-| State global | React Context (AuthContext, ThemeContext) |
-| Auth | Firebase Authentication v10 |
-| Banco de dados | Firebase Firestore v10 |
-| Storage | Firebase Storage |
-| Backend | Firebase Cloud Functions (Node.js 22, 2nd Gen) |
-| Email | Nodemailer via Gmail SMTP |
-| Icons | Lucide React + React Icons |
-
-### Fluxo de Dados Global
-
-```mermaid
-flowchart TD
-    U[Usuário] --> FE[React Frontend]
-    FE --> AUTH[Firebase Auth]
-    FE --> FS[Firestore]
-    FE --> ST[Storage]
-    FE --> CF[Cloud Functions]
-    CF --> FS
-    CF --> AUTH
-    CF --> EMAIL[Gmail SMTP]
-    AUTH --> FE
-    FS --> FE
-
-    style CF fill:#f9a825,color:#000
-    style AUTH fill:#0277bd,color:#fff
-    style FS fill:#2e7d32,color:#fff
-    style ST fill:#6a1b9a,color:#fff
-```
+**Conclusão:** a fundação é boa e o escopo está certo. As prioridades são (a) **fechar o ciclo registro→validação→comprovação** para vacinas **e** vermífugos, (b) **unificar e simplificar** a máquina de validação, e (c) **proteger a integridade** do registro clínico (imutabilidade, datas, regras). Nada disso exige sair do escopo enxuto — boa parte é **limpeza e consolidação** do que já existe.
 
 ---
 
-## 2. Mapeamento Firestore
+## 2. Pontos fortes
 
-### 2.1 Collections Existentes
-
-```mermaid
-erDiagram
-    USERS {
-        string email
-        string name
-        string cpf
-        string phone
-        boolean profileCompleted
-        string role
-        string status
-        timestamp createdAt
-        timestamp updatedAt
-        object address
-        string crmv
-        array specialties
-        number yearsOfExperience
-        string clinicId
-        array pets
-        string preferredVetId
-        object emergencyContact
-        boolean notifications
-        boolean darkMode
-        string language
-        boolean twoFactorAuth
-        boolean emailVerified
-        string photoURL
-    }
-
-    VACCINES {
-        string name
-        string manufacturer
-        string batchNumber
-        timestamp expirationDate
-        timestamp administrationDate
-        timestamp nextDueDate
-        string petId
-        string petName
-        string petSpecies
-        string petBreed
-        number petWeight
-        string ownerId
-        string ownerName
-        string ownerContact
-        string veterinarianId
-        string veterinarianName
-        string crmvNumber
-        string clinicName
-        string clinicCnpj
-        object clinicAddress
-        string status
-        object validationDetails
-        string labelImage
-        object labelImageMetadata
-        string notes
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    PETS {
-        string name
-        string species
-        string breed
-        timestamp birthDate
-        string color
-        string gender
-        number weight
-        boolean isNeutered
-        string chipNumber
-        string ownerId
-        string ownerName
-        array vaccines
-        array veterinarians
-        string status
-        timestamp createdAt
-        timestamp updatedAt
-        string createdBy
-        string tutorId
-        array emergencyContacts
-        string medicalNotes
-        array allergies
-        string chronicConditions
-    }
-
-    APPOINTMENTS {
-        string petId
-        string tutorId
-        string veterinarianId
-        string clinicId
-        timestamp date
-        string type
-        string status
-        string notes
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    CLINICS {
-        string name
-        string cnpj
-        string phone
-        string email
-        object address
-        array veterinarians
-        string status
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    DEWORMING {
-        string name
-        string manufacturer
-        string dosage
-        timestamp administrationDate
-        timestamp nextDueDate
-        string petId
-        string petName
-        string ownerId
-        string veterinarianId
-        string status
-        timestamp createdAt
-    }
-
-    OTP_CODES {
-        string hash
-        string salt
-        timestamp expiresAt
-        number attempts
-        boolean used
-        string email
-        timestamp createdAt
-        array sendHistory
-    }
-
-    NOTIFICATIONS {
-        string type
-        string vaccineId
-        string status
-        boolean read
-        timestamp createdAt
-    }
-
-    USERS ||--o{ NOTIFICATIONS : "subcollection"
-    PETS ||--o{ VACCINES : "petId"
-    USERS ||--o{ PETS : "veterinarians[]"
-    USERS ||--o{ APPOINTMENTS : "veterinarianId"
-    CLINICS ||--o{ APPOINTMENTS : "clinicId"
-    OTP_CODES ||--|| USERS : "uid (doc id)"
-```
-
-### 2.2 Collections — Status de Uso
-
-| Collection | Leitura (App) | Escrita (App) | Escrita (CF) | Status |
-|---|---|---|---|---|
-| `users` | ✅ useUser, AuthContext | ✅ authService, useUser | ✅ verifyOtp | **Ativa** |
-| `users/{id}/notifications` | ❌ **NUNCA** | ❌ notificationService (morto) | ✅ updateVaccineStatus | **Escrita sem leitura** |
-| `vaccines` | ✅ useVetVaccines | ⚠️ apenas via CF (createVaccineRecord) | ✅ createVaccineRecord, updateVaccineStatus | **Ativa (parcial)** |
-| `pets` | ✅ usePets, useDashboard | ❌ **NUNCA** | ❌ | **Somente leitura** |
-| `otpCodes` | ❌ (Admin SDK) | ❌ (Admin SDK) | ✅ sendVerificationOtp, verifyOtp | **Ativa (CF-only)** |
-| `appointments` | ✅ useDashboard | ❌ **NUNCA** | ❌ | **Lida sem escrita** |
-| `clinics` | ❌ **NUNCA** | ❌ **NUNCA** | ❌ | **⚠️ ÓRFÃ** |
-| `deworming` | ❌ **NUNCA** | ❌ **NUNCA** | ❌ | **⚠️ ÓRFÃ** |
-
-### 2.3 Campos — Lidos vs Escritos vs Nunca Usados
-
-#### Collection `users`
-
-| Campo | Escrito | Lido | Observação |
-|---|---|---|---|
-| `email` | ✅ authService | ✅ Header, Settings | OK |
-| `name` | ✅ authService, Settings | ✅ Dashboard, SideBar | OK |
-| `emailVerified` | ✅ verifyOtp CF | ✅ AuthContext | OK |
-| `role` | ✅ Settings | ✅ SideBar, Settings | OK |
-| `crmv` | ✅ Settings | ✅ SideBar, Header | OK |
-| `address.*` | ✅ Settings | ✅ Settings | OK |
-| `specialties` | ✅ Settings | ✅ Settings | OK |
-| `notifications` | ✅ Settings | ❌ **nunca lido** | Salvo mas sem uso |
-| `darkMode` | ✅ Settings | ✅ ThemeContext | OK |
-| `language` | ✅ Settings | ❌ **nunca lido** | Salvo mas sem uso |
-| `twoFactorAuth` | ✅ Settings | ❌ **nunca lido** | Toggle sem implementação |
-| `profileCompleted` | ❌ **nunca escrito** | ❌ **nunca lido** | Planejado, não implementado |
-| `status` | ❌ **nunca escrito** | ❌ **nunca lido** | Schema só |
-| `pets[]` | ❌ **nunca escrito** | ❌ **nunca lido** | Schema só (tutor) |
-| `preferredVetId` | ❌ **nunca escrito** | ❌ **nunca lido** | Schema só (tutor) |
-| `emergencyContact` | ✅ Settings (tutor) | ❌ **nunca lido** | Salvo sem tela de exibição |
-| `clinicId` | ✅ Settings | ❌ **nunca lido para query** | Salvo mas sem JOIN |
-| `yearsOfExperience` | ✅ Settings | ❌ **nunca exibido** | Salvo sem tela de exibição |
-| `photoURL` | ✅ authService (Google) | ❌ não exibido | Avatar usa inicial |
-| `phone` | ✅ Settings | ❌ **nunca exibido** | Salvo sem tela de exibição |
-| `cpf` | ✅ Settings | ❌ **nunca exibido** | Sensível, salvo sem display |
-| `createdAt` | ✅ authService | ❌ não exibido | OK como metadata |
-| `updatedAt` | ✅ useUser | ❌ não exibido | OK como metadata |
-
-#### Collection `vaccines`
-
-| Campo | Escrito | Lido | Observação |
-|---|---|---|---|
-| `name` | ✅ CF | ✅ VaccineDetailsModal | OK |
-| `status` | ✅ CF | ✅ VaccinePage, VaccineDetailsModal | OK |
-| `veterinarianId` | ✅ CF | ✅ useVetVaccines (query) | OK |
-| `petName`, `ownerName` | ✅ CF | ✅ VaccinePage | OK |
-| `validationDetails` | ✅ updateVaccineStatus CF | ✅ VaccineDetailsModal | OK |
-| `labelImage` | ✅ vaccineService upload | ✅ VaccineDetailsModal | OK |
-| `labelImageMetadata.location` | ⚠️ possível via upload | ✅ VaccineDetailsModal (mapa) | GPS não é stripeado |
-| `nextDueDate` | ✅ schema | ❌ **nunca exibido na UI** | Campos da vacina não mostram próxima dose |
-| `petSpecies`, `petBreed` | ✅ schema | ❌ **nunca exibidos** | Redundância desnormalizada |
-| `ownerContact` | ✅ schema | ❌ **nunca exibido** | PII armazenado mas não exibido |
-| `clinicCnpj` | ✅ schema | ❌ **nunca exibido** | Armazenado, não exibido |
-| `validationDetails.tutorValidation` | ❌ **nunca escrito** | ❌ **nunca lido** | Fluxo de aprovação do tutor não implementado |
-
-#### Collection `pets`
-
-| Campo | Escrito | Lido | Observação |
-|---|---|---|---|
-| `name`, `species`, `breed` | ❌ UI | ✅ Pets.jsx | Não há tela de cadastro de pet |
-| `veterinarians[]` | ❌ UI | ✅ usePets (query) | Quem popula esse array? |
-| `birthDate` | ❌ UI | ✅ Dashboard, Pets | Calculado para idade |
-| `status` | ❌ UI | ✅ Dashboard | Nunca setado pela UI |
-| `color`, `gender`, `isNeutered` | ❌ UI | ✅ PetDetailsModal | Não há tela de edição funcional |
-| `chipNumber` | ❌ UI | ✅ PetDetailsModal | |
-| `medicalNotes`, `allergies`, `chronicConditions` | ❌ UI | ❌ **nunca lidos** | Schema só |
-| `tutorId` | ❌ UI | ❌ **nunca lido** | Duplica `ownerId` |
-| `emergencyContacts[]` | ❌ UI | ❌ **nunca lidos** | Schema só |
-| `createdBy` | ❌ UI | ❌ | Regra de segurança depende disso, mas nunca é escrito |
+- **Escopo focado e coerente.** A intenção "controle de pacientes + validação" é defensável e evita o inchaço típico de sistemas de gestão veterinária.
+- **Comprovação de aplicação robusta.** A foto do rótulo com **strip de EXIF** (privacidade) e **geolocalização + mapa** (`labelImageMetadata.location`) é um diferencial real de antifraude/auditoria — exatamente o tipo de evidência que dá confiança a um registro de vacina.
+- **Autoridade de validação no servidor.** `updateVaccineStatus` (Cloud Function, `southamerica-east1`) confere `request.auth`, `veterinarianId === uid` e `status === 'pending'` antes de validar. É o jeito certo — não confia no cliente.
+- **Notificação ao tutor** na validação (subcoleção `users/{uid}/notifications`).
+- **Prontuário por animal** com consultas, evolução de peso (gráfico) e histórico de vacinas/vermífugos — boa base clínica e boa UX.
+- **Snapshots clínicos** nos registros de vacina (nome/peso/clínica no momento da aplicação) — conceitualmente correto para um registro que precisa refletir o estado **na data do ato**.
+- **Segurança com deny-by-default** nas regras e acesso por papel (veterinário/tutor) após o onboarding.
 
 ---
 
-## 3. Mapeamento Frontend
+## 3. Problemas e lacunas (sistema, fluxo e UX)
 
-### 3.1 Todas as Telas
+### 🔴 P1 — Não há registro de vacina/vermífugo pelo veterinário
+**Problema:** a tela de Vacinas só **lista e valida**. `createVaccine` (com upload de imagem e EXIF strip) existe em `src/services/firebase/vaccineService.js`, mas só é referenciada por `src/controllers/VaccineController.js`, que **não é importado em lugar nenhum**. Não há botão "Nova vacina" no fluxo do vet.
+**Impacto:** o sistema depende de uma origem externa de dados (app do tutor?) que não está neste repositório. Para o propósito "controle das vacinas aplicadas", **falta a entrada do dado** dentro da ferramenta do veterinário.
+**Solução:**
+- Decidir e **documentar a origem** do registro: (a) o vet registra a aplicação que fez, ou (b) o tutor envia e o vet valida. Para uma ferramenta de vet, o mais natural é **o vet registrar a aplicação** (cobre "apliquei e quero comprovar") e, opcionalmente, validar envios de tutor.
+- **Conectar `createVaccine`** a um formulário "Nova vacina" (reaproveitando o upload com EXIF strip já pronto) e replicar para vermífugo.
+- Se o registro nasce no vet, pode já entrar como `vetApproved` (auto-validado pelo CRMV de quem aplicou), eliminando uma etapa.
 
-```mermaid
-graph LR
-    subgraph "Público"
-        LP["/home — Landing"]
-        AUTH["/auth — Login/Signup"]
-        FP["/forgot-password — Esqueci Senha"]
-        RP["/reset-password — Redefinir Senha"]
-        VE["/verify-email — Verificar Email"]
-        UA["/unauthorized — 401"]
-        NF["/404 — Not Found"]
-    end
+### 🔴 P2 — Vermífugo sem fluxo
+**Problema:** `deworming` existe no schema e no seed e aparece **somente-leitura** no prontuário. Não há cadastro, validação, alerta de próxima dose nem página dedicada. A tela "Vacinas" é exclusivamente de vacinas.
+**Impacto:** metade do propósito declarado ("validar vacinas **e** vermífugos") não é atendida.
+**Solução:**
+- Tratar vacina e vermífugo como **dois tipos do mesmo conceito** ("aplicações com próxima dose") e reusar a mesma tela/fluxo/validação, alternando por um filtro de tipo. Mantém o sistema enxuto e evita telas duplicadas.
+- Incluir vermífugo nos **alertas de vencimento** e na ciência do tutor.
 
-    subgraph "Autenticado"
-        DB["/ — Dashboard"]
-        PT["/pets — Pacientes"]
-        PTD["/pets/:id — Detalhe Pet"]
-        VC["/vacinas — Vacinas"]
-        VCD["/vacinas/:id — Detalhe Vacina"]
-        PR["/profile — Perfil"]
-        ST["/settings — Configurações"]
-    end
+### 🔴 P3 — Inconsistência em `validationDetails` quebra a exibição
+**Problema:** a Cloud Function grava `validationDetails.vetValidation.{status,validatedAt,...}` e define status `vetApproved`/`vetRejected`. Já o `VaccineDetailsModal`:
+- exibe o bloco "Informações de Validação" apenas quando `status === 'approved' || 'rejected'` → **nunca aparece** para um registro validado pelo vet (que fica `vetApproved`);
+- lê campos **planos** (`validationDetails.validatedAt`, `.notes`, `.rejectionReason`) que **não existem** (o dado está em `validationDetails.vetValidation.*`).
+**Impacto:** após validar, **o veterinário não enxerga o registro da própria validação** (data, observações, motivo). Quebra a rastreabilidade visível e gera desconfiança.
+**Solução:** padronizar **uma** forma (recomendo a aninhada da função) e ajustar o modal para ler `validationDetails.vetValidation.*` e mostrar o bloco para os estados `vetApproved/vetRejected/approved/rejected`. Ver também P4 (simplificar a máquina de estados).
 
-    subgraph "Comentado/Inativo"
-        CP["/complete-profile — Completar Perfil"]
-    end
-```
+### 🟠 P4 — Máquina de estados de validação complexa demais para o escopo
+**Problema:** 7 status (`pending, vetApproved, vetRejected, tutorApproved, tutorRejected, approved, rejected`) + validação em duas partes (vet **e** tutor). Cada parte do código interpreta de um jeito (a tabela de Vacinas mapeia ~4 status; o modal usa outro subconjunto; o tutor escreve `tutorValidation`).
+**Impacto:** complexidade, bugs (P3), e fricção numa ferramenta que se quer "enxuta".
+**Solução:** definir um fluxo único e mínimo:
+- `pending` → aguardando o veterinário;
+- `approved` / `rejected` → decisão do veterinário (com `validatedBy`, `validatedAt`, `crmv`, `notes`/`rejectionReason`).
+- A confirmação do tutor, se desejada, vira **campo de "ciência do tutor"** (booleano + data), **não** um segundo eixo de status. Preserva a comprovação sem multiplicar estados.
 
-### 3.2 Todos os Componentes
+### 🟠 P5 — Código morto / fluxos fantasma poluindo o sistema
+**Problema/Impacto:** confunde manutenção e sugere funcionalidades inexistentes:
+- `vaccineService.js` + `controllers/VaccineController.js` — **órfãos**.
+- `VaccineEditModal` e `VaccineDeleteModal` — montados em `Vacinas.jsx` com `onSave={() => {}}` / `onDelete={() => {}}` (**no-op**) e nunca abertos.
+- `VacinaInfo.jsx` / `VacinasTable.jsx` — aparentam estar **órfãos** (a `Vacinas.jsx` tem tabela própria inline). **Confirmar e remover.**
+- `CompleteProfile.jsx` (versão antiga, Tailwind teal) — substituída pelo modal de onboarding; não é mais importada.
+**Solução:** remover o que é morto; ao reconectar criar/editar/excluir (P1), fazê-lo por **um** caminho (um service usado de fato) em vez de manter camadas duplicadas (service + controller + modais).
 
-```mermaid
-graph TD
-    subgraph "Pages — Auth"
-        A1[Auth.jsx — Login+Signup]
-        A2[EmailVerification.jsx — OTP]
-        A3[ForgotPassword.jsx]
-        A4[ResetPassword.jsx]
-        A5[CompleteProfile.jsx — INATIVO]
-        A6[AuthCheck.jsx — MORTO]
-        A7[LimitedAccessWrapper.jsx — MORTO]
-        A8[LoginCard.jsx — MORTO]
-    end
+### 🟠 P6 — "Assinar com GOVBR" é um botão sem ação
+**Problema:** no modal de validação há um botão **"Assinar com GOVBR"** sem `onClick`.
+**Impacto:** promete assinatura digital (com peso legal) que não existe — expectativa falsa e ruído.
+**Solução:** **remover** (recomendado para o MVP) ou implementar de fato como etapa opcional de comprovação. Não deixar placeholder de algo com conotação legal.
 
-    subgraph "Pages — Dashboard"
-        D1[Dashboard.jsx]
-        D2[DashboardCards.jsx — IMPORTADO MAS NÃO USADO]
-    end
+### 🟠 P7 — Inconsistência visual: o coração do produto está fora do design system
+**Problema:** as telas centrais de **validação** (`VaccineDetailsModal`) e os modais de editar/excluir usam Tailwind antigo (cinza/azul, `bg-gray-50`), destoando do design system "Apple/iOS" (tokens `--apple-*`, cards `--surface-grouped-secondary`) adotado em Dashboard, Pacientes, Prontuário, etc.
+**Impacto:** a tela mais importante do propósito é a menos polida e a mais inconsistente.
+**Solução:** repaginar o modal de detalhes/validação com os mesmos tokens e padrões já existentes.
 
-    subgraph "Pages — Pets"
-        P1[Pets.jsx]
-        P2[PetDetailsModal.jsx]
-        P3[PetEditModal.jsx — NUNCA ABERTO]
-    end
+### 🟡 P8 — Falta uma "agenda de vencimentos" acionável
+**Problema:** há `nextDueDate` por registro e o Dashboard conta "vacinas em 30 dias" e "vermífugos vencidos", mas **não há uma lista/visão dedicada** de "quais animais estão com dose vencida/a vencer" — a pergunta que o vet mais faz nesse tipo de ferramenta.
+**Impacto:** o valor de "alerta de vencimento" fica subutilizado.
+**Solução:** uma visão "Vencimentos" (vacinas + vermífugos), filtrável por período (vencidos / próximos 30/60/90 dias), reaproveitando os dados existentes. Em escala, ver B6.
 
-    subgraph "Pages — Vacinas"
-        V1[Vacinas.jsx]
-        V2[VaccineDetailsModal.jsx]
-        V3[VaccineEditModal.jsx — NUNCA ABERTO]
-        V4[VaccineDeleteModal.jsx — NUNCA ABERTO]
-        V5[VacinaInfo.jsx — IMPORTADO MAS UNUSED]
-        V6[VacinasTable.jsx — UNUSED]
-    end
+### 🟡 P9 — Registro clínico sem trilha de auditoria / exclusão física
+**Problema:** registros podem ser **apagados fisicamente** (`deleteVaccine` → `deleteDoc`) e atualizados livremente; não há versionamento nem "quem alterou o quê e quando".
+**Impacto:** perda de histórico clínico e ausência de rastreabilidade — grave para um registro que serve de comprovação. (Detalhes e solução em B2/B4.)
 
-    subgraph "Pages — Profile/Settings"
-        S1[Profile.jsx — MÍNIMO]
-        S2[Settings.jsx]
-    end
-
-    subgraph "Shared"
-        SH1[Layout.jsx]
-        SH2[SideBar.jsx]
-        SH3[Header.jsx]
-        SH4[LogoutModal.jsx]
-        SH5[LoadingScreen.jsx]
-    end
-
-    subgraph "Features — TODOS MORTOS"
-        F1[features/auth/AuthGuard.jsx]
-        F2[features/auth/LoginForm.jsx — TODO]
-        F3[features/auth/CompleteProfileForm.jsx — TODO]
-        F4[features/auth/EmailVerificationForm.jsx]
-        F5[features/dashboard/Dashboard.jsx — wrapper vazio]
-        F6[features/pets/PetList.jsx — TODO]
-        F7[features/pets/PetDetailsModal.jsx — TODO]
-        F8[features/vaccines/VaccineList.jsx — TODO]
-        F9[features/vaccines/VaccineDetailsModal.jsx — TODO]
-    end
-
-    subgraph "Tables — MORTOS"
-        T1[AddButton.jsx]
-        T2[SearchInput.jsx]
-        T3[Table.jsx — apenas Dashboard usava]
-    end
-
-    subgraph "Cards — MORTOS"
-        C1[DeniedStatusCard.jsx]
-        C2[ValidStatusCard.jsx]
-        C3[WaitingStatusCard.jsx]
-    end
-```
-
-### 3.3 Operações CRUD por Tela
-
-| Tela | Create | Read | Update | Delete | Collections |
-|---|---|---|---|---|---|
-| Dashboard | ❌ | ✅ | ❌ | ❌ | `pets`, `appointments` |
-| Pets | ❌ | ✅ | ❌ | ❌ | `pets` |
-| PetDetailsModal | ❌ | ✅ | ❌ | ❌ | `pets` (via prop) |
-| PetEditModal | ❌ | ⚠️ recebe prop | ❌ | ❌ | — (nunca aberto) |
-| Vacinas | ❌ | ✅ | ❌ | ❌ | `vaccines` |
-| VaccineDetailsModal | ❌ | ✅ | ✅ (via CF) | ❌ | `vaccines`, `users` |
-| VaccineEditModal | ❌ | ⚠️ recebe prop | ❌ | ❌ | — (nunca aberto) |
-| VaccineDeleteModal | ❌ | ❌ | ❌ | ❌ | — (handler vazio) |
-| Profile | ❌ | ⚠️ só Firebase Auth | ❌ | ❌ | — |
-| Settings | ❌ | ✅ | ✅ | ❌ | `users` |
-| Auth | ❌ | ❌ | ❌ | ❌ | (usa authService) |
-| CompleteProfile | — | ✅ | ✅ | ❌ | `users` (INATIVO) |
+### 🔵 P10 — Pequenas fricções de UX
+- Não há **comprovante/carteira de vacinação imprimível ou compartilhável** (PDF/link) — algo que tutor e vet esperam para "comprovação". Forte candidato **dentro do escopo**.
+- O `Header` tem busca global decorativa sem função e sino de notificações "em desenvolvimento" (apesar de a Cloud Function já gravar notificações reais).
+- A validação exige reabrir item a item; uma ação de aprovar/rejeitar direto na lista agilizaria o dia a dia.
 
 ---
 
-## 4. Análise Firebase
+## 4. Auditoria do Banco de Dados (Firebase/Firestore)
 
-### 4.1 Firebase Authentication
+> Avaliação sob a ótica de **confiabilidade e auditabilidade do registro clínico**. Coleções: `users` (+ subcoleções `consultas`, `pesos` em `pets`, e `notifications` em `users`), `pets`, `vaccines`, `deworming`, `clinics`, `appointments`, `conversas/mensagens`, `otpCodes`.
 
-| Método | Implementado | Funcionando |
-|---|---|---|
-| Email/Password signup | ✅ | ✅ |
-| Email/Password login | ✅ | ✅ |
-| Google OAuth | ✅ | ✅ |
-| Email Verification (OTP custom) | ✅ | ✅ |
-| Password Reset | ✅ | ✅ |
-| Token Refresh | Automático (Firebase SDK) | ✅ |
-| Multi-Factor Auth (TOTP) | ⚠️ UI toggle existe | ❌ não implementado |
-| Account deletion | ❌ | ❌ |
-| Email change | ❌ | ❌ |
+### Visão geral
+O desenho central é adequado: entidades separadas para usuário, pet, vacina, vermífugo e clínica, com **snapshots** dos dados clínicos no momento do ato. Os problemas estão em **consistência de tipos, integridade referencial, imutabilidade e consultabilidade** — não na ideia geral.
 
-### 4.2 Firebase Storage
+### 🔴 B1 — Tipos de data misturados (string ISO × Timestamp)
+**Problema:** o signup e o onboarding gravam `createdAt`/`updatedAt` como **string ISO** (`new Date().toISOString()`), enquanto o seed e as Cloud Functions usam **`Timestamp`** (`serverTimestamp()`). O mesmo campo tem **tipos diferentes** conforme a origem.
+**Impacto:** `orderBy`/comparações de data ficam **incorretas ou imprevisíveis** (string e Timestamp não ordenam juntos); o código de leitura precisa de heurísticas frágeis (`toDate?`, `seconds?`, `typeof === 'string'`) espalhadas por toda parte.
+**Solução:** padronizar **tudo em `Timestamp`** (`serverTimestamp()`); rodar um *migration script* para converter os valores em string já gravados; centralizar a conversão de leitura num único helper.
 
-```
-vaccine-labels/
-  {timestamp}_{filename}    ← imagens de etiquetas de vacinas
-```
+### 🔴 B2 — Exclusão física e mutabilidade de registro clínico
+**Problema:** vacinas podem ser `deleteDoc` (hard delete) e atualizadas sem restrição de campos; não há "congelamento" após validação. (No Storage, a imagem do rótulo também não é removida ao excluir — lixo + inconsistência.)
+**Impacto:** perda irreversível de histórico e possibilidade de alterar um registro já validado — inaceitável para comprovação clínica.
+**Solução:**
+- **Exclusão lógica** (`active: false` / `deletedAt`, `deletedBy`) em vez de apagar.
+- **Imutabilidade pós-validação:** uma vez `approved/rejected`, bloquear edição dos campos clínicos (correção só via novo registro/anexo). Aplicar nas **regras** e na **Cloud Function**.
 
-| Funcionalidade | Status |
-|---|---|
-| Upload de imagem de vacina | ✅ com EXIF stripping |
-| Download/visualização | ✅ via URL direto |
-| Deleção de imagens | ❌ ao deletar vacina, imagem não é removida do Storage |
-| Regra de tamanho (5MB) | ✅ |
-| Regra de tipo (image/*) | ✅ |
-| Verificação se uploader é veterinário | ❌ apenas autenticado |
+### 🔴 B3 — Regras permitem o tutor sobrescrever a validação do veterinário
+**Problema:** a regra de `vaccines` permite `update` se o usuário for **vet OU dono**, **sem restringir quais campos**. Um tutor (dono) pode, via cliente, escrever `status: 'approved'` ou alterar `validationDetails.vetValidation`.
+**Impacto:** a autoridade do veterinário (e do CRMV) pode ser forjada pelo cliente — fura toda a confiabilidade da validação.
+**Solução:**
+- Restringir o `update` do cliente aos campos que cada papel pode tocar (tutor só "ciência"/`tutorValidation`; nunca `status` nem `vetValidation`).
+- Idealmente, **toda mudança de status passa só por Cloud Function** (como já ocorre na aprovação do vet) e o `update` direto de `status` fica **negado** nas regras.
 
-### 4.3 Cloud Functions (2nd Gen, southamerica-east1)
+### 🟠 B4 — Ausência de trilha de auditoria
+**Problema:** não há registro de **quem criou/alterou** cada documento clínico além do estado final. (Inclusive `pets.createdBy`, do qual as regras dependem, nem sempre é gravado.)
+**Impacto:** impossível auditar o histórico de mudanças — exigência típica de prontuário.
+**Solução:** campos mínimos `createdBy`, `updatedBy`, `updatedAt` consistentes em **todos** os registros clínicos; bloco de validação **imutável** (`validatedBy`, `validatedAt`, `crmv`). Para histórico completo, considerar subcoleção `audit` (append-only) por registro.
 
-| Função | Trigger | Status | Descrição |
-|---|---|---|---|
-| `sendVerificationOtp` | Callable | ✅ | Gera e envia OTP por email, rate-limited |
-| `verifyOtp` | Callable | ✅ | Valida OTP, marca emailVerified |
-| `createVaccineRecord` | Callable | ✅ código | ⚠️ sem UI que chame |
-| `updateVaccineStatus` | Callable | ✅ | Valida e atualiza status de vacina |
+### 🟠 B5 — Redundância de vínculos que pode dessincronizar
+**Problema:**
+- `pets.vaccines: [ids]` **e** `vaccines.petId` — duplo vínculo; criar uma vacina não atualiza `pets.vaccines` → listas divergentes.
+- `pets.ownerId` **e** `pets.tutorId` apontando para o mesmo tutor — campo redundante.
+- Vet↔clínica: `users.clinicId` (um) **e** `clinics.veterinarians[]` (vários) — duas fontes de verdade. Além disso, **pets não têm vínculo com clínica** (a vacina guarda `clinicName` como texto, sem `clinicId`).
+**Impacto:** dados podem divergir; consultas baseadas no campo "errado" retornam resultado incompleto.
+**Solução:** eleger **uma** fonte de verdade por relação:
+- vacina↔pet: **`vaccines.petId`** como verdade; `pets.vaccines[]` derivado (ou removido).
+- tutor↔pet: **`ownerId`**; aposentar `tutorId`.
+- vet↔clínica: **`clinics.veterinarians[]`** (suporta múltiplas) e derivar/remover `users.clinicId`; se relevante, registrar `clinicId` na vacina.
 
-**Análise de `createVaccineRecord`**: A Cloud Function existe e está deployada, mas nenhuma tela do frontend chama `createVaccineRecord`. O `VaccineController.createVaccineRecord` chama a função, mas `VaccineController` também não é invocado por nenhum componente.
+### 🟠 B6 — Consultabilidade de "vencimentos" e organização vacina/vermífugo
+**Problema:**
+- "Quais animais estão com vacina/vermífugo vencido?" hoje exige **baixar tudo e filtrar em memória** (Dashboard) — não escala e não tem índice.
+- Vacinas/vermífugos são **coleções top-level** com `petId`, enquanto `consultas`/`pesos` são **subcoleções** de `pets`. Inconsistência de organização (trade-off conhecido, vale documentar).
+**Impacto:** alertas de vencimento ficam caros/limitados; o histórico do animal se espalha por dois padrões.
+**Solução:**
+- Garantir índices compostos para `where(veterinarianId==) + where(nextDueDate <=)` com ordenação por `nextDueDate`.
+- Padronizar a posição: para um software de **vet** (visão por profissional), top-level por `petId`+`veterinarianId` tende a ser melhor para consultas globais; manter `consultas/pesos` coerentes com a escolha.
 
-### 4.4 Security Rules
+### 🟡 B7 — `validationDetails` com formato divergente entre origens
+**Problema:** a Cloud Function grava **aninhado** (`vetValidation`), o `vaccineService.updateVaccineStatus` (morto) grava **plano**, e o front lê os dois jeitos. (Mesma raiz do P3.)
+**Impacto:** dados gravados por caminhos diferentes ficam incompatíveis; leituras quebram.
+**Solução:** um **único contrato** de `validationDetails` (recomendo o aninhado) documentado em `schema.js`, e remover o caminho morto que grava plano.
 
-#### Firestore Rules — Problemas Identificados
+### 🟡 B8 — Vocabulário livre para vacina/fabricante/lote
+**Problema:** `name`, `manufacturer`, `batchNumber` são texto livre. "V10" vs "V10 Polivalente" viram registros distintos.
+**Impacto:** relatórios/buscas por tipo de vacina ficam sujos; dificulta protocolos por espécie.
+**Solução:** um **catálogo controlado** simples (`vaccineCatalog`/`dewormerCatalog` com nome canônico, fabricante, espécie-alvo, intervalo padrão de reforço). O reforço padrão **pré-preenche `nextDueDate`** — ganho direto de usabilidade clínica.
 
-```
-✅ otpCodes: allow read, write: if false  (correto)
-✅ users/{uid}: self-access only          (correto)
-✅ users/{uid}/notifications              (correto)
-⚠️ pets create: any authenticated user   (sem validação de dados)
-⚠️ pets update: resource.data.createdBy  (CAMPO NUNCA ESCRITO pela UI)
-❌ appointments: read/write if veterinarianId == uid  (falha em create: resource.data não existe)
-❌ clinics: write if resource.data.ownerId  (campo ownerId não está no schema de clinics)
-✅ vaccines: estrutura ok
-✅ catch-all: deny                         (correto)
-```
+### 🟡 B9 — Campos clínicos: bom, com pequenos reforços
+**Avaliação:** o registro de vacina já cobre o essencial de um registro confiável: **fabricante, lote, validade (`expirationDate`), data de aplicação, próxima dose (`nextDueDate`), responsável (vet + CRMV), clínica e comprovação por foto+GPS** — acima da média. Reforços:
+- **`route`/`applicationSite`** (via/local de administração) e **`dose`**.
+- **Validação por espécie** (liga ao B8).
+- Em `deworming`, alinhar os mesmos campos de comprovação que a vacina tem (foto/lote/validade), hoje mais pobres.
 
-| Regra | Status | Problema |
-|---|---|---|
-| `otpCodes` | ✅ Correta | — |
-| `users` | ✅ Correta | — |
-| `users/notifications` | ✅ Correta | — |
-| `pets` create | ⚠️ Permissiva | Qualquer usuário autenticado pode criar |
-| `pets` update/delete | ❌ Quebrada | `createdBy` nunca é escrito pela UI |
-| `vaccines` | ✅ Correta | — |
-| `appointments` | ❌ Quebrada | `resource.data.veterinarianId` não existe em `create` |
-| `clinics` | ❌ Quebrada | `resource.data.ownerId` não existe no schema |
-| `deworming` | ⚠️ Definida | Collection órfã, regras inúteis |
-
-#### Storage Rules
-
-```
-vaccine-labels: authenticated + size<5MB + contentType=image/*
-Demais paths: deny all
-```
-
-**Problema**: Não verifica se o usuário é veterinário. Qualquer conta verificada pode fazer upload.
+### 🔵 B10 — Pontos menores
+- `appointments` existe no schema/seed e nas regras, mas **sem UI** no escopo — decidir se entra (agenda simples) ou sai.
+- Snapshots clínicos (nome/peso/clínica na vacina) são **corretos** como ponto-no-tempo; documentar explicitamente que **não são fonte de verdade** do cadastro atual do pet, para ninguém "corrigir" um registro histórico por engano.
+- Notificações já são gravadas pela Cloud Function, mas **nenhum hook as lê** — implementar o painel (liga ao P10) ou remover a escrita.
 
 ---
 
-## 5. Mapa Firestore → Frontend
+## 5. Recomendações de fluxo e experiência (alinhadas ao escopo)
 
-```mermaid
-graph LR
-    subgraph Firestore
-        U[(users)]
-        V[(vaccines)]
-        P[(pets)]
-        A[(appointments)]
-        O[(otpCodes)]
-        N[(users/notifications)]
-        C[(clinics)]
-        D[(deworming)]
-    end
-
-    subgraph Frontend
-        DB[Dashboard]
-        PT[Pets]
-        VC[Vacinas]
-        ST[Settings]
-        PR[Profile]
-        AU[Auth/OTP]
-    end
-
-    subgraph "Cloud Functions"
-        CF1[sendVerificationOtp]
-        CF2[verifyOtp]
-        CF3[createVaccineRecord]
-        CF4[updateVaccineStatus]
-    end
-
-    U -->|read/write| ST
-    U -->|read| AU
-    V -->|read| VC
-    P -->|read| PT
-    P -->|read| DB
-    A -->|read - sempre vazio| DB
-    O -->|write + read| CF1
-    O -->|read + write| CF2
-    CF2 -->|write| U
-    CF4 -->|write| V
-    CF4 -->|write| N
-    CF3 -->|write| V
-    N -.->|escrita sem leitura| SINK[⚠️ sem consumidor]
-    C -.->|sem uso| SINK2[⚠️ órfã]
-    D -.->|sem uso| SINK3[⚠️ órfã]
-
-    style SINK fill:#ff5252,color:#fff
-    style SINK2 fill:#ff5252,color:#fff
-    style SINK3 fill:#ff5252,color:#fff
-    style C fill:#bdbdbd
-    style D fill:#bdbdbd
-    style N fill:#ff9800,color:#000
-```
+1. **Fechar o ciclo do registro.** Fluxo-alvo do veterinário: *Paciente → Nova aplicação (vacina **ou** vermífugo) → foto do rótulo (EXIF strip + GPS) → dados (tipo, lote, validade, próxima dose) → salva já validada pelo CRMV de quem aplicou.* Reaproveita `createVaccine`/upload já prontos.
+2. **Unificar vacina e vermífugo** numa única experiência "Aplicações", com filtro por tipo — mantém o sistema enxuto e cobre 100% do propósito.
+3. **Validação em 1 clique na lista** (aprovar/rejeitar sem abrir o item) para envios pendentes, mantendo o modal para detalhes/comprovação.
+4. **Visão "Vencimentos"** (vacinas + vermífugos) por período — transforma o `nextDueDate` em valor diário para o vet.
+5. **Carteira de vacinação/vermifugação compartilhável (PDF/link).** Alto valor de "comprovação", dentro do escopo, e fecha o ciclo para o tutor.
+6. **Repaginar o modal de validação** no design system atual (P7) — é a tela-âncora do produto.
+7. **Remover ruído fora de escopo:** botão GOVBR placeholder, busca decorativa do header, e o código morto (service/controller/modais no-op/tela antiga).
 
 ---
 
-## 6. Relatório de Cobertura de Funcionalidades
+## 6. Plano priorizado
 
-### ✅ Implementado Completamente
+### Quick wins (baixo esforço, alto retorno)
+- 🔴 P3/B7 — Corrigir o `validationDetails` (aninhado) e a exibição do modal.
+- 🟠 P5 — Remover código morto (service/controller órfãos, modais no-op, telas órfãs após confirmação).
+- 🟠 P6 — Remover/implementar de fato o botão GOVBR.
+- 🟡 P7 — Repaginar o modal de validação no design system.
 
----
+### Estrutural (núcleo do propósito)
+- 🔴 P1 — Conectar **cadastro** de vacina (formulário + `createVaccine` + upload).
+- 🔴 P2 — Implementar **vermífugo** reutilizando o mesmo fluxo (tipo).
+- 🟠 P4 — Simplificar a máquina de estados (1 eixo de status + "ciência do tutor").
+- 🟡 P8 — Visão de vencimentos.
 
-**Funcionalidade: Autenticação com Email/Senha**
-- **Status:** Implementado
-- **Collections:** `users`, `otpCodes`
-- **Telas:** `Auth.jsx`, `EmailVerification.jsx`
-- **Cloud Functions:** `sendVerificationOtp`, `verifyOtp`
-- **CRUD:** Create (signup) + Read (login)
-- **Observação:** Completo e bem implementado com rate limiting, HMAC hash, OTP expiração de 10min
-
----
-
-**Funcionalidade: Autenticação com Google OAuth**
-- **Status:** Implementado
-- **Collections:** `users`
-- **Telas:** `Auth.jsx`
-- **CRUD:** Create-or-read (upsert)
-- **Observação:** Funcional
-
----
-
-**Funcionalidade: Recuperação de Senha**
-- **Status:** Implementado
-- **Collections:** — (Firebase Auth)
-- **Telas:** `ForgotPassword.jsx`, `ResetPassword.jsx`
-- **CRUD:** Update (Firebase Auth)
+### Integridade de dados (confiabilidade do registro)
+- 🔴 B1 — Padronizar datas em `Timestamp` (+ migração).
+- 🔴 B2 — Exclusão lógica + imutabilidade pós-validação (+ limpar imagem no Storage).
+- 🔴 B3 — Endurecer regras (tutor não altera status/validação do vet; status só via Cloud Function).
+- 🟠 B4 — Trilha de auditoria mínima (`createdBy/updatedBy` + bloco de validação imutável).
+- 🟠 B5 — Eleger fonte única de verdade por vínculo.
+- 🟡 B6/B8/B9 — Índices de vencimento, catálogo controlado e campos clínicos (via/dose) + paridade do vermífugo.
 
 ---
 
-**Funcionalidade: Lista de Pacientes (Pets)**
-- **Status:** Implementado (somente leitura)
-- **Collections:** `pets`
-- **Telas:** `Pets.jsx`, `PetDetailsModal.jsx`
-- **CRUD:** Read only
-- **Problema:** Não há como criar ou editar pets via UI. O `PetEditModal` existe mas nunca é aberto.
+## 7. Veredito
+
+O produto está **no caminho certo e com um diferencial real de comprovação** (foto+GPS+validação no servidor). Para cumprir plenamente o que se propõe, o foco deve ser **fechar o ciclo registro→validação→comprovação para vacinas e vermífugos**, **simplificar/unificar a validação** e **blindar a integridade do registro clínico** (datas, imutabilidade, regras, fonte única de verdade). Nada disso exige sair do escopo enxuto — pelo contrário, várias ações são de **limpeza e consolidação** do que já existe.
 
 ---
 
-**Funcionalidade: Lista de Vacinas**
-- **Status:** Implementado (somente leitura + validação)
-- **Collections:** `vaccines`
-- **Telas:** `Vacinas.jsx`, `VaccineDetailsModal.jsx`
-- **Cloud Functions:** `updateVaccineStatus`
-- **CRUD:** Read + partial Update (validação vet)
-
----
-
-**Funcionalidade: Validação de Vacina pelo Veterinário**
-- **Status:** Implementado
-- **Collections:** `vaccines`, `users/notifications`
-- **Telas:** `VaccineDetailsModal.jsx`
-- **Cloud Functions:** `updateVaccineStatus`
-- **CRUD:** Update (status + validationDetails.vetValidation)
-- **Problema:** Aprovação pelo tutor (`tutorValidation`) nunca implementada. Notificação gravada mas nunca lida.
-
----
-
-**Funcionalidade: Configurações do Perfil**
-- **Status:** Implementado (parcialmente útil)
-- **Collections:** `users`
-- **Telas:** `Settings.jsx` (abas: Perfil, Endereço, Profissional, Sistema)
-- **CRUD:** Read + Update
-- **Observação:** Salva muitos campos que nunca são exibidos em outros lugares (`phone`, `cpf`, `emergencyContact`, `language`, `twoFactorAuth`)
-
----
-
-**Funcionalidade: Dark Mode**
-- **Status:** Implementado
-- **Collections:** `users` (campo `darkMode`)
-- **Telas:** `Settings.jsx` toggle + `ThemeContext`
-- **CRUD:** Read + Update
-
----
-
-### ⚠️ Parcialmente Implementado
-
----
-
-**Funcionalidade: Dashboard / Visão Geral**
-- **Status:** Parcialmente implementado
-- **Collections:** `pets`, `appointments`
-- **Telas:** `Dashboard.jsx`
-- **CRUD:** Read only
-- **Problema:**
-  - `appointments` sempre retorna 0 (nenhum agendamento pode ser criado)
-  - `criticalCases` sempre 0 (campo `status: 'critical'` nunca é gravado)
-  - `recentPets` depende de `lastVisit` que nunca é gravado
-  - KPI "Consultas Hoje" sempre mostra 0
-
----
-
-**Funcionalidade: Cadastro de Vacina**
-- **Status:** Parcialmente implementado
-- **Collections:** `vaccines`
-- **Cloud Functions:** `createVaccineRecord` (deployada)
-- **Telas:** Nenhuma — `VaccineController` existe mas não é chamado por nenhum componente
-- **Problema:** Backend completamente pronto (CF com validação de CPF/CRMV, Storage upload), frontend sem formulário de cadastro
-
----
-
-**Funcionalidade: Perfil do Usuário**
-- **Status:** Parcialmente implementado
-- **Collections:** — (só Firebase Auth)
-- **Telas:** `Profile.jsx`
-- **Problema:** Exibe apenas o email do Firebase Auth. Os dados do Firestore (nome, CRMV, foto) não são exibidos. A tela é essencialmente vazia.
-
----
-
-**Funcionalidade: Notificações**
-- **Status:** Parcialmente implementado
-- **Collections:** `users/{uid}/notifications`
-- **Telas:** Header tem ícone de sino mas sem painel de notificações
-- **Problema:** `updateVaccineStatus` grava notificações no Firestore. Nenhum hook lê essa subcollection. O sino no Header é decorativo e mostra toast "em desenvolvimento".
-
----
-
-**Funcionalidade: Edição de Vacina**
-- **Status:** Parcialmente implementado
-- **Collections:** `vaccines`
-- **Telas:** `VaccineEditModal.jsx` (existe, tem form completo)
-- **Problema:** Nunca é aberto. `handleEditClick` em `Vacinas.jsx` seta o estado mas não há botão de editar na tabela.
-
----
-
-**Funcionalidade: Deleção de Vacina**
-- **Status:** Parcialmente implementado
-- **Collections:** `vaccines`
-- **Telas:** `VaccineDeleteModal.jsx` (existe)
-- **Problema:** O `handleDelete` em `Vacinas.jsx` tem `console.log` sem implementação real. Imagem no Storage não seria deletada.
-
----
-
-### ❌ Não Implementado (Planejado no Schema)
-
----
-
-**Funcionalidade: Cadastro de Pets**
-- **Status:** Não implementado
-- **Collections:** `pets` (schema definido)
-- **Telas:** Nenhuma tela de criação
-- **Problema:** Como os dados de pets chegam ao Firestore? Não há fluxo de cadastro.
-
----
-
-**Funcionalidade: Agendamentos (Appointments)**
-- **Status:** Não implementado
-- **Collections:** `appointments` (schema definido, regras definidas)
-- **Telas:** Nenhuma
-- **Problema:** Dashboard consulta esta collection mas ela estará sempre vazia.
-
----
-
-**Funcionalidade: Clínicas**
-- **Status:** Não implementado
-- **Collections:** `clinics` (schema definido, regras definidas)
-- **Telas:** Nenhuma
-
----
-
-**Funcionalidade: Vermifugação (Deworming)**
-- **Status:** Não implementado
-- **Collections:** `deworming` (schema definido, regras definidas)
-- **Telas:** Nenhuma
-
----
-
-**Funcionalidade: Completar Perfil (Onboarding)**
-- **Status:** Não implementado
-- **Telas:** `CompleteProfile.jsx` (512 linhas, rota comentada em `App.jsx`)
-- **Problema:** Componente completo mas inacessível. Usuários veterinários que se cadastram não têm fluxo de completar CRMV/especialidades.
-
----
-
-**Funcionalidade: Aprovação pelo Tutor**
-- **Status:** Não implementado
-- **Collections:** `vaccines.validationDetails.tutorValidation`
-- **Problema:** Schema prevê dupla aprovação (vet + tutor), mas o fluxo do tutor nunca foi construído. Nenhuma rota, tela ou conta de tutor existe na UI.
-
----
-
-**Funcionalidade: 2FA (TOTP)**
-- **Status:** Não implementado
-- **Telas:** `Settings.jsx` (toggle existe)
-- **Problema:** Toggle salva `twoFactorAuth: true` no Firestore mas Firebase Auth MFA não está configurado.
-
----
-
-**Funcionalidade: Idioma**
-- **Status:** Não implementado
-- **Telas:** `Settings.jsx` (select existe)
-- **Problema:** Salva `language` no Firestore mas a app está 100% em português sem i18n.
-
----
-
-## 7. Inconsistências e Problemas
-
-### 7.1 Componentes e Arquivos Mortos
-
-| Arquivo | Problema | Impacto |
-|---|---|---|
-| `src/features/**` | 9 arquivos, todos TODOs ou vazios | Confusão arquitetural |
-| `src/components/auth/RouteGuard.jsx` | Nunca importado | Código morto |
-| `src/components/auth/AuthCheck.jsx` | Nunca importado | Código morto |
-| `src/components/pages/Auth/AuthCheck.jsx` | Nunca importado | Código morto |
-| `src/components/pages/Auth/LimitedAccessWrapper.jsx` | Nunca importado | Código morto |
-| `src/components/pages/Auth/Login/components/LoginCard.jsx` | Nunca importado | Código morto |
-| `src/components/tables/AddButton.jsx` | Nunca importado | Código morto |
-| `src/components/tables/SearchInput.jsx` | Nunca importado | Código morto |
-| `src/components/cards/*.jsx` | Nunca importados (3 arquivos) | Código morto |
-| `src/features/dashboard/components/Dashboard.jsx` | Wrapper vazio | Código morto |
-| `src/components/pages/Dashboard/components/DashboardCards.jsx` | Nunca importado pelo Dashboard atual | Código morto |
-| `VaccineEditModal.jsx` | Nunca aberto | Funcionalidade morta |
-| `VaccineDeleteModal.jsx` | `handleDelete` é `console.log` | Funcionalidade morta |
-| `PetEditModal.jsx` | Nunca aberto | Funcionalidade morta |
-
-### 7.2 Estruturas Duplicadas
-
-| Estrutura | Duplicatas | Ativa |
-|---|---|---|
-| Layout | `src/components/shared/Layout/` + `src/components/layout/` | `shared/` |
-| SideBar | `src/components/shared/SideBar/` + `src/components/layout/Sidebar/` | `shared/` |
-| Header | `src/components/shared/Header/` + `src/components/layout/Header/` | `shared/` |
-| Dashboard | `src/components/pages/Dashboard/` + `src/features/dashboard/` | `pages/` |
-| PetDetailsModal | `src/components/pages/Pets/` + `src/features/pets/` | `pages/` |
-| VaccineDetailsModal | `src/components/pages/Vacinas/` + `src/features/vaccines/` | `pages/` |
-| useAuth | `src/hooks/useAuth.js` + `src/context/AuthContext.jsx` | `AuthContext` |
-
-### 7.3 Campos Duplicados / Desnormalizados sem Estratégia
-
-| Dados | Localização 1 | Localização 2 | Problema |
-|---|---|---|---|
-| Nome do pet | `pets.name` | `vaccines.petName` | Atualização do nome do pet não propaga |
-| CRMV | `users.crmv` | `vaccines.crmvNumber` | Mudança de CRMV não atualiza vacinas |
-| Nome do veterinário | `users.name` | `vaccines.veterinarianName` | Idem |
-| Nome do tutor | `users.name` | `vaccines.ownerName` | Idem |
-| ownerId vs tutorId | `pets.ownerId` + `pets.tutorId` | — | Dois campos para a mesma coisa |
-| emailVerified | `users.emailVerified` | Firebase Auth `user.emailVerified` | Dois locais, podem dessincronizar |
-
-### 7.4 Problemas de Segurança (Regras Firestore)
-
-```mermaid
-flowchart TD
-    A["pets — update/delete"] -->|"resource.data.createdBy"| B["⚠️ CAMPO NUNCA ESCRITO"]
-    C["appointments — read/write"] -->|"resource.data.veterinarianId"| D["❌ FALHA em create (resource.data = null)"]
-    E["clinics — write"] -->|"resource.data.ownerId"| F["❌ ownerId não existe no schema de clinics"]
-    G["storage — write"] -->|"any authenticated user"| H["⚠️ Tutor pode fazer upload de imagem de vacina"]
-```
-
-### 7.5 Collections Órfãs
-
-| Collection | Schema | Regras | Uso |
-|---|---|---|---|
-| `clinics` | ✅ | ✅ | ❌ |
-| `deworming` | ✅ | ✅ | ❌ |
-| `rateLimits` | ❌ | ❌ | ❌ (Rate limiter em memória no CF) |
-
-### 7.6 Dados Nunca Lidos
-
-| Campo | Collection | Impacto |
-|---|---|---|
-| `notifications.*` | `users/{id}/notifications` | Gravados, nunca exibidos |
-| `twoFactorAuth` | `users` | Salvo, nunca processado |
-| `language` | `users` | Salvo, nunca aplicado |
-| `profileCompleted` | `users` | Campo no schema, nunca escrito/lido |
-| `status` | `users` | Campo no schema, nunca escrito/lido |
-| `pets[]` | `users` (tutor) | Campo no schema, nunca escrito/lido |
-| `medicalNotes`, `allergies`, `chronicConditions` | `pets` | Schema só |
-| `emergencyContacts[]` | `pets` | Schema só |
-| `nextDueDate` | `vaccines` | Salvo, nunca exibido |
-| `petSpecies`, `petBreed` (em vaccines) | `vaccines` | Desnormalizados mas não exibidos |
-
----
-
-## 8. Recomendações Priorizadas
-
-### 🔴 Alta Prioridade
-
-| # | Problema | Ação | Esforço |
-|---|---|---|---|
-| 1 | **Regras Firestore quebradas** (`pets.createdBy`, `appointments`, `clinics`) | Reescrever regras para `appointments` e `clinics`; adicionar `createdBy` na escrita de pets | Baixo |
-| 2 | **Dashboard sempre mostra zeros** (`appointments` vazio, `criticalCases` sempre 0) | Criar fluxo de cadastro de agendamentos OU remover KPIs não funcionais | Médio |
-| 3 | **Sem fluxo de cadastro de Pet** | Criar `PetCreateModal` e conectar ao Firebase. O array `veterinarians` nunca é populado. | Alto |
-| 4 | **VaccineDeleteModal sem implementação** | Implementar deleção no `vaccineService` + remover imagem do Storage | Baixo |
-| 5 | **`pets.createdBy` nunca gravado** | Adicionar `createdBy: auth.uid` em toda escrita de pet | Baixo |
-| 6 | **Storage sem verificação de role** | Adicionar regra: uploader deve ter `role = 'veterinarian'` via Firestore check | Baixo |
-
-### 🟡 Média Prioridade
-
-| # | Problema | Ação | Esforço |
-|---|---|---|---|
-| 7 | **Notificações gravadas mas nunca lidas** | Criar componente de painel de notificações no Header | Médio |
-| 8 | **Profile.jsx essencialmente vazio** | Exibir dados do Firestore (`name`, `crmv`, `role`, foto) | Baixo |
-| 9 | **CompleteProfile.jsx inacessível** | Reativar rota + adicionar redirecionamento após signup para completar perfil | Médio |
-| 10 | **`ownerId` vs `tutorId` duplicados em pets** | Remover `tutorId`, usar só `ownerId` | Baixo |
-| 11 | **VaccineEditModal nunca aberto** | Adicionar botão "Editar" na tabela e implementar o handler de save | Baixo |
-| 12 | **Desnormalização sem propagação** | Documentar explicitamente que `petName`, `ownerName` em vaccines são snapshots imutáveis | Baixo |
-| 13 | **Imagem não deletada quando vacina é deletada** | Adicionar Cloud Function trigger no delete OU deletar manualmente no handler | Médio |
-
-### 🟢 Baixa Prioridade
-
-| # | Problema | Ação | Esforço |
-|---|---|---|---|
-| 14 | **9+ arquivos mortos em `src/features/`** | Deletar o diretório `src/features/` ou migrar o código útil | Baixo |
-| 15 | **Estruturas duplicadas (Layout, SideBar, Header)** | Deletar as duplicatas em `src/components/layout/` | Baixo |
-| 16 | **`useAuth.js` em hooks/ duplica AuthContext** | Remover `src/hooks/useAuth.js`; usar só `useAuth` do AuthContext | Baixo |
-| 17 | **Campos `notifications`, `language`, `twoFactorAuth` sem uso** | Implementar ou remover do form de Settings | Médio |
-| 18 | **`appointments` e `clinics` órfãs** | Implementar ou remover schema + regras | Alto |
-| 19 | **`deworming` completamente não implementado** | Implementar ou remover schema + regras | Alto |
-| 20 | **Rate limiter de CF em memória** | Migrar para Firestore (já identificado em auditorias anteriores) | Médio |
-
----
-
-## Apêndice — Fluxo de Dados Atual (Sequência de Login)
-
-```mermaid
-sequenceDiagram
-    actor U as Usuário
-    participant FE as Frontend
-    participant FA as Firebase Auth
-    participant CF as Cloud Function
-    participant FS as Firestore
-    participant EM as Gmail SMTP
-
-    U->>FE: Preenche email + senha
-    FE->>FA: createUserWithEmailAndPassword()
-    FA-->>FE: UserCredential
-    FE->>FS: setDoc(users/{uid}, {email, name, emailVerified: false})
-    FE->>CF: sendVerificationOtp()
-    CF->>FS: set(otpCodes/{uid}, {hash, salt, expiresAt, sendHistory})
-    CF->>EM: sendMail(OTP code)
-    EM-->>U: Email com OTP
-    U->>FE: Digita código OTP
-    FE->>CF: verifyOtp(code)
-    CF->>FS: get(otpCodes/{uid})
-    CF->>CF: validateHash(code, salt)
-    CF->>FA: updateUser({emailVerified: true})
-    CF->>FS: update(users/{uid}, {emailVerified: true})
-    CF-->>FE: {success: true}
-    FE->>FE: user.reload()
-    FE->>FE: Navigate('/')
-```
-
----
-
-*Relatório gerado em 2026-06-02. Baseado na análise de 47 arquivos de código-fonte, schema Firestore, security rules e Cloud Functions.*
+*Relatório elaborado em 2026-06-23 sob a ótica de consultoria em software veterinário, com base na leitura do código (telas, hooks, services, Cloud Functions), do `schema.js`, do seed, das `firestore.rules` e do fluxo de validação. Auditoria técnica anterior preservada em `AUDITORIA_SISTEMA_2026-06-02_tecnica.md`.*
