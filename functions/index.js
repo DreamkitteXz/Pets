@@ -20,6 +20,8 @@ const { onDocumentWritten }  = require('firebase-functions/v2/firestore');
 const { defineSecret }       = require('firebase-functions/params');
 const logger                 = require('firebase-functions/logger');
 const admin                  = require('firebase-admin');
+// API modular: `admin.firestore.FieldValue` (namespace) some no runtime do emulador.
+const { FieldValue, Timestamp } = require('firebase-admin/firestore');
 const crypto                 = require('crypto');
 const nodemailer             = require('nodemailer');
 
@@ -154,8 +156,8 @@ exports.sendVerificationOtp = onCall(
     }
 
     const otpRef     = db.collection('otpCodes').doc(uid);
-    const now        = admin.firestore.Timestamp.now();
-    const oneHourAgo = new admin.firestore.Timestamp(now.seconds - 3600, 0);
+    const now        = Timestamp.now();
+    const oneHourAgo = new Timestamp(now.seconds - 3600, 0);
 
     // Rate limiting
     const existing = await otpRef.get();
@@ -174,7 +176,7 @@ exports.sendVerificationOtp = onCall(
     const otp       = generateOtp();
     const salt      = generateSalt();
     const hash      = hashOtp(otp, salt);
-    const expiresAt = new admin.firestore.Timestamp(now.seconds + OTP_EXPIRY_MINUTES * 60, 0);
+    const expiresAt = new Timestamp(now.seconds + OTP_EXPIRY_MINUTES * 60, 0);
 
     const recentHistory = existing.exists
       ? (existing.data().sendHistory || []).filter(t => t.seconds > oneHourAgo.seconds)
@@ -232,7 +234,7 @@ exports.verifyOtp = onCall(
     }
 
     const otp = otpDoc.data();
-    const now = admin.firestore.Timestamp.now();
+    const now = Timestamp.now();
 
     if (otp.used) {
       throw new HttpsError('already-exists', 'Este código já foi utilizado. Solicite um novo.');
@@ -248,7 +250,7 @@ exports.verifyOtp = onCall(
     }
 
     // Increment attempt before validation (prevents timing attacks)
-    await otpRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
+    await otpRef.update({ attempts: FieldValue.increment(1) });
 
     const inputHash = hashOtp(code, otp.salt);
     if (inputHash !== otp.hash) {
@@ -265,35 +267,72 @@ exports.verifyOtp = onCall(
     await auth.updateUser(uid, { emailVerified: true });
     await db.collection('users').doc(uid).update({
       emailVerified: true,
-      updatedAt:     admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt:     FieldValue.serverTimestamp(),
     });
 
     return { success: true };
   }
 );
 
-/* ── CPF / CRMV helpers ──────────────────────────────────────────────────── */
-
-function validateCpf(raw) {
-  const cpf = String(raw).replace(/\D/g, '');
-  if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
-  let sum = 0;
-  for (let i = 1; i <= 9; i++) sum += parseInt(cpf[i - 1]) * (11 - i);
-  let rem = (sum * 10) % 11;
-  if (rem === 10 || rem === 11) rem = 0;
-  if (rem !== parseInt(cpf[9])) return false;
-  sum = 0;
-  for (let i = 1; i <= 10; i++) sum += parseInt(cpf[i - 1]) * (12 - i);
-  rem = (sum * 10) % 11;
-  if (rem === 10 || rem === 11) rem = 0;
-  return rem === parseInt(cpf[10]);
-}
+/* ── CRMV helper ─────────────────────────────────────────────────────────── */
 
 function validateCrmv(crmv) {
   return /^CRMV-[A-Z]{2}\s\d{1,5}$/.test(String(crmv));
 }
 
-/* ── createVaccineRecord ─────────────────────────────────────────────────── */
+/* ── Autoridade do veterinário ───────────────────────────────────────────────
+ *
+ * Validar ou registrar como aprovado exige um VETERINÁRIO ATIVO. O papel vem do
+ * doc `users/{uid}`, cujo `role` a rule só deixa definir uma vez no onboarding.
+ * Nunca confiar só em `vaccine.veterinarianId == caller`: era assim que um
+ * tutor que se declarasse vet aprovava a própria vacina.
+ */
+const APPLICATION_COLLECTIONS = ['vaccines', 'deworming'];
+
+async function requireActiveVet(uid) {
+  const snap = await db.collection('users').doc(uid).get();
+  const vet  = snap.exists ? snap.data() : null;
+  if (!vet || vet.role !== 'veterinarian' || vet.status !== 'active' || !validateCrmv(vet.crmv || '')) {
+    throw new HttpsError('permission-denied', 'Apenas veterinários ativos com CRMV podem fazer isto.');
+  }
+  return vet;
+}
+
+function resolveCollection(name) {
+  const collection = name || 'vaccines';
+  if (!APPLICATION_COLLECTIONS.includes(collection)) {
+    throw new HttpsError('invalid-argument', 'Tipo de registro inválido.');
+  }
+  return collection;
+}
+
+// Campos que só o servidor define — ignorados se vierem do cliente.
+const SERVER_OWNED_FIELDS = [
+  'status', 'validationDetails', 'veterinarianId', 'veterinarianName', 'crmvNumber',
+  'ownerId', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
+  'tutorAcknowledged', 'tutorAcknowledgedAt', 'active', 'deletedAt', 'deletedBy',
+];
+
+// Datas chegam do callable como string ISO (ou null) e são gravadas como Timestamp.
+const DATE_FIELDS = ['administrationDate', 'expirationDate', 'nextDueDate', 'reinforcementDate'];
+
+function toTimestamp(value, field) {
+  if (value === null || value === undefined || value === '') return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    throw new HttpsError('invalid-argument', `Data inválida em "${field}".`);
+  }
+  return Timestamp.fromDate(d);
+}
+
+/* ── createVaccineRecord ─────────────────────────────────────────────────────
+ *
+ * Registro feito PELO VETERINÁRIO (vacina ou vermífugo). Nasce aprovado,
+ * validado pelo CRMV de quem aplicou — por isso precisa passar pelo servidor:
+ * a rule só aceita do cliente a submissão `pending` do tutor.
+ *
+ * Input: { vaccineData, collection?: 'vaccines' | 'deworming' }
+ */
 exports.createVaccineRecord = onCall(
   { region: 'southamerica-east1' },
   async (request) => {
@@ -301,33 +340,78 @@ exports.createVaccineRecord = onCall(
       throw new HttpsError('unauthenticated', 'Autenticação necessária.');
     }
 
-    const { vaccineData } = request.data || {};
-    if (!vaccineData) {
-      throw new HttpsError('invalid-argument', 'Dados da vacina não informados.');
+    const { vaccineData, collection: collectionName } = request.data || {};
+    if (!vaccineData || typeof vaccineData !== 'object') {
+      throw new HttpsError('invalid-argument', 'Dados do registro não informados.');
+    }
+    const collection = resolveCollection(collectionName);
+    const uid = request.auth.uid;
+    const vet = await requireActiveVet(uid);
+
+    if (!vaccineData.petId) {
+      throw new HttpsError('invalid-argument', 'Paciente não informado.');
+    }
+    const petSnap = await db.collection('pets').doc(String(vaccineData.petId)).get();
+    if (!petSnap.exists) {
+      throw new HttpsError('not-found', 'Paciente não encontrado.');
+    }
+    const pet = petSnap.data();
+    if (!Array.isArray(pet.veterinarians) || !pet.veterinarians.includes(uid)) {
+      throw new HttpsError('permission-denied', 'Você não está vinculado a este paciente.');
     }
 
-    if (vaccineData.cpf && !validateCpf(vaccineData.cpf)) {
-      throw new HttpsError('invalid-argument', 'CPF inválido.');
+    const data = { ...vaccineData };
+    SERVER_OWNED_FIELDS.forEach((f) => delete data[f]);
+    DATE_FIELDS.forEach((f) => {
+      if (f in data) data[f] = toTimestamp(data[f], f);
+    });
+    if (data.labelImageMetadata && typeof data.labelImageMetadata === 'object') {
+      data.labelImageMetadata = {
+        ...data.labelImageMetadata,
+        timeCreated: FieldValue.serverTimestamp(),
+        updated:     FieldValue.serverTimestamp(),
+      };
     }
 
-    if (vaccineData.crmv && !validateCrmv(vaccineData.crmv)) {
-      throw new HttpsError('invalid-argument', 'CRMV inválido. Use o formato: CRMV-XX 12345');
-    }
-
-    const ref = db.collection('vaccines').doc();
+    const now = FieldValue.serverTimestamp();
+    const ref = db.collection(collection).doc();
     await ref.set({
-      ...vaccineData,
-      veterinarianId: request.auth.uid,
-      status: 'pending',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...data,
+      ownerId:          pet.ownerId || '',
+      veterinarianId:   uid,
+      veterinarianName: vet.name || '',
+      crmvNumber:       vet.crmv,
+      status:           'approved',
+      validationDetails: {
+        vetValidation: {
+          status:          'approved',
+          validatedAt:     now,
+          validatedBy:     uid,
+          validatedByName: vet.name || '',
+          validatedByCrmv: vet.crmv,
+          notes:           'Registrado e validado pelo veterinário aplicador.',
+          rejectionReason: '',
+        },
+      },
+      tutorAcknowledged:   false,
+      tutorAcknowledgedAt: null,
+      active:    true,
+      createdBy: uid,
+      updatedBy: uid,
+      createdAt: now,
+      updatedAt: now,
     });
 
     return { id: ref.id };
   }
 );
 
-/* ── updateVaccineStatus ─────────────────────────────────────────────────── */
+/* ── updateVaccineStatus ─────────────────────────────────────────────────────
+ *
+ * O veterinário responsável aprova ou rejeita uma submissão `pending` do tutor.
+ * Input: { vaccineId, isApproved, notes?, rejectionReason?, collection?: 'vaccines' | 'deworming' }
+ * Sem `collection`, segue valendo para vacinas (chamadas existentes).
+ */
 exports.updateVaccineStatus = onCall(
   { region: 'southamerica-east1' },
   async (request) => {
@@ -335,35 +419,35 @@ exports.updateVaccineStatus = onCall(
       throw new HttpsError('unauthenticated', 'Autenticação necessária.');
     }
 
-    const { vaccineId, isApproved, notes, rejectionReason } = request.data || {};
+    const { vaccineId, isApproved, notes, rejectionReason, collection: collectionName } = request.data || {};
+    const collection = resolveCollection(collectionName);
 
     if (!vaccineId) {
-      throw new HttpsError('invalid-argument', 'ID da vacina não informado.');
+      throw new HttpsError('invalid-argument', 'ID do registro não informado.');
     }
     if (!isApproved && !rejectionReason) {
       throw new HttpsError('invalid-argument', 'Motivo da rejeição é obrigatório.');
     }
 
-    const vaccineRef = db.collection('vaccines').doc(vaccineId);
+    const vaccineRef = db.collection(collection).doc(vaccineId);
     const snap       = await vaccineRef.get();
 
     if (!snap.exists) {
-      throw new HttpsError('not-found', 'Vacina não encontrada.');
+      throw new HttpsError('not-found', 'Registro não encontrado.');
     }
 
     const vaccine = snap.data();
 
     if (vaccine.veterinarianId !== request.auth.uid) {
-      throw new HttpsError('permission-denied', 'Sem permissão para validar esta vacina.');
+      throw new HttpsError('permission-denied', 'Sem permissão para validar este registro.');
     }
 
     if (vaccine.status !== 'pending') {
-      throw new HttpsError('failed-precondition', 'Esta vacina não está pendente de validação.');
+      throw new HttpsError('failed-precondition', 'Este registro não está pendente de validação.');
     }
 
-    // Busca CRMV/nome do veterinário para compor o bloco de validação.
-    const vetSnap  = await db.collection('users').doc(request.auth.uid).get();
-    const vetData  = vetSnap.exists ? vetSnap.data() : {};
+    // Ser o veterinarianId do registro não basta: quem valida precisa ser vet ativo.
+    const vetData = await requireActiveVet(request.auth.uid);
 
     // Eixo único de status: aprovação/rejeição do vet define o status diretamente.
     const newStatus = isApproved ? 'approved' : 'rejected';
@@ -372,7 +456,7 @@ exports.updateVaccineStatus = onCall(
       status: newStatus,
       'validationDetails.vetValidation': {
         status:          newStatus,
-        validatedAt:     admin.firestore.FieldValue.serverTimestamp(),
+        validatedAt:     FieldValue.serverTimestamp(),
         validatedBy:     request.auth.uid,
         validatedByName: vetData.name || '',
         validatedByCrmv: vetData.crmv || '',
@@ -380,17 +464,20 @@ exports.updateVaccineStatus = onCall(
         rejectionReason: isApproved ? '' : rejectionReason,
       },
       updatedBy: request.auth.uid,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
     if (vaccine.ownerId) {
       await db.collection('users').doc(vaccine.ownerId)
         .collection('notifications').add({
+          // Mesmo `type` para os dois — as caixas de notificação (web e app)
+          // já sabem exibi-lo; `collection` diz se é vacina ou vermífugo.
           type: 'VACCINE_VALIDATION',
           vaccineId,
+          collection,
           status: newStatus,
           read: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
         });
     }
 
@@ -461,7 +548,7 @@ exports.mirrorVetDirectory = onDocumentWritten(
     for (const field of VET_PUBLIC_FIELDS) {
       if (after[field] !== undefined) projection[field] = after[field];
     }
-    projection.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    projection.updatedAt = FieldValue.serverTimestamp();
 
     // `set` sem merge: o documento é derivado por inteiro de `users`, então
     // apagar um campo lá tem que apagá-lo aqui. Com merge, um campo removido

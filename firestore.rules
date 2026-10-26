@@ -8,9 +8,38 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Users — each user can only read/write their own profile and notifications.
+    // Users — cada usuário lê e escreve o PRÓPRIO perfil, mas não os campos que
+    // decidem acesso:
+    //  • role: definido UMA vez (onboarding) e nunca trocado pelo cliente.
+    //    Antes, qualquer tutor podia se declarar `veterinarian` e validar vacina.
+    //  • status: o cliente só avança `pending` → `active` (onboarding). Nunca sai
+    //    de `suspended` sozinho.
+    //  • emailVerified: só pode refletir o token do Auth (cadastro com Google
+    //    grava `true` legitimamente). Fora isso, só a CF `verifyOtp` (Admin SDK).
+    //  • delete negado: apagar e recriar o doc seria um jeito de trocar de role.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      function isSelf()    { return request.auth != null && request.auth.uid == userId; }
+      function incoming()  { return request.resource.data; }
+      function changed()   { return incoming().diff(resource.data).affectedKeys(); }
+      function validRole(r) { return r in ['tutor', 'veterinarian']; }
+      function verifiedOk() {
+        return !('emailVerified' in incoming())
+          || incoming().emailVerified == false
+          || incoming().emailVerified == request.auth.token.email_verified;
+      }
+
+      allow read: if isSelf();
+      allow create: if isSelf()
+        && (!('role' in incoming()) || validRole(incoming().role))
+        && (!('status' in incoming()) || incoming().status in ['pending', 'active'])
+        && verifiedOk();
+      allow update: if isSelf()
+        && (!changed().hasAny(['role'])
+            || (resource.data.get('role', null) == null && validRole(incoming().role)))
+        && (!changed().hasAny(['status'])
+            || (resource.data.get('status', 'pending') == 'pending' && incoming().status == 'active'))
+        && (!changed().hasAny(['emailVerified']) || verifiedOk());
+      allow delete: if false;
 
       match /notifications/{notificationId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -25,10 +54,19 @@ service cloud.firestore {
       allow read: if request.auth != null &&
         (request.auth.uid == resource.data.ownerId ||
          resource.data.veterinarians.hasAny([request.auth.uid]));
-      allow create: if request.auth != null;
+      // Quem cria assina (`createdBy`) e só pode criar pet SEU (tutor) ou de
+      // paciente a que se vincula (vet em `veterinarians`). Antes qualquer
+      // autenticado criava pet com qualquer `ownerId`.
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid
+        && (request.resource.data.ownerId == request.auth.uid
+            || (request.resource.data.get('veterinarians', []) is list
+                && request.resource.data.veterinarians.hasAny([request.auth.uid])));
+      // Dono e autor editam, mas ninguém troca o dono nem a autoria pelo cliente.
       allow update: if request.auth != null &&
         (request.auth.uid == resource.data.createdBy ||
-         request.auth.uid == resource.data.ownerId);
+         request.auth.uid == resource.data.ownerId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId', 'createdBy']);
       allow delete: if request.auth != null &&
         request.auth.uid == resource.data.createdBy;
 
@@ -89,13 +127,46 @@ service cloud.firestore {
       }
 
       allow read: if request.auth != null && (isVet() || isOwner());
-      allow create: if request.auth != null;
+      allow create: if request.auth != null && tutorPendingCreate(request.resource.data.petId);
       allow update: if request.auth != null && !touchesProtected() && (
         (isOwner() && tutorAckOnly()) ||
         (isVet() && softDeleteOnly()) ||
-        (isVet() && !frozen())
+        (isVet() && !frozen() && !changed().hasAny(identityFields()))
       );
       allow delete: if false;
+    }
+
+    // Criação de vacina/vermífugo PELO CLIENTE = só a submissão do tutor, que
+    // nasce `pending` e espera o veterinário. Antes `create` aceitava qualquer
+    // documento, inclusive um já `approved` com validationDetails forjado — a
+    // carteira em PDF exibia isso como "validado pelo veterinário".
+    //
+    // O registro do veterinário (que nasce aprovado) passa pela CF
+    // `createVaccineRecord`, que confere no servidor que quem chama é vet ativo
+    // vinculado ao pet.
+    //
+    // `validationDetails` é aceito só no formato que o app (build 7) já grava:
+    // `vetValidation` pendente e sem validador.
+    // Edição clínica do vet (enquanto pending) não mexe na identidade do registro
+    // nem na exclusão lógica: mover para o pet/dono de outra pessoa ou "apagar"
+    // com autoria falsa passavam pelo ramo `isVet() && !frozen()`.
+    function identityFields() {
+      return ['ownerId', 'petId', 'veterinarianId', 'createdBy',
+              'active', 'deletedAt', 'deletedBy'];
+    }
+
+    function tutorPendingCreate(petId) {
+      let d = request.resource.data;
+      let pet = get(/databases/$(database)/documents/pets/$(petId)).data;
+      return d.status == 'pending'
+        && d.ownerId == request.auth.uid
+        && pet.ownerId == request.auth.uid
+        && d.get('tutorAcknowledged', false) == false
+        && d.get('active', true) == true
+        && (!('validationDetails' in d)
+            || (d.validationDetails.keys().hasOnly(['vetValidation'])
+                && d.validationDetails.vetValidation.status == 'pending'
+                && d.validationDetails.vetValidation.get('validatedBy', null) == null));
     }
 
     // Appointments — managed by the assigned veterinarian.
@@ -158,11 +229,11 @@ service cloud.firestore {
       }
 
       allow read: if request.auth != null && (isVet() || isOwner());
-      allow create: if request.auth != null;
+      allow create: if request.auth != null && tutorPendingCreate(request.resource.data.petId);
       allow update: if request.auth != null && !touchesProtected() && (
         (isOwner() && tutorAckOnly()) ||
         (isVet() && softDeleteOnly()) ||
-        (isVet() && !frozen())
+        (isVet() && !frozen() && !changed().hasAny(identityFields()))
       );
       allow delete: if false;
     }

@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, AlertCircle } from 'lucide-react';
-import { serverTimestamp } from 'firebase/firestore';
 import { vaccineService } from '../../../services/firebase/vaccineService';
-import { useAuth } from '../../../context/AuthContext';
 import { useCatalog } from '../../../hooks/useCatalog';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -44,7 +42,6 @@ const getCurrentLocation = () => new Promise((resolve) => {
  * `type` permite reuso futuro (vermífugo) — por ora, 'vacina'.
  */
 export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vacina', onCreated }) {
-  const { user, userProfile } = useAuth();
   const { items: catalog } = useCatalog(type);
   const [form, setForm] = useState({});
   const [selectedCatalogId, setSelectedCatalogId] = useState('');
@@ -129,32 +126,11 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
         petSpecies: pet.species || '',
         petBreed: pet.breed || '',
         petWeight: pet.weight ?? null,
-        ownerId: pet.ownerId || '',
         ownerName: pet.ownerName || '',
         ownerContact: pet.ownerContact || '',
-        // Responsável
-        veterinarianId: user?.uid || '',
-        veterinarianName: userProfile?.name || '',
-        crmvNumber: userProfile?.crmv || '',
         clinicName: (form.clinicName || '').trim(),
-        // Trilha de auditoria (createdAt/updatedAt são carimbados no service)
-        createdBy: user?.uid || '',
-        updatedBy: user?.uid || '',
-        // Nasce aprovada — auto-validada pelo CRMV de quem aplicou
-        status: 'approved',
-        validationDetails: {
-          vetValidation: {
-            status: 'approved',
-            validatedBy: user?.uid || '',
-            validatedByName: userProfile?.name || '',
-            validatedByCrmv: userProfile?.crmv || '',
-            validatedAt: serverTimestamp(),
-            notes: 'Registrado e validado pelo veterinário aplicador.',
-            rejectionReason: '',
-          },
-        },
-        tutorAcknowledged: false,
-        tutorAcknowledgedAt: null,
+        // Dono, responsável (nome/CRMV), status "approved", bloco de validação e
+        // trilha de auditoria são definidos pela CF createVaccineRecord.
         notes: '',
         ...(location ? { location } : {}),
       };

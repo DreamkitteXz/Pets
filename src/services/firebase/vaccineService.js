@@ -3,15 +3,17 @@ import {
   query, 
   where, 
   getDocs, 
-  addDoc,
   updateDoc,
   doc,
   serverTimestamp
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, storage, functions } from '../../config/firebase';
 import logger from '../../utils/logger';
 import imageCompression from 'browser-image-compression';
+
+const createVaccineRecordFn = httpsCallable(functions, 'createVaccineRecord', { timeout: 20000 });
 
 export const vaccineService = {
   // Upload label image with EXIF stripping — returns download URL
@@ -52,13 +54,16 @@ export const vaccineService = {
     }
   },
 
-  // Cria um registro de "aplicação" (vacina ou vermífugo) — lógica compartilhada.
-  // `data.status` é respeitado (padrão 'pending'); o cadastro feito pelo vet chega
-  // com 'approved' + vetValidation. `data.location` (opcional) vai para
-  // labelImageMetadata.location. A foto reusa o upload com EXIF strip.
+  // Registro de "aplicação" (vacina ou vermífugo) feito pelo VETERINÁRIO.
+  //
+  // Passa pela CF `createVaccineRecord`: o registro nasce aprovado (validado pelo
+  // CRMV de quem aplicou), e a rule só aceita do cliente a submissão `pending`
+  // do tutor. Status, validação, dono e responsável são definidos no servidor —
+  // aqui vão só os dados clínicos. A foto é enviada antes (upload com EXIF strip)
+  // e entra como URL; `data.location` (opcional) vai para labelImageMetadata.
   async createApplication(collectionName, data, labelImage) {
     try {
-      const { location, status, ...rest } = data;
+      const { location, ...rest } = data;
 
       let imageUrl = null;
       let labelImageMetadata = null;
@@ -68,24 +73,24 @@ export const vaccineService = {
           name: labelImage.name || '',
           size: labelImage.size || 0,
           contentType: labelImage.type || 'image/jpeg',
-          timeCreated: serverTimestamp(),
-          updated: serverTimestamp(),
           ...(location ? { location } : {}),
         };
       }
 
-      const ref = collection(db, collectionName);
-      const newDoc = {
-        ...rest,
-        labelImage: imageUrl,
-        ...(labelImageMetadata ? { labelImageMetadata } : {}),
-        status: status || 'pending',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
+      // O callable serializa em JSON: datas viajam como ISO e viram Timestamp no servidor.
+      const payload = Object.fromEntries(
+        Object.entries(rest).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v]),
+      );
 
-      const docRef = await addDoc(ref, newDoc);
-      return docRef.id;
+      const { data: result } = await createVaccineRecordFn({
+        collection: collectionName,
+        vaccineData: {
+          ...payload,
+          labelImage: imageUrl,
+          ...(labelImageMetadata ? { labelImageMetadata } : {}),
+        },
+      });
+      return result.id;
     } catch (error) {
       logger.error(`Error creating application in '${collectionName}':`, error);
       throw error;
