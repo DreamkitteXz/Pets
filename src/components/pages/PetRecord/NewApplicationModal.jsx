@@ -179,12 +179,12 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sf overflow-y-auto"
+      className="fixed inset-0 z-50 modal-overlay p-4 font-sf"
       style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
       onClick={onClose}
     >
       <div
-        className="fade-in-up w-full max-w-[520px] my-8 rounded-[20px] overflow-hidden"
+        className="fade-in-up w-full max-w-[520px] rounded-[20px] overflow-hidden"
         style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)' }}
         onClick={e => e.stopPropagation()}
       >

@@ -584,6 +584,20 @@ html.light {
 	--separator: rgba(60, 60, 67, 0.12);
 }
 
+/* Overlay de modal. `items-center` cortava o topo de modal mais alto que a
+   tela (no celular o cabeçalho ficava inalcançável). Com `margin: auto` no
+   painel ele centraliza quando cabe e, quando não cabe, rola a partir do topo.
+   Fundos `absolute`/`fixed` dentro do overlay não recebem a margem. */
+.modal-overlay {
+	display: flex;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	-webkit-overflow-scrolling: touch;
+}
+.modal-overlay > :not(.absolute):not(.fixed) {
+	margin: auto;
+}
+
 /* Apple toggle switch — used in Settings */
 .apple-toggle {
 	position: relative;

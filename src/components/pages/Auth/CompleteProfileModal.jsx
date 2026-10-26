@@ -187,9 +187,9 @@ const CompleteProfileModal = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sf overflow-y-auto"
+    <div className="fixed inset-0 z-50 modal-overlay p-4 font-sf"
       style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}>
-      <div className="fade-in-up rounded-[22px] w-full max-w-[560px] my-8 overflow-hidden"
+      <div className="fade-in-up rounded-[22px] w-full max-w-[560px] overflow-hidden"
         style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)' }}>
 
         {/* Header */}

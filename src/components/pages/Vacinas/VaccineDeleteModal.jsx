@@ -17,8 +17,8 @@ const VaccineDeleteModal = ({ isOpen, onClose, vaccine, onDelete }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sf">
-      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} onClick={onClose} />
+    <div className="fixed inset-0 z-50 modal-overlay p-4 font-sf">
+      <div className="fixed inset-0" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} onClick={onClose} />
       <div className="relative w-full max-w-[440px] rounded-[20px] overflow-hidden fade-in-up"
         style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)' }}>
         <div className="px-7 py-6 flex flex-col items-center text-center">

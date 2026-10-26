@@ -60,7 +60,7 @@ export default function RecordFormModal({ isOpen, onClose, type, onSubmit }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sf"
+      className="fixed inset-0 z-50 modal-overlay p-4 font-sf"
       style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >

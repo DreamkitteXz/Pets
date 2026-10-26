@@ -342,7 +342,7 @@ const VaccinePage = () => {
 
       {/* Motivo da rejeição (validação inline) */}
       {rejectTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sf"
+        <div className="fixed inset-0 z-50 modal-overlay p-4 font-sf"
           style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
           onClick={() => setRejectTarget(null)}>
           <div className="fade-in-up w-full max-w-[440px] rounded-[20px] overflow-hidden"

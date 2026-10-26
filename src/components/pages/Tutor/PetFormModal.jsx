@@ -200,7 +200,7 @@ export default function PetFormModal({ isOpen, onClose, onSubmit, onDone, initia
   // que tem animação com transform (prenderia o `position: fixed`).
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sf overflow-y-auto"
+      className="fixed inset-0 z-50 modal-overlay p-4 font-sf"
       style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
@@ -208,7 +208,7 @@ export default function PetFormModal({ isOpen, onClose, onSubmit, onDone, initia
         role="dialog"
         aria-modal="true"
         aria-labelledby="pet-form-title"
-        className="fade-in-up rounded-[20px] w-full max-w-[520px] my-8 overflow-hidden"
+        className="fade-in-up rounded-[20px] w-full max-w-[520px] overflow-hidden"
         style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
         onClick={(e) => e.stopPropagation()}
       >

@@ -71,8 +71,8 @@ const VaccineEditModal = ({ isOpen, onClose, vaccine, onSave }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} onClick={onClose} />
+    <div className="fixed inset-0 z-50 modal-overlay p-4">
+      <div className="fixed inset-0" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} onClick={onClose} />
       <div className="relative w-full max-w-[560px] rounded-[20px] overflow-hidden fade-in-up font-sf"
         style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)', maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: '1px solid var(--separator)' }}>

@@ -5,10 +5,10 @@ export default function LogoutModal({ isOpen, onClose, onConfirm }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 modal-overlay p-4">
       {/* Overlay */}
       <div
-        className="absolute inset-0"
+        className="fixed inset-0"
         style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
         onClick={onClose}
       />

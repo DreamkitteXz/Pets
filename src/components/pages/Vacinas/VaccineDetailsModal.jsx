@@ -148,7 +148,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sf"
+      className="fixed inset-0 z-50 modal-overlay p-4 font-sf"
       style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
     >
       {/* ── Image viewer (fullscreen) ─────────────────────────────────────── */}
@@ -411,7 +411,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
       {/* ── Metadata modal ────────────────────────────────────────────────── */}
       {isMetadataModalOpen && vaccine?.labelImageMetadata && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[70] modal-overlay p-4"
           style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
         >
           <div
