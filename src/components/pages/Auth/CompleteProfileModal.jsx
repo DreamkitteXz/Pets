@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../../config/firebase';
@@ -44,14 +44,18 @@ const Field = ({ label, required, error, children }) => (
   </div>
 );
 
-const RoleOption = ({ active, icon: Icon, label, desc, onClick }) => (
+const RoleOption = ({ active, icon: Icon, label, desc, onClick, disabled = false }) => (
   <button
     type="button"
     onClick={onClick}
+    disabled={disabled}
+    aria-pressed={active}
     className="flex-1 flex flex-col items-center gap-2 px-4 py-4 rounded-[14px] transition-all duration-150"
     style={{
       background: active ? 'rgba(0,122,255,0.10)' : 'var(--surface-secondary)',
       border: `1.5px solid ${active ? 'var(--apple-blue)' : 'transparent'}`,
+      opacity: disabled ? 0.4 : 1,
+      cursor: disabled ? 'not-allowed' : 'pointer',
     }}
   >
     <div className="w-10 h-10 rounded-[12px] flex items-center justify-center"
@@ -65,11 +69,32 @@ const RoleOption = ({ active, icon: Icon, label, desc, onClick }) => (
   </button>
 );
 
+const ROLE_LOCKED_MESSAGE = {
+  tutor: 'Esta conta já está cadastrada como tutor e não pode virar conta de veterinário. Para atuar como veterinário, crie uma nova conta com outro e-mail.',
+  veterinarian: 'Esta conta já está cadastrada como veterinário e não pode virar conta de tutor. Para usar como tutor, crie uma nova conta com outro e-mail.',
+};
+
+// Erro do Firestore → frase que diz o que aconteceu. "Missing or insufficient
+// permissions" aqui quase sempre é conta já usada com outro tipo, ou suspensa.
+function profileSaveErrorMessage(err, lockedRole, status) {
+  if (err?.code === 'permission-denied') {
+    if (status === 'suspended') return 'Esta conta está suspensa. Entre em contato com o suporte.';
+    if (lockedRole) return ROLE_LOCKED_MESSAGE[lockedRole];
+    return 'Esta conta já foi usada antes e não pode ser alterada desta forma. Use outro e-mail ou fale com o suporte.';
+  }
+  if (err?.code === 'unavailable') return 'Sem conexão com o servidor. Verifique sua internet e tente de novo.';
+  return 'Não foi possível salvar seu cadastro. Tente novamente.';
+}
+
 const CompleteProfileModal = () => {
   const navigate = useNavigate();
   const { userProfile, refreshProfile } = useAuth();
 
-  const [role, setRole] = useState(null); // 'veterinarian' | 'tutor'
+  // Conta que já tem tipo definido (ex.: criada antes como tutor) não troca de
+  // tipo — a rule recusa. O tipo já vem escolhido e travado, com o motivo na tela.
+  const lockedRole = ['tutor', 'veterinarian'].includes(userProfile?.role) ? userProfile.role : null;
+  const [role, setRole] = useState(lockedRole); // 'veterinarian' | 'tutor'
+  useEffect(() => { if (lockedRole) setRole(lockedRole); }, [lockedRole]);
   const [form, setForm] = useState({
     name: userProfile?.name || auth.currentUser?.displayName || '',
     cpf: '',
@@ -82,6 +107,10 @@ const CompleteProfileModal = () => {
     emergencyRelationship: '',
     address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' },
   });
+  // O perfil pode chegar depois do primeiro render: aproveita o nome já salvo.
+  useEffect(() => {
+    if (userProfile?.name) setForm(f => (f.name ? f : { ...f, name: userProfile.name }));
+  }, [userProfile?.name]);
   const [errors, setErrors] = useState({});
   const [showAddress, setShowAddress] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
@@ -152,7 +181,7 @@ const CompleteProfileModal = () => {
       await refreshProfile();
       navigate(role === 'veterinarian' ? '/dashboard' : '/inicio', { replace: true });
     } catch (err) {
-      setSubmitError(err.message || 'Erro ao salvar. Tente novamente.');
+      setSubmitError(profileSaveErrorMessage(err, lockedRole, userProfile?.status));
       setSaving(false);
     }
   };
@@ -181,9 +210,17 @@ const CompleteProfileModal = () => {
               Você é... <span style={{ color: 'var(--apple-red)' }}>*</span>
             </label>
             <div className="flex gap-3">
-              <RoleOption active={role === 'tutor'} icon={User} label="Tutor" desc="Dono de pets" onClick={() => setRole('tutor')} />
-              <RoleOption active={role === 'veterinarian'} icon={Stethoscope} label="Veterinário" desc="Profissional" onClick={() => setRole('veterinarian')} />
+              <RoleOption active={role === 'tutor'} icon={User} label="Tutor" desc="Dono de pets"
+                onClick={() => setRole('tutor')} disabled={!!lockedRole && lockedRole !== 'tutor'} />
+              <RoleOption active={role === 'veterinarian'} icon={Stethoscope} label="Veterinário" desc="Profissional"
+                onClick={() => setRole('veterinarian')} disabled={!!lockedRole && lockedRole !== 'veterinarian'} />
             </div>
+            {lockedRole && (
+              <p className="mt-2 flex items-start gap-1.5" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                {ROLE_LOCKED_MESSAGE[lockedRole]}
+              </p>
+            )}
           </div>
 
           {role && (
