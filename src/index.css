@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,600&family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -130,7 +130,7 @@
 
 .letter-reveal {
 	display: inline-block;
-	animation: letterReveal 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+	animation: letterReveal 0.5s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 .fade-in-up {
@@ -161,6 +161,252 @@
 
 .carousel-bubble-float {
 	animation: carouselFloat 3.2s ease-in-out infinite;
+}
+
+/* ── Landing interactive elements ───────────────────────────────────────── */
+
+:root {
+	--ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+	/* Focus ring must reach 3:1 against its surface (WCAG 1.4.11) */
+	--focus-ring: #032b43;
+}
+.landing-footer {
+	--focus-ring: #80c3e8; /* ≈7:1 on #023047 */
+}
+
+.landing-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 10px;
+	font-family: -apple-system, 'SF Pro Display', BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	white-space: nowrap;
+	text-decoration: none;
+	cursor: pointer;
+	user-select: none;
+	-webkit-tap-highlight-color: transparent;
+	transition:
+		transform 160ms var(--ease-out-strong),
+		background-color 200ms ease,
+		border-color 200ms ease,
+		color 200ms ease,
+		box-shadow 200ms ease;
+}
+.landing-btn:hover { text-decoration: none; }
+.landing-btn:active { transform: scale(0.97); }
+.landing-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.landing-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
+
+.landing-btn--sm { height: 36px; padding: 0 18px; font-size: 13px; }
+.landing-btn--lg { height: 50px; padding: 0 28px; font-size: 15px; letter-spacing: -0.015em; }
+
+/* Elevation — "Beautiful" neutral layered shadows. sm = resting button, md = hover lift.
+   The 1px ring inside each shadow defines the edge, so buttons carry no visible border
+   (a transparent 1px border keeps the box size stable). */
+:root {
+	--shadow-sm: 0px 2px 3px -1px rgba(0, 0, 0, 0.1), 0px 1px 0px 0px rgba(25, 28, 33, 0.02), 0px 0px 0px 1px rgba(25, 28, 33, 0.08);
+	--shadow-md: 0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 1px 1px -0.5px rgba(0, 0, 0, 0.06), 0px 3px 3px -1.5px rgba(0, 0, 0, 0.06), 0px 6px 6px -3px rgba(0, 0, 0, 0.06), 0px 12px 12px -6px rgba(0, 0, 0, 0.06), 0px 24px 24px -12px rgba(0, 0, 0, 0.06);
+}
+
+.landing-btn--dark {
+	background: #032b43;
+	color: #f0f4f3;
+	border: 1px solid transparent;
+	box-shadow: var(--shadow-sm);
+}
+.landing-btn--glass {
+	background: rgba(240, 244, 243, 0.75);
+	color: #032b43;
+	border: 1px solid transparent;
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	box-shadow: var(--shadow-sm);
+}
+.landing-btn--light { background: #f0f4f3; color: #032b43; border: none; }
+.landing-btn--outline {
+	background: transparent;
+	color: rgba(240, 244, 243, 0.6);
+	border: 1px solid rgba(240, 244, 243, 0.18);
+}
+
+.landing-nav-link {
+	font-family: -apple-system, 'SF Pro Display', BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+	font-weight: 500;
+	font-size: 15px;
+	letter-spacing: -0.01em;
+	color: #000;
+	text-decoration: none;
+	padding-bottom: 2px;
+	border-bottom: 1.5px solid transparent;
+	transition: border-color 200ms ease, opacity 200ms ease;
+}
+.landing-nav-link:hover { text-decoration: none; }
+
+.landing-footer-link {
+	color: rgba(240, 244, 243, 0.6);
+	text-decoration: none;
+	transition: color 200ms ease;
+}
+.landing-footer-link:hover { text-decoration: none; }
+
+.landing-footer-link:focus-visible,
+.landing-nav-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: 4px; }
+
+/* Hover only on devices that really hover — avoids sticky hover after a tap */
+@media (hover: hover) and (pointer: fine) {
+	.landing-btn--dark:hover {
+		background: #043d5c;
+		box-shadow: var(--shadow-md);
+	}
+	.landing-btn--glass:hover:not(:disabled) {
+		background: rgba(220, 232, 228, 0.9);
+		box-shadow: var(--shadow-md);
+	}
+	.landing-btn--light:hover { background: #dce8e4; }
+	.landing-btn--outline:hover { border-color: rgba(240, 244, 243, 0.38); color: #f0f4f3; }
+	.landing-nav-link:hover { opacity: 0.65; border-bottom-color: #032b43; }
+	.landing-footer-link:hover { color: #f0f4f3; }
+}
+
+.carousel-bubble {
+	padding: 0;
+	border: none;
+	background: none;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+}
+.carousel-bubble:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: 24px; }
+
+/* Step text swap — one transition, blur bridges the crossfade */
+.carousel-text {
+	transition:
+		opacity 200ms var(--ease-out-strong),
+		transform 200ms var(--ease-out-strong),
+		filter 200ms var(--ease-out-strong);
+}
+.carousel-text[data-hidden='true'] {
+	opacity: 0;
+	transform: translateY(8px);
+	filter: blur(2px);
+}
+
+/* ── Landing layout primitives ──────────────────────────────────────────── */
+
+.landing-container {
+	width: 100%;
+	max-width: 1440px;
+	margin-inline: auto;
+	padding-inline: clamp(20px, 5vw, 80px);
+}
+
+.landing-section-y {
+	padding-block: clamp(80px, 10vw, 160px);
+}
+
+/* Honest logo slot — signals "real logo pending", not a fake mark */
+.landing-logo-slot {
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
+	border: 1.5px dashed currentColor;
+	opacity: 0.45;
+	flex-shrink: 0;
+}
+
+.landing-text-pretty { text-wrap: pretty; }
+
+/* Step tabs (Como funciona) */
+.step-tab {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	padding: 18px 4px 4px;
+	border: none;
+	background: none;
+	text-align: left;
+	cursor: pointer;
+	color: rgba(3, 43, 67, 0.68); /* ≥ 4.5:1 on white — these are navigation, not decoration */
+	transition: color 200ms ease;
+	-webkit-tap-highlight-color: transparent;
+}
+.step-tab::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	border-radius: 99px;
+	background: rgba(3, 43, 67, 0.1);
+}
+.step-tab::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	border-radius: 99px;
+	background: var(--step-color, #032b43);
+	transform: scaleX(0);
+	transform-origin: left;
+	transition: transform 300ms var(--ease-out-strong);
+}
+.step-tab[aria-selected='true'] { color: #032b43; }
+.step-tab[aria-selected='true']::after { transform: scaleX(1); }
+.step-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: 6px; }
+@media (hover: hover) and (pointer: fine) {
+	.step-tab:hover { color: rgba(3, 43, 67, 0.88); }
+}
+
+/* Mobile bubble strip */
+.bubble-strip {
+	position: relative; /* offsetParent for centering math — offsetLeft stays scroll-independent */
+	display: flex;
+	gap: 16px;
+	overflow-x: auto;
+	scroll-snap-type: x mandatory;
+	padding: 24px clamp(20px, 5vw, 80px) 32px;
+	scrollbar-width: none;
+	overscroll-behavior-x: contain;
+}
+.bubble-strip::-webkit-scrollbar { display: none; }
+.bubble-strip > * { scroll-snap-align: center; flex: 0 0 44%; }
+@media (min-width: 640px) {
+	.bubble-strip > * { flex-basis: 30%; }
+}
+
+/* Bubble feedback — on the inner wrapper, so it composes with the inline active/inactive scale */
+.carousel-bubble > div {
+	transition: transform 160ms var(--ease-out-strong);
+}
+.carousel-bubble:active > div { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+	.carousel-bubble:not([aria-current]):hover > div { transform: translateY(-6px); }
+}
+
+/* Reduced motion: drop decorative movement, keep opacity cues */
+@media (prefers-reduced-motion: reduce) {
+	.hero-float,
+	.pet-float,
+	.carousel-bubble-float,
+	.card-float {
+		animation: none !important;
+	}
+	.letter-reveal {
+		animation-name: fadeIn !important;
+	}
+	.carousel-text[data-hidden='true'] {
+		transform: none;
+		filter: none;
+	}
+	.carousel-bubble:not([aria-current]):hover > div { transform: none; }
+	/* Scroll/entry reveals keep the fade, drop the slide */
+	.landing-reveal { transform: none !important; }
 }
 
 /* ── Auth Page Animations ────────────────────────────────────────────────── */
@@ -414,6 +660,11 @@ html.light {
 
 /* ── Impressão (Carteira / Salvar como PDF) ──────────────────────────────── */
 @media print {
+	/* Scroll reveals never fire on paper — show everything */
+	.landing-reveal {
+		opacity: 1 !important;
+		transform: none !important;
+	}
 	aside,
 	header,
 	.no-print {

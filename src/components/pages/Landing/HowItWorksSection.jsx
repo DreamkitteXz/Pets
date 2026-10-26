@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { FONT, DISPLAY_FONT } from './fonts';
 import useScrollReveal from '../../../hooks/useScrollReveal';
 
 // ─── Assets locais (public/assets/landing/) ──────────────────────────────────
-const WAVE_TOP  = '/assets/landing/about_wave.svg';
 const DASH_WAVE = '/assets/landing/dash_wave.svg';
 const PAW_A = '/assets/landing/icon_patinha2.svg';
 const PAW_B = '/assets/landing/icon_patinha3.svg';
@@ -19,7 +19,7 @@ const PET_IMAGES = [
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Signature color of each step's bubble (used for active glow on bubble + paw tint)
+// Signature color of each step's bubble (used for active glow on bubble + paw tint + tab bar)
 const STEP_COLORS = [
   '#5bb8d4', // Step 1 — blue
   '#3dbca3', // Step 2 — teal
@@ -30,40 +30,42 @@ const STEP_COLORS = [
 
 const STEPS = [
   {
-    title: '1° Passo — Cadastro do pet',
+    title: '1º Passo — Cadastro do pet',
     description: 'O tutor cria o perfil do pet no app. Em minutos, já pode registrar vacinas, consultas e dados de saúde.',
   },
   {
-    title: '2° Passo — Vínculo veterinário',
+    title: '2º Passo — Vínculo veterinário',
     description: 'Ao registrar uma vacina, o tutor vincula o procedimento ao médico-veterinário responsável pela aplicação.',
   },
   {
-    title: '3° Passo — Sincronização automática',
+    title: '3º Passo — Sincronização automática',
     description: 'O registro aparece instantaneamente no painel do veterinário — sem sincronização manual, sem burocracia.',
   },
   {
-    title: '4° Passo — Validação profissional',
+    title: '4º Passo — Validação profissional',
     description: 'O veterinário revisa e valida o registro com um clique, garantindo a integridade do histórico de saúde.',
   },
   {
-    title: '5° Passo — Carteira atualizada',
+    title: '5º Passo — Carteira atualizada',
     description: 'Após a validação, a carteira de vacinação é atualizada em tempo real e disponibilizada para download no app.',
   },
 ];
 
-const AUTO_ADVANCE_MS = 5000;
+// "1º Passo — Cadastro do pet" → "Cadastro do pet" (tab label)
+const stepName = (title) => title.split(' — ')[1] || title;
 
-// ─── Carousel stage layout (Figma frame 29:603 — 1927 × 787 px) ─────────────
+const TEXT_SWAP_MS = 200; // matches .carousel-text transition
+
+// ─── Desktop stage layout (Figma frame 29:603 — 1927 × 787 px) ──────────────
 const BUBBLE_CONFIG = [
   { leftPct: '3.61%',  topPct: '38.39%', widthPct: '17.01%' }, // Step 1
   { leftPct: '21.58%', topPct: '24.81%', widthPct: '17.86%' }, // Step 2
   { leftPct: '41.05%', topPct: '19.57%', widthPct: '19.12%' }, // Step 3 — centre / highest
   { leftPct: '61.13%', topPct: '27.15%', widthPct: '17.44%' }, // Step 4
   { leftPct: '79.55%', topPct: '34.82%', widthPct: '18.92%' }, // Step 5
-
 ];
 
-// Paw decorations — positioned inside the carousel stage (% of frame)
+// Paw decorations — positioned inside the stage (% of frame)
 // `zone` = which step's color glow this paw inherits
 const STAGE_PAWS = [
   { src: PAW_A, left: '4.59%',  top: '49.6%', rotate: '-52.79deg', opacity: 1,   zone: 0 },
@@ -82,313 +84,293 @@ const STAGE_PAWS = [
   { src: PAW_F, left: '92.6%',  top: '49.4%', rotate: '-21.66deg', opacity: 1,   zone: 4 },
 ];
 
+// One pet bubble. The active glow is a static drop-shadow copy underneath —
+// only its opacity animates (compositor-only), never `filter`.
+const Bubble = ({ index, isActive, onSelect, style, buttonRef }) => (
+  <button
+    ref={buttonRef}
+    type="button"
+    className="carousel-bubble"
+    onClick={() => onSelect(index)}
+    aria-label={STEPS[index].title}
+    aria-controls="step-panel"
+    aria-current={isActive ? 'step' : undefined}
+    style={{
+      transform: isActive ? 'scale(1.09)' : 'scale(0.93)',
+      transition: 'transform 300ms cubic-bezier(0.23, 1, 0.32, 1)',
+      zIndex: isActive ? 3 : 1,
+      transformOrigin: 'bottom center',
+      ...style,
+    }}
+  >
+    <div style={{ position: 'relative' }}>
+      <img
+        src={PET_IMAGES[index]}
+        alt=""
+        aria-hidden="true"
+        loading="lazy"
+        decoding="async"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: 'auto',
+          display: 'block',
+          filter: `drop-shadow(0px 12px 28px rgba(0,0,0,0.15)) drop-shadow(0px 0px 18px ${STEP_COLORS[index]}55)`,
+          opacity: isActive ? 1 : 0,
+          transition: 'opacity 300ms ease',
+        }}
+      />
+      <img
+        src={PET_IMAGES[index]}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: 'auto',
+          display: 'block',
+          filter: 'drop-shadow(0px 4px 10px rgba(0,0,0,0.08))',
+        }}
+      />
+    </div>
+  </button>
+);
+
 const HowItWorksSection = () => {
   const [headRef, headVisible] = useScrollReveal(0.1);
-  const [active, setActive]    = useState(0);
-  const [visible, setVisible]  = useState(true);
-  const [key, setKey]          = useState(0);
-  const timerRef               = useRef(null);
-
-  const startTimer = useCallback(() => {
-    clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => {
-        setActive((prev) => (prev + 1) % STEPS.length);
-        setKey((k) => k + 1);
-        setVisible(true);
-      }, 280);
-    }, AUTO_ADVANCE_MS);
-  }, []);
-
-  useEffect(() => {
-    startTimer();
-    return () => clearInterval(timerRef.current);
-  }, [startTimer]);
+  // `active` drives bubbles/tabs immediately (instant feedback);
+  // `shown` drives the text, swapped mid-crossfade.
+  const [active, setActive]         = useState(0);
+  const [shown, setShown]           = useState(0);
+  const [textHidden, setTextHidden] = useState(false);
+  const swapRef                     = useRef(null);
+  const stripRef                    = useRef(null);
+  const stripItemRefs               = useRef([]);
+  const tabRefs                     = useRef([]);
 
   const goTo = useCallback((nextIndex) => {
-    if (nextIndex === active) return;
-    clearInterval(timerRef.current);
-    setVisible(false);
-    setTimeout(() => {
-      setActive(nextIndex);
-      setKey((k) => k + 1);
-      setVisible(true);
-      startTimer();
-    }, 280);
-  }, [active, startTimer]);
+    setActive(nextIndex);
+    setTextHidden(true);
+    clearTimeout(swapRef.current);
+    swapRef.current = setTimeout(() => {
+      setShown(nextIndex);
+      setTextHidden(false);
+    }, TEXT_SWAP_MS);
+  }, []);
 
-  const step = STEPS[active];
-  const activeColor = STEP_COLORS[active];
+  useEffect(() => () => clearTimeout(swapRef.current), []);
+
+  // Centre a bubble inside the mobile strip (no scrollIntoView — it scrolls the page)
+  const centerInStrip = useCallback((item) => {
+    const strip = stripRef.current;
+    if (!strip || !item || strip.offsetParent === null) return;
+    strip.scrollTo({
+      left: item.offsetLeft - (strip.clientWidth - item.clientWidth) / 2,
+      behavior: 'smooth',
+    });
+  }, []);
+
+  // Keep the active bubble in view
+  useEffect(() => {
+    centerInStrip(stripItemRefs.current[active]);
+  }, [active, centerInStrip]);
+
+  // Arrow-key navigation across tabs (WAI-ARIA tabs pattern)
+  const onTabKeyDown = (e) => {
+    const delta = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+    let next;
+    if (delta) next = (active + delta + STEPS.length) % STEPS.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = STEPS.length - 1;
+    else return;
+    e.preventDefault();
+    goTo(next);
+    tabRefs.current[next]?.focus();
+  };
+
+  const step = STEPS[shown];
 
   return (
-    <section
-      id="servicos"
-      className="relative overflow-hidden bg-white"
-      style={{ paddingBottom: '80px' }}
-    >
-      {/* ── Frame 31:604 — subtle dashed arc separator ────────────────────── */}
-      <div
-        className="pointer-events-none select-none"
-        style={{ position: 'relative', left: '-4px', width: 'calc(100% + 8px)', marginBottom: '-32px' }}
-      >
-        <img src={WAVE_TOP} alt="" style={{ width: '100%', display: 'block' }} />
-      </div>
-
+    <section id="servicos" className="relative overflow-hidden bg-white" style={{ paddingBottom: 'clamp(80px, 9vw, 140px)' }}>
+      {/* The dashed wave separator lives at the end of AboutSection — one is enough. */}
       {/* ── Section header ────────────────────────────────────────────────── */}
       <div
         ref={headRef}
-        className="text-center"
+        className="landing-reveal landing-container relative z-[1] text-center"
         style={{
-          paddingTop: '80px',
-          paddingLeft: '16.1%',
-          paddingRight: '16.1%',
-          position: 'relative',
-          zIndex: 1,
+          paddingTop: 'clamp(48px, 5vw, 80px)',
           opacity: headVisible ? 1 : 0,
-          transform: headVisible ? 'translateY(0)' : 'translateY(28px)',
-          transition: 'opacity 0.7s ease, transform 0.75s cubic-bezier(0.16, 1, 0.3, 1)',
+          transform: headVisible ? 'translateY(0)' : 'translateY(24px)',
+          transition: 'opacity 0.5s ease, transform 0.55s cubic-bezier(0.23, 1, 0.32, 1)',
         }}
       >
-        <p
-          className="font-bold uppercase"
-          style={{
-            fontFamily: 'SF Pro Display',
-            fontSize: 'clamp(11px, 0.833vw, 16px)',
-            letterSpacing: '5px',
-            color: 'rgba(3,43,67,0.45)',
-            marginBottom: '18px',
-          }}
-        >
-          COMO FUNCIONA
-        </p>
         <h2
-          className="font-bold"
+          className="landing-text-pretty mx-auto"
           style={{
-            fontFamily: 'SF Pro Display',
-            fontSize: 'clamp(22px, 1.875vw, 36px)',
-            lineHeight: 1.25,
-            color: '#000',
-            maxWidth: '900px',
-            margin: '0 auto',
+            fontFamily: DISPLAY_FONT,
+            fontWeight: 700,
+            fontSize: 'clamp(32px, 3.4vw, 52px)',
+            lineHeight: 1.1,
+            letterSpacing: '-0.025em',
+            color: '#032b43',
+            maxWidth: '20ch',
           }}
         >
           Documentação veterinária em 5 passos,{' '}
-          <span style={{ color: '#80c3e8' }}>sem burocracia</span>
+          <span style={{ color: '#2a76a3' }}>sem burocracia</span>
         </h2>
       </div>
 
-      {/* ── Carousel stage ────────────────────────────────────────────────── */}
-      {/*
-        Aspect-ratio shell (1927:787 ≈ 40.84%) keeps all absolute elements
-        proportionally positioned at every viewport width.
-      */}
-      <div style={{ position: 'relative', width: '100%', marginTop: '40px' }}>
-        <div style={{ position: 'relative', width: '100%', paddingBottom: '40.84%', height: 0 }}>
-          <div style={{ position: 'absolute', inset: 0 }}>
+      {/* ── Desktop stage — aspect-ratio shell (1927:787) keeps the Figma composition ── */}
+      <div className="relative hidden lg:block w-full mt-10" style={{ aspectRatio: '1927 / 787' }}>
+        <img
+          src={DASH_WAVE}
+          alt=""
+          className="absolute inset-0 block w-full h-full pointer-events-none select-none"
+          style={{ objectFit: 'fill' }}
+        />
 
-            {/* Dashed wavy arc background */}
-            <img
-              src={DASH_WAVE}
-              alt=""
+        {STAGE_PAWS.map((p, i) => {
+          const pawImgStyle = {
+            width: 'min(117px, 6.1vw)',
+            height: 'min(117px, 6.1vw)',
+            display: 'block',
+            borderRadius: '50%',
+            objectFit: 'cover',
+          };
+          return (
+            <div
+              key={i}
+              className="absolute flex items-center justify-center overflow-hidden pointer-events-none select-none"
               style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                display: 'block',
-                objectFit: 'fill',
-                pointerEvents: 'none',
-                userSelect: 'none',
+                left: p.left,
+                top: p.top,
+                width: 'min(164px, 8.5vw)',
+                height: 'min(164px, 8.5vw)',
+                opacity: p.opacity,
               }}
-            />
-
-            {/* Paw decorations — tinted with active step's color when in zone */}
-            {STAGE_PAWS.map((p, i) => {
-              const isActiveZone = p.zone === active;
-              return (
-                <div
-                  key={i}
-                  className="flex items-center justify-center overflow-hidden"
+            >
+              <div style={{ position: 'relative', transform: `rotate(${p.rotate})`, flexShrink: 0 }}>
+                <img
+                  src={p.src}
+                  alt=""
+                  aria-hidden="true"
                   style={{
+                    ...pawImgStyle,
                     position: 'absolute',
-                    left: p.left,
-                    top: p.top,
-                    width: 'min(164px, 8.5vw)',
-                    height: 'min(164px, 8.5vw)',
-                    opacity: p.opacity,
-                    pointerEvents: 'none',
-                    userSelect: 'none',
-                    filter: isActiveZone
-                      ? `drop-shadow(0px 0px 7px ${activeColor})`
-                      : 'none',
-                    transition: 'filter 0.6s ease',
+                    inset: 0,
+                    filter: `drop-shadow(0px 0px 7px ${STEP_COLORS[p.zone]})`,
+                    opacity: p.zone === active ? 1 : 0,
+                    transition: 'opacity 300ms ease',
                   }}
-                >
-                  <div style={{ transform: `rotate(${p.rotate})`, flexShrink: 0 }}>
-                    <img
-                      src={p.src}
-                      alt=""
-                      style={{
-                        width: 'min(117px, 6.1vw)',
-                        height: 'min(117px, 6.1vw)',
-                        display: 'block',
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                />
+                <img src={p.src} alt="" style={{ ...pawImgStyle, position: 'relative' }} />
+              </div>
+            </div>
+          );
+        })}
 
-            {/* ── 5 pet bubbles ─────────────────────────────────────────── */}
-            {BUBBLE_CONFIG.map((b, i) => {
-              const isActive = i === active;
-              return (
-                <div
-                  key={i}
-                  onClick={() => goTo(i)}
-                  style={{
-                    position: 'absolute',
-                    left: b.leftPct,
-                    top: b.topPct,
-                    width: b.widthPct,
-                    // Scale active up slightly; inactive just slightly smaller — no opacity dimming
-                    transform: isActive ? 'scale(1.09)' : 'scale(0.93)',
-                    // Active gets a colored drop-shadow glow; inactive just a faint shadow
-                    filter: isActive
-                      ? `drop-shadow(0px 12px 28px rgba(0,0,0,0.15)) drop-shadow(0px 0px 18px ${activeColor}55)`
-                      : 'drop-shadow(0px 4px 10px rgba(0,0,0,0.08))',
-                    transition: 'transform 0.55s cubic-bezier(0.16,1,0.3,1), filter 0.55s ease',
-                    zIndex: isActive ? 3 : 1,
-                    cursor: 'pointer',
-                    transformOrigin: 'bottom center',
-                  }}
-                >
-                  {/* Inner div carries the float animation without conflicting with scale */}
-                  <div className={isActive ? 'carousel-bubble-float' : ''}>
-                    <img
-                      src={PET_IMAGES[i]}
-                      alt={`Passo ${i + 1}`}
-                      style={{ width: '100%', height: 'auto', display: 'block' }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        {BUBBLE_CONFIG.map((b, i) => (
+          <Bubble
+            key={i}
+            index={i}
+            isActive={i === active}
+            onSelect={goTo}
+            style={{ position: 'absolute', left: b.leftPct, top: b.topPct, width: b.widthPct }}
+          />
+        ))}
       </div>
 
-      {/* ── Step content ──────────────────────────────────────────────────── */}
+      {/* ── Mobile strip — horizontal scroll-snap ─────────────────────────── */}
+      {/* Keyboard focus also brings the focused bubble into view */}
       <div
-        style={{
-          textAlign: 'center',
-          padding: '12px 24px 0',
-          transition: 'opacity 0.28s ease',
-          opacity: visible ? 1 : 0,
-        }}
+        ref={stripRef}
+        className="bubble-strip lg:hidden mt-6"
+        onFocus={(e) => centerInStrip(e.target)}
       >
-        <h3
-          key={`title-${key}`}
-          className="carousel-in font-bold"
-          style={{
-            fontFamily: 'SF Pro Display',
-            fontSize: 'clamp(20px, 1.5625vw, 30px)',
-            color: '#000',
-            marginBottom: '14px',
-            animationDelay: '0.05s',
-          }}
-        >
-          {step.title}
-        </h3>
-        <p
-          key={`desc-${key}`}
-          className="carousel-in"
-          style={{
-            fontFamily: 'SF Pro Display',
-            fontWeight: 500,
-            fontSize: 'clamp(14px, 0.9375vw, 18px)',
-            lineHeight: 1.75,
-            color: 'rgba(0,0,0,0.7)',
-            maxWidth: '620px',
-            margin: '0 auto',
-            animationDelay: '0.12s',
-          }}
-        >
-          {step.description}
-        </p>
+        {PET_IMAGES.map((_, i) => (
+          <Bubble
+            key={i}
+            index={i}
+            isActive={i === active}
+            onSelect={goTo}
+            buttonRef={(el) => { stripItemRefs.current[i] = el; }}
+          />
+        ))}
       </div>
 
-      {/* ── Dot indicators + nav ──────────────────────────────────────────── */}
-      <div
-        className="flex flex-col items-center"
-        style={{ marginTop: '28px', gap: '16px' }}
-      >
-        {/* Custom CSS pill dots — replaces pre-rendered Figma images */}
+      {/* ── Step tabs — every step is visible and reachable, nothing auto-advances ── */}
+      <div className="landing-container">
         <div
-          className="flex items-center"
           role="tablist"
-          aria-label="Navegação do carrossel"
-          style={{ gap: '6px' }}
+          aria-label="Passos"
+          className="mx-auto grid grid-cols-5 gap-3 md:gap-6 max-w-[1080px] lg:-mt-6"
+          onKeyDown={onTabKeyDown}
         >
-          {STEPS.map((_, i) => (
+          {STEPS.map((s, i) => (
             <button
               key={i}
+              ref={(el) => { tabRefs.current[i] = el; }}
+              type="button"
               role="tab"
+              id={`step-tab-${i}`}
               aria-selected={i === active}
-              aria-label={`Ir para passo ${i + 1}`}
+              aria-controls="step-panel"
+              aria-label={s.title}
+              tabIndex={i === active ? 0 : -1}
+              className="step-tab"
+              style={{ '--step-color': STEP_COLORS[i] }}
               onClick={() => goTo(i)}
-              style={{
-                width:  i === active ? '28px' : '8px',
-                height: '8px',
-                borderRadius: '99px',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
-                background: i === active ? STEP_COLORS[active] : 'rgba(3,43,67,0.2)',
-                boxShadow: i === active ? `0 0 8px ${STEP_COLORS[active]}88` : 'none',
-                transition: 'width 0.35s cubic-bezier(0.16,1,0.3,1), background 0.4s ease, box-shadow 0.4s ease',
-                outline: 'none',
-              }}
-              onFocus={e  => { e.currentTarget.style.outline = `2px solid ${STEP_COLORS[active]}`; }}
-              onBlur={e   => { e.currentTarget.style.outline = 'none'; }}
-            />
+            >
+              <span style={{ fontFamily: DISPLAY_FONT, fontWeight: 700, fontSize: '15px', fontVariantNumeric: 'tabular-nums' }}>
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <span
+                className="hidden md:block landing-text-pretty"
+                style={{ fontFamily: FONT, fontWeight: 600, fontSize: '15px', lineHeight: 1.3 }}
+              >
+                {stepName(s.title)}
+              </span>
+            </button>
           ))}
         </div>
 
-        {/* Prev / Next */}
-        <div className="flex" style={{ gap: '10px' }}>
-          {[
-            { label: 'Passo anterior', delta: -1, path: 'M10 3L5 8L10 13' },
-            { label: 'Próximo passo',  delta:  1, path: 'M6 3L11 8L6 13'  },
-          ].map(({ label, delta, path }) => (
-            <button
-              key={label}
-              aria-label={label}
-              onClick={() => goTo((active + delta + STEPS.length) % STEPS.length)}
-              className="flex items-center justify-center cursor-pointer"
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                border: '1.5px solid rgba(3,43,67,0.15)',
-                background: 'rgba(255,255,255,0.9)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-                transition: 'border-color 0.2s, background 0.2s, transform 0.2s',
-                outline: 'none',
-                flexShrink: 0,
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#032b43'; e.currentTarget.style.transform = 'scale(1.08)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(3,43,67,0.15)'; e.currentTarget.style.transform = 'scale(1)'; }}
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d={path} stroke="#032b43" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          ))}
+        {/* ── Step panel ──────────────────────────────────────────────────── */}
+        <div
+          id="step-panel"
+          role="tabpanel"
+          aria-labelledby={`step-tab-${shown}`}
+          className="carousel-text mx-auto text-center"
+          data-hidden={textHidden}
+          style={{ maxWidth: '640px', marginTop: 'clamp(32px, 4vw, 48px)', minHeight: '150px' }}
+        >
+          <h3
+            style={{
+              fontFamily: DISPLAY_FONT,
+              fontWeight: 700,
+              fontSize: 'clamp(22px, 1.8vw, 30px)',
+              letterSpacing: '-0.02em',
+              color: '#032b43',
+              marginBottom: '12px',
+            }}
+          >
+            {/* The number already lives in the active tab — the heading carries only the name */}
+            {stepName(step.title)}
+          </h3>
+          <p
+            className="landing-text-pretty"
+            style={{
+              fontFamily: FONT,
+              fontWeight: 400,
+              fontSize: '17px',
+              lineHeight: 1.7,
+              color: 'rgba(3,43,67,0.75)',
+            }}
+          >
+            {step.description}
+          </p>
         </div>
       </div>
     </section>

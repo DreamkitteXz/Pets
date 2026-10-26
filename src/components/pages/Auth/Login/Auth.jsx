@@ -62,7 +62,8 @@ const VetAuthPage = () => {
   const location = useLocation();
   const pageRef  = useRef(null);
 
-  const [isLogin,             setIsLogin]             = useState(true);
+  // Landing "Criar conta" links navigate with state { mode: 'signup' }
+  const [isLogin,             setIsLogin]             = useState(location.state?.mode !== 'signup');
   const [showPassword,        setShowPassword]        = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [email,               setEmail]               = useState('');

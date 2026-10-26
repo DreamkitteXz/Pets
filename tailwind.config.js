@@ -21,6 +21,7 @@ module.exports = {
           '-apple-system', 'SF Pro Display', 'SF Pro Text', 'BlinkMacSystemFont',
           'Inter', 'Segoe UI', 'Roboto', 'sans-serif',
         ],
+        display: ['"Bricolage Grotesque"', '-apple-system', 'BlinkMacSystemFont', 'Inter', 'sans-serif'],
         'alfa-slab': ['"Alfa Slab One"', 'serif'],
         montserrat: ['Montserrat', 'sans-serif'],
         roboto: ['Roboto', 'sans-serif'],

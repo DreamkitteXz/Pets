@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { FONT, BRAND_NAME } from './fonts';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -8,149 +9,68 @@ const NAV_LINKS = [
 ];
 
 const Navbar = () => {
-  const [scrolled, setScrolled]   = useState(false);
-  const [activeLink, setActiveLink] = useState(null);
+  const [scrolled, setScrolled] = useState(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 30);
+    onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const navStyle = {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 40,
-    height: '76px',
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: scrolled ? 'rgba(255,255,255,0.92)' : 'transparent',
-    backdropFilter: scrolled ? 'blur(16px) saturate(1.5)' : 'none',
-    WebkitBackdropFilter: scrolled ? 'blur(16px) saturate(1.5)' : 'none',
-    borderBottom: scrolled ? '1px solid rgba(3,43,67,0.07)' : 'none',
-    boxShadow: scrolled ? '0 1px 20px rgba(3,43,67,0.06)' : 'none',
-    transition: 'background-color 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease',
-  };
-
-  const linkStyle = (label) => ({
-    fontFamily: 'SF Pro Display',
-    fontWeight: 500,
-    fontSize: '15px',
-    letterSpacing: '-0.01em',
-    color: '#000',
-    textDecoration: 'none',
-    paddingBottom: '2px',
-    borderBottom: activeLink === label ? '1.5px solid #032b43' : '1.5px solid transparent',
-    transition: 'color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease',
-  });
-
   return (
-    <nav style={navStyle}>
-      <div
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          paddingLeft: '10.68%',
-          paddingRight: '10.68%',
-        }}
-      >
-        {/* ── Logo ───────────────────────────────────────────────────────── */}
+    <nav
+      className="fixed inset-x-0 top-0 z-40 flex items-center"
+      style={{
+        height: '76px',
+        backgroundColor: scrolled ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0)',
+        // blur(0px) instead of 'none' so the blur itself can transition
+        backdropFilter: scrolled ? 'blur(16px) saturate(1.5)' : 'blur(0px) saturate(1)',
+        WebkitBackdropFilter: scrolled ? 'blur(16px) saturate(1.5)' : 'blur(0px) saturate(1)',
+        borderBottom: `1px solid ${scrolled ? 'rgba(3,43,67,0.07)' : 'transparent'}`,
+        transition: 'background-color 200ms ease, border-color 200ms ease, backdrop-filter 200ms ease, -webkit-backdrop-filter 200ms ease',
+      }}
+    >
+      <div className="landing-container flex items-center">
+        {/* Logo — provisional slot until the real mark exists */}
         <a
-          href="#"
-          style={{
-            fontFamily: 'SF Pro Display',
-            fontWeight: 600,
-            fontSize: '20px',
-            color: '#032b43',
-            textDecoration: 'none',
-            letterSpacing: '-0.02em',
-          }}
+          href="#hero"
+          className="flex items-center gap-2.5 no-underline hover:no-underline"
+          style={{ fontFamily: FONT, fontWeight: 600, fontSize: '20px', color: '#032b43', letterSpacing: '-0.02em' }}
         >
-          Pets
+          <span className="landing-logo-slot" aria-hidden="true" />
+          {BRAND_NAME}
         </a>
 
-        {/* Thin divider */}
-        <div style={{ width: '1px', height: '28px', background: 'rgba(3,43,67,0.15)', margin: '0 28px', flexShrink: 0 }} />
-
-        {/* Nav links */}
-        <div style={{ display: 'flex', gap: '28px' }}>
-          {NAV_LINKS.map(({ label, href }) => (
-            <a
-              key={label}
-              href={href}
-              style={linkStyle(label)}
-              onMouseEnter={e => {
-                setActiveLink(label);
-                e.currentTarget.style.opacity = '0.65';
-              }}
-              onMouseLeave={e => {
-                setActiveLink(null);
-                e.currentTarget.style.opacity = '1';
-              }}
-            >
-              {label}
-            </a>
-          ))}
+        {/* Nav links — hidden on small screens, the page is a single scroll */}
+        <div className="hidden md:flex items-center">
+          <div className="mx-7 h-7 w-px flex-shrink-0" style={{ background: 'rgba(3,43,67,0.15)' }} />
+          <div className="flex gap-7">
+            {NAV_LINKS.map(({ label, href }) => (
+              <a key={label} href={href} className="landing-nav-link">
+                {label}
+              </a>
+            ))}
+          </div>
         </div>
 
         {/* Auth buttons */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+        <div className="ml-auto flex gap-2">
           <button
+            type="button"
             disabled={loading}
             onClick={() => navigate(user ? '/app' : '/auth')}
-            style={{
-              fontFamily: 'SF Pro Display',
-              fontWeight: 500,
-              fontSize: '13px',
-              letterSpacing: '-0.01em',
-              height: '36px',
-              paddingLeft: '18px',
-              paddingRight: '18px',
-              borderRadius: '10px',
-              background: 'rgba(240,244,243,0.8)',
-              color: '#032b43',
-              border: '1px solid rgba(3,43,67,0.1)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)',
-              cursor: loading ? 'default' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-              transition: 'background 0.2s, transform 0.15s, box-shadow 0.2s',
-            }}
-            onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = 'rgba(220,232,228,0.9)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(240,244,243,0.8)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            className="landing-btn landing-btn--sm landing-btn--glass"
           >
             Entrar
           </button>
-          <Link to="/auth" tabIndex={-1}>
-            <button
-              style={{
-                fontFamily: 'SF Pro Display',
-                fontWeight: 500,
-                fontSize: '13px',
-                letterSpacing: '-0.01em',
-                height: '36px',
-                paddingLeft: '18px',
-                paddingRight: '18px',
-                borderRadius: '10px',
-                background: '#032b43',
-                color: '#f0f4f3',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 2px 8px rgba(3,43,67,0.25), inset 0 1px 0 rgba(255,255,255,0.06)',
-                cursor: 'pointer',
-                transition: 'background 0.2s, transform 0.15s, box-shadow 0.2s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#043d5c'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(3,43,67,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#032b43'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(3,43,67,0.25), inset 0 1px 0 rgba(255,255,255,0.06)'; }}
-            >
+          {!user && (
+            <Link to="/auth" state={{ mode: 'signup' }} className="landing-btn landing-btn--sm landing-btn--dark">
               Criar conta
-            </button>
-          </Link>
+            </Link>
+          )}
         </div>
       </div>
     </nav>

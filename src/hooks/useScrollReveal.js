@@ -12,6 +12,11 @@ const useScrollReveal = (threshold = 0.15) => {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // No observer support → never leave content hidden
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return;
+    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {

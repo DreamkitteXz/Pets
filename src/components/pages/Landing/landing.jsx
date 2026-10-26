@@ -1,48 +1,31 @@
-import React, { useState } from 'react';
+import React from 'react';
 
-import Preloader         from './Preloader';
 import Navbar            from './Navbar';
 import HeroSection       from './HeroSection';
 import AboutSection      from './AboutSection';
 import HowItWorksSection from './HowItWorksSection';
 import FooterSection     from './FooterSection';
 
-const PettoHomepage = () => {
-  const [loaded, setLoaded] = useState(false);
+// No preloader: the hero's own entrance sequence is the loading moment.
+const PettoHomepage = () => (
+  <div className="bg-white">
+    {/* Fixed navigation */}
+    <Navbar />
 
-  return (
-    <>
-      {/* Preloader — shown until progress bar reaches 100% */}
-      {!loaded && <Preloader onComplete={() => setLoaded(true)} />}
+    <main>
+      {/* 1. Hero — yellow blob, Golden Retriever, letter-reveal title */}
+      <HeroSection />
 
-      {/* Main page — fades in after preloader completes */}
-      <div
-        className="bg-white"
-        style={{
-          opacity: loaded ? 1 : 0,
-          transition: 'opacity 500ms ease',
-          pointerEvents: loaded ? 'auto' : 'none',
-        }}
-      >
-        {/* Fixed navigation */}
-        <Navbar />
+      {/* 2. About — Beagle blob, title, description */}
+      <AboutSection />
 
-        <main>
-          {/* 1. Hero — yellow blob, Golden Retriever, letter-reveal title */}
-          <HeroSection />
+      {/* 3. Funcionalidades — 5-step carousel */}
+      <HowItWorksSection />
+    </main>
 
-          {/* 2. About — Beagle blob, title, description */}
-          <AboutSection />
-
-          {/* 3. Funcionalidades — 5-step carousel */}
-          <HowItWorksSection />
-        </main>
-
-        {/* Footer */}
-        <FooterSection />
-      </div>
-    </>
-  );
-};
+    {/* Footer */}
+    <FooterSection />
+  </div>
+);
 
 export default PettoHomepage;

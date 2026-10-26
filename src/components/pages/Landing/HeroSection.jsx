@@ -1,29 +1,58 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { FONT, DISPLAY_FONT, BRAND_NAME } from './fonts';
 
 // ─── Assets locais (public/assets/landing/) ──────────────────────────────────
 const BLOB_MASK   = '/assets/landing/blob_mask.svg';
-const BLOB_FILL   = '/assets/landing/blob_fill.png';
+const BLOB_FILL   = '/assets/landing/blob_fill.jpg'; // 2000px JPEG (was 2 MB PNG); transparent area sits outside the mask
 const CORNER_DECO = '/assets/landing/corner_deco.svg';
 const WAVE_BTM    = '/assets/landing/hero_wave.svg';
 const PAW_MAIN    = '/assets/landing/icon_patinha.svg';
 const PAW_1       = '/assets/landing/icon_patinha1.svg';
 // ─────────────────────────────────────────────────────────────────────────────
 
-// "Pets." split for staggered letter reveal
-const TITLE_CHARS = ['P', 'e', 't', 's', '.'];
-const CHAR_STAGGER   = 70;
-const CHAR_BASE_DELAY = 220;
-const TAGLINE_DELAY   = CHAR_BASE_DELAY + TITLE_CHARS.length * CHAR_STAGGER + 140;
-const SUBTITLE_DELAY  = TAGLINE_DELAY + 120;
-const BUTTONS_DELAY   = SUBTITLE_DELAY + 120;
+// Blob frame from Figma: 1290 × 872 at 1920px. Everything inside is expressed
+// as % of that frame so the composition scales instead of drifting.
+const BLOB_W = 1290;
+const BLOB_H = 872;
+const BLOB_RATIO = `${BLOB_W} / ${BLOB_H}`;
 
-const PawInBlob = ({ rotate, left, top, containerPx, innerPx, src = PAW_MAIN }) => (
+// Paw prints inside the blob — Figma px converted to % of the blob frame
+const BLOB_PAWS = [
+  { rotate: -135.84, left: 5.35,  top: 384, box: 165 },
+  { rotate: -128.51, left: 11.18, top: 467, box: 164 },
+  { rotate: -95.38,  left: 12.64, top: 600, box: 127 },
+  { rotate: -137.35, left: 83.66, top: 52,  box: 165 },
+  { rotate: -162.2,  left: 89.86, top: 142, box: 147 },
+  { rotate: -81.03,  left: 90.45, top: 564, box: 134 },
+  { rotate: -90.77,  left: 85.05, top: 639, box: 119 },
+  { rotate: -81.03,  left: 86.15, top: 739, box: 134, src: PAW_1 },
+];
+
+// Paw prints that sit on the top edge of the blob (desktop only).
+// The grey paws over the white text column were removed — they repeated the motif with no role.
+const PAGE_PAWS = [
+  { left: '54.79%', top: 25,  box: 157, rotate: 26.33 },
+  { left: '60.26%', top: 102, box: 121, rotate: 2.24 },
+];
+
+const PAW_IMG = 117;
+
+const TITLE_CHARS = [...`${BRAND_NAME}.`];
+// Short sequence — the CTA must be on screen within ~0.5s
+const CHAR_STAGGER    = 40;
+const CHAR_BASE_DELAY = 60;
+const TAGLINE_DELAY   = CHAR_BASE_DELAY + TITLE_CHARS.length * CHAR_STAGGER;
+const SUBTITLE_DELAY  = TAGLINE_DELAY + 60;
+const BUTTONS_DELAY   = SUBTITLE_DELAY + 60;
+
+const Paw = ({ rotate, box, src = PAW_MAIN, style, className = 'flex' }) => (
   <div
-    className="absolute flex items-center justify-center overflow-hidden pointer-events-none select-none"
-    style={{ left, top, width: containerPx, height: containerPx }}
+    className={`absolute ${className} items-center justify-center overflow-hidden pointer-events-none select-none`}
+    style={style}
   >
-    <div style={{ transform: `rotate(${rotate})`, flexShrink: 0 }}>
-      <img src={src} alt="" className="block rounded-full object-cover" style={{ width: innerPx, height: innerPx }} />
+    <div style={{ transform: `rotate(${rotate}deg)`, width: `${(PAW_IMG / box) * 100}%`, flexShrink: 0 }}>
+      <img src={src} alt="" className="block w-full rounded-full object-cover" style={{ aspectRatio: '1' }} />
     </div>
   </div>
 );
@@ -39,207 +68,160 @@ const HeroSection = () => {
   const revealStyle = (delayMs) => ({
     opacity: ready ? 1 : 0,
     transform: ready ? 'translateY(0)' : 'translateY(18px)',
-    transition: `opacity 0.65s ease ${delayMs}ms, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${delayMs}ms`,
+    transition: `opacity 0.5s ease ${delayMs}ms, transform 0.55s cubic-bezier(0.23, 1, 0.32, 1) ${delayMs}ms`,
   });
 
-  const btnBase = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '50px',
-    paddingLeft: '28px',
-    paddingRight: '28px',
-    borderRadius: '10px',
-    border: 'none',
-    cursor: 'pointer',
-    fontFamily: 'SF Pro Display',
-    fontSize: '15px',
-    fontWeight: 500,
-    letterSpacing: '-0.015em',
-    whiteSpace: 'nowrap',
-    transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.25s cubic-bezier(0.4,0,0.2,1)',
-  };
-
-  const btnPrimary = {
-    ...btnBase,
-    background: '#032b43',
-    color: '#f0f4f3',
-    border: '1px solid rgba(255,255,255,0.08)',
-    boxShadow: '0 4px 16px rgba(3,43,67,0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
-  };
-
-  const btnSecondary = {
-    ...btnBase,
-    background: 'rgba(240,244,243,0.7)',
-    color: '#032b43',
-    border: '1px solid rgba(3,43,67,0.1)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
-    boxShadow: '0 2px 8px rgba(3,43,67,0.06), inset 0 1px 0 rgba(255,255,255,0.5)',
-  };
-
   return (
-    <section
-      id="hero"
-      className="relative bg-white overflow-hidden"
-      style={{ minHeight: '872px' }}
-    >
-      {/* ── Top-left corner decoration ─────────────────────────────────────── */}
-      <div
-        className="absolute pointer-events-none select-none"
-        style={{ left: '-32px', top: '-26px', width: '299px', height: '333px', zIndex: 0 }}
-      >
-        <img src={CORNER_DECO} alt="" className="w-full h-full block" />
-      </div>
+    <section id="hero" className="relative overflow-hidden bg-white">
+      {/* ── Top-left corner decoration (desktop) — starts below the nav so it never crosses the logo ── */}
+      <img
+        src={CORNER_DECO}
+        alt=""
+        className="hidden lg:block absolute pointer-events-none select-none"
+        style={{ left: '-40px', top: '84px', width: 'min(170px, 10vw)', zIndex: 0 }}
+      />
 
-      {/* ── Right: yellow blob + dog (floating) ───────────────────────────── */}
-      <div
-        className="absolute top-0 hero-float"
-        style={{ left: '32.8125%', width: '67.1875%', height: '100%', minHeight: '872px', animationDelay: '0.7s' }}
-      >
+      {PAGE_PAWS.map((p, i) => (
+        <Paw
+          key={i}
+          rotate={p.rotate}
+          box={p.box}
+          src={p.src}
+          className="hidden lg:flex"
+          style={{ left: p.left, top: p.top, width: `min(${p.box}px, 6.5vw)`, aspectRatio: '1', zIndex: 3 }}
+        />
+      ))}
+
+      {/* Section height tracks the blob height (width × 872/1290), capped with the blob at 1040px */}
+      <div className="relative lg:min-h-[max(600px,min(43.4vw,705px))] lg:flex lg:items-center">
+        {/* ── Blob + dog ──────────────────────────────────────────────────
+            Mobile: full-bleed on top. Tablet: narrower, right-aligned, so the CTAs stay in the first viewport.
+            Desktop: anchored right, bleeding off-canvas, capped so wide screens keep the text on white. */}
         <div
-          className="absolute inset-0"
-          style={{
-            WebkitMaskImage: `url('${BLOB_MASK}')`,
-            maskImage: `url('${BLOB_MASK}')`,
-            WebkitMaskSize: '100% 100%',
-            maskSize: '100% 100%',
-            WebkitMaskRepeat: 'no-repeat',
-            maskRepeat: 'no-repeat',
-          }}
+          className="relative w-[118%] -ml-[9%] mt-[76px] md:w-[86%] md:ml-[18%] lg:absolute lg:top-0 lg:right-0 lg:mt-0 lg:ml-0 lg:w-[min(64vw,1040px)]"
+          style={{ aspectRatio: BLOB_RATIO }}
         >
-          <img src={BLOB_FILL} alt="Golden Retriever" className="absolute inset-0 w-full h-full max-w-none object-cover block" />
-        </div>
-
-        {/* Paw prints — left cluster */}
-        <PawInBlob rotate="-135.84deg" left="5.35%"  top="384px"  containerPx="165px" innerPx="117px" />
-        <PawInBlob rotate="-128.51deg" left="11.18%" top="467px"  containerPx="164px" innerPx="117px" />
-        <PawInBlob rotate="-95.38deg"  left="12.64%" top="600px"  containerPx="127px" innerPx="117px" />
-
-        {/* Paw prints — right cluster */}
-        <PawInBlob rotate="-137.35deg" left="83.66%" top="52px"   containerPx="165px" innerPx="117px" />
-        <PawInBlob rotate="-162.2deg"  left="89.86%" top="142px"  containerPx="147px" innerPx="117px" />
-        <PawInBlob rotate="-81.03deg"  left="90.45%" top="564px"  containerPx="134px" innerPx="117px" />
-        <PawInBlob rotate="-90.77deg"  left="85.05%" top="639px"  containerPx="119px" innerPx="117px" />
-        <PawInBlob rotate="-81.03deg"  left="86.15%" top="739px"  containerPx="134px" innerPx="117px" src={PAW_1} />
-      </div>
-
-      {/* ── Page-level paw decorations ────────────────────────────────────── */}
-      <div className="absolute flex items-center justify-center overflow-hidden pointer-events-none select-none" style={{ left: '20.52%', top: '40px', width: '125px', height: '125px' }}>
-        <div style={{ transform: 'rotate(4.09deg)' }}>
-          <img src={PAW_1} alt="" className="block rounded-full object-cover" style={{ width: '117px', height: '117px' }} />
-        </div>
-      </div>
-      <div className="absolute flex items-center justify-center overflow-hidden pointer-events-none select-none" style={{ left: '25.94%', top: '81px', width: '124px', height: '124px' }}>
-        <div style={{ transform: 'rotate(-3.59deg)' }}>
-          <img src={PAW_1} alt="" className="block rounded-full object-cover" style={{ width: '117px', height: '117px' }} />
-        </div>
-      </div>
-      <div className="absolute flex items-center justify-center overflow-hidden pointer-events-none select-none" style={{ left: '54.79%', top: '25px', width: '157px', height: '157px' }}>
-        <div style={{ transform: 'rotate(26.33deg)' }}>
-          <img src={PAW_MAIN} alt="" className="block rounded-full object-cover" style={{ width: '117px', height: '117px' }} />
-        </div>
-      </div>
-      <div className="absolute flex items-center justify-center overflow-hidden pointer-events-none select-none" style={{ left: '60.26%', top: '102px', width: '121px', height: '121px' }}>
-        <div style={{ transform: 'rotate(2.24deg)' }}>
-          <img src={PAW_MAIN} alt="" className="block rounded-full object-cover" style={{ width: '117px', height: '117px' }} />
-        </div>
-      </div>
-
-      {/* ── Hero text content ──────────────────────────────────────────────── */}
-      <div className="absolute" style={{ left: '10.68%', top: '365px' }}>
-        {/* Title — letter-by-letter reveal */}
-        <h1
-          className="leading-none"
-          style={{ fontFamily: 'SF Pro Display', fontWeight: 800, letterSpacing: '-0.03em', fontSize: 'clamp(56px, 4.17vw, 80px)' }}
-          aria-label="Pets."
-        >
-          {TITLE_CHARS.map((char, i) => (
-            <span
-              key={i}
-              className="letter-reveal"
+          <div className="hero-float absolute inset-0" style={{ animationDelay: '0.7s' }}>
+            <div
+              className="absolute inset-0"
               style={{
-                animationDelay: `${CHAR_BASE_DELAY + i * CHAR_STAGGER}ms`,
-                animationPlayState: ready ? 'running' : 'paused',
-                display: 'inline-block',
+                WebkitMaskImage: `url('${BLOB_MASK}')`,
+                maskImage: `url('${BLOB_MASK}')`,
+                WebkitMaskSize: '100% 100%',
+                maskSize: '100% 100%',
+                WebkitMaskRepeat: 'no-repeat',
+                maskRepeat: 'no-repeat',
               }}
             >
-              {char}
-            </span>
-          ))}
-        </h1>
+              <img
+                src={BLOB_FILL}
+                alt="Golden Retriever sorrindo"
+                width={2000}
+                height={1260}
+                fetchpriority="high"
+                decoding="async"
+                className="absolute inset-0 w-full h-full max-w-none object-cover block"
+              />
+            </div>
+
+            {BLOB_PAWS.map((p, i) => (
+              <Paw
+                key={i}
+                rotate={p.rotate}
+                box={p.box}
+                src={p.src}
+                style={{
+                  left: `${p.left}%`,
+                  top: `${(p.top / BLOB_H) * 100}%`,
+                  width: `${(p.box / BLOB_W) * 100}%`,
+                  aspectRatio: '1',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ── Text column ─────────────────────────────────────────────────── */}
+        <div className="landing-container relative z-[2] pt-8 pb-28 lg:py-0">
+          <div className="max-w-[560px] lg:max-w-[min(500px,32vw)]">
+            <p
+              className="leading-none"
+              style={{
+                fontFamily: DISPLAY_FONT,
+                fontWeight: 800,
+                letterSpacing: '-0.035em',
+                fontSize: 'clamp(64px, 7vw, 112px)',
+                color: '#032b43',
+              }}
+            >
+              {/* Wordmark, not the page heading — the name is provisional and says nothing
+                  about the product. The value proposition below is the h1. */}
+              <span className="sr-only">{BRAND_NAME}</span>
+              {TITLE_CHARS.map((char, i) => (
+                <span
+                  key={i}
+                  aria-hidden="true"
+                  className="letter-reveal"
+                  style={{
+                    animationDelay: `${CHAR_BASE_DELAY + i * CHAR_STAGGER}ms`,
+                    animationPlayState: ready ? 'running' : 'paused',
+                  }}
+                >
+                  {char}
+                </span>
+              ))}
+            </p>
+
+            <h1
+              className="landing-reveal landing-text-pretty mt-6"
+              style={{
+                fontFamily: FONT,
+                fontWeight: 600,
+                fontSize: 'clamp(20px, 1.5vw, 26px)',
+                lineHeight: 1.3,
+                letterSpacing: '-0.015em',
+                color: '#032b43',
+                ...revealStyle(TAGLINE_DELAY),
+              }}
+            >
+              A plataforma digital de saúde animal.
+            </h1>
+
+            <p
+              className="landing-reveal landing-text-pretty mt-4"
+              style={{
+                fontFamily: FONT,
+                fontWeight: 400,
+                fontSize: '17px',
+                lineHeight: 1.65,
+                color: 'rgba(3,43,67,0.72)',
+                maxWidth: '60ch',
+                ...revealStyle(SUBTITLE_DELAY),
+              }}
+            >
+              Registre vacinas, consultas e histórico do seu pet em um único lugar —
+              com acesso compartilhado entre tutores e veterinários.
+            </p>
+
+            <div className="landing-reveal mt-9 flex flex-wrap gap-3" style={revealStyle(BUTTONS_DELAY)}>
+              <Link to="/auth" state={{ mode: 'signup' }} className="landing-btn landing-btn--lg landing-btn--dark">
+                Criar conta
+              </Link>
+              <a href="#servicos" className="landing-btn landing-btn--lg landing-btn--glass">
+                Como funciona
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Tagline — short, punchy, below the big title */}
-      <div
-        className="absolute"
-        style={{ left: '10.68%', top: '462px', width: 'min(640px, 33vw)', ...revealStyle(TAGLINE_DELAY) }}
-      >
-        <p
-          style={{
-            fontFamily: 'SF Pro Display',
-            fontWeight: 600,
-            fontSize: 'clamp(15px, 1.04vw, 20px)',
-            lineHeight: 1.35,
-            color: '#032b43',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          A plataforma digital de saúde animal.
-        </p>
-      </div>
-
-      {/* Subtitle — concise value proposition */}
-      <div
-        className="absolute"
-        style={{ left: '10.68%', top: '508px', width: 'min(600px, 31vw)', ...revealStyle(SUBTITLE_DELAY) }}
-      >
-        <p
-          style={{
-            fontFamily: 'SF Pro Display',
-            fontWeight: 400,
-            fontSize: 'clamp(13px, 0.833vw, 16px)',
-            lineHeight: 1.75,
-            color: 'rgba(3,43,67,0.72)',
-          }}
-        >
-          Registre vacinas, consultas e histórico do seu pet em um único lugar —
-          com acesso compartilhado entre tutores e veterinários.
-        </p>
-      </div>
-
-      {/* CTA buttons */}
-      <div
-        className="absolute flex"
-        style={{ left: '10.68%', top: '606px', gap: '12px', ...revealStyle(BUTTONS_DELAY) }}
-      >
-        <a href="#servicos">
-          <button
-            style={btnPrimary}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(3,43,67,0.32), inset 0 1px 0 rgba(255,255,255,0.08)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(3,43,67,0.28), inset 0 1px 0 rgba(255,255,255,0.06)'; }}
-          >
-            Ver funcionalidades
-          </button>
-        </a>
-        <a href="#sobre">
-          <button
-            style={btnSecondary}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(3,43,67,0.1), inset 0 1px 0 rgba(255,255,255,0.6)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(3,43,67,0.06), inset 0 1px 0 rgba(255,255,255,0.5)'; }}
-          >
-            Saiba mais
-          </button>
-        </a>
-      </div>
-
-      {/* ── Bottom wave → About section ────────────────────────────────────── */}
-      <div
-        className="absolute pointer-events-none select-none"
-        style={{ left: '-4px', bottom: '-200px', width: 'calc(100% + 8px)', zIndex: 1 }}
-      >
-        <img src={WAVE_BTM} alt="" className="w-full block" />
-      </div>
+      {/* ── Bottom wave → About section ──────────────────────────────────── */}
+      <img
+        src={WAVE_BTM}
+        alt=""
+        className="absolute block pointer-events-none select-none"
+        style={{ left: '-4px', width: 'calc(100% + 8px)', bottom: '-10.4vw', zIndex: 1 }}
+      />
     </section>
   );
 };
