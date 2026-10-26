@@ -224,7 +224,26 @@ const Dashboard = () => {
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Nenhum paciente cadastrado ainda.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Celular: lista compacta (a tabela de 7 colunas não cabe) */}
+            <ul className="md:hidden list-none m-0 p-0">
+              {dashboardData.recentPets.map((pet, i) => (
+                <li key={pet.id} className="px-5 py-3 flex items-center gap-3"
+                  style={{ borderBottom: i === dashboardData.recentPets.length - 1 ? 'none' : '1px solid var(--separator)' }}>
+                  <div className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,122,255,0.1)' }}>
+                    <span className="text-xs font-semibold" style={{ color: 'var(--apple-blue)' }}>{pet.name?.[0]?.toUpperCase() || '?'}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{pet.name}</div>
+                    <div className="text-[13px] truncate" style={{ color: 'var(--text-secondary)' }}>
+                      {pet.species || '—'}{pet.breed ? ` · ${pet.breed}` : ''} · {pet.ownerName || '—'}
+                    </div>
+                  </div>
+                  <StatusBadge status={pet.status} />
+                </li>
+              ))}
+            </ul>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr style={{ background: 'var(--surface-secondary)', borderBottom: '1px solid var(--separator)' }}>
@@ -288,6 +307,7 @@ const Dashboard = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
 

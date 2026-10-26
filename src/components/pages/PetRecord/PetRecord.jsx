@@ -138,16 +138,16 @@ const PetRecord = () => {
 
       {/* ── Summary card ─────────────────────────────────────────────────── */}
       <div className="fade-in-up rounded-[20px] p-6 mb-5" style={{ ...card, animationDelay: '40ms' }}>
-        <div className="flex items-start gap-4">
+        <div className="flex flex-wrap items-start gap-4">
           <div className="w-14 h-14 rounded-[16px] overflow-hidden flex items-center justify-center font-bold text-[22px] flex-shrink-0"
             style={{ background: 'rgba(0,122,255,0.1)', color: 'var(--apple-blue)' }}>
             {pet.imageUrl
               ? <img src={pet.imageUrl} alt={`Foto de ${pet.name}`} className="w-full h-full object-cover" />
               : (pet.name?.[0]?.toUpperCase() || '?')}
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-[180px]">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="font-bold" style={{ fontSize: '26px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{pet.name}</h1>
+              <h1 className="font-bold" style={{ fontSize: 'clamp(22px, 5.5vw, 26px)', lineHeight: 1.15, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{pet.name}</h1>
               {isTutor && (
                 <button onClick={() => setEditOpen(true)}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-[8px] font-medium"
@@ -161,9 +161,9 @@ const PetRecord = () => {
             </p>
           </div>
           {latestWeight != null && (
-            <div className="text-right flex-shrink-0">
+            <div className="w-full sm:w-auto sm:text-right flex-shrink-0 flex sm:block items-baseline gap-2">
               <div className="flex items-center gap-1.5 justify-end">
-                <Weight size={15} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
+                <Weight size={15} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} aria-hidden="true" />
                 <span className="font-bold" style={{ fontSize: '22px', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{latestWeight} kg</span>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>peso atual</div>
@@ -185,7 +185,7 @@ const PetRecord = () => {
       {isTutor && <PetVetsCard pet={pet} onChanged={refresh} />}
 
       {/* ── Segmented tabs ───────────────────────────────────────────────── */}
-      <div className="fade-in-up flex gap-1 p-1 rounded-[12px] mb-5 overflow-x-auto"
+      <div className="fade-in-up grid grid-cols-2 md:flex gap-1 p-1 rounded-[12px] mb-5"
         style={{ background: 'var(--surface-secondary)', animationDelay: '80ms' }}>
         {TABS.map(t => {
           const Icon = t.icon;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Bell, MessageSquare, ChevronDown, User, Bookmark, MessageCircle, Settings, LogOut, CheckCircle, XCircle } from "lucide-react";
+import { Bell, MessageSquare, ChevronDown, Menu, User, Bookmark, MessageCircle, Settings, LogOut, CheckCircle, XCircle } from "lucide-react";
 import { auth, db } from "../../../config/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
@@ -9,7 +9,7 @@ import { useNotifications } from "../../../hooks/useNotifications";
 import { useChatUnread } from "../../../hooks/useChatMock";
 import { toDate } from "../../../utils/dates";
 
-export default function Header() {
+export default function Header({ onMenuClick }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -69,7 +69,7 @@ export default function Header() {
   return (
     <>
       <header
-        className="h-[60px] flex-shrink-0 flex items-center justify-between px-6 sticky top-0 z-30"
+        className="h-[60px] flex-shrink-0 flex items-center justify-between px-3 md:px-6 sticky top-0 z-30"
         style={{
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -77,8 +77,17 @@ export default function Header() {
           borderBottom: '1px solid var(--separator)',
         }}
       >
-        {/* Left — brand */}
+        {/* Left — menu (celular) + brand */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={onMenuClick}
+            className="md:hidden w-10 h-10 -ml-1 rounded-[10px] flex items-center justify-center"
+            style={{ color: 'var(--text-primary)' }}
+            aria-label="Abrir menu"
+            aria-controls="app-sidebar"
+          >
+            <Menu size={22} strokeWidth={1.75} />
+          </button>
           <span className="font-semibold text-[17px]" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
             Pets
           </span>
@@ -122,7 +131,7 @@ export default function Header() {
             </button>
 
             {showNotifMenu && (
-              <div className="absolute right-0 mt-2 w-[320px] rounded-[14px] py-1 z-50 overflow-hidden fade-in-up"
+              <div className="fixed left-3 right-3 top-[64px] md:absolute md:left-auto md:right-0 md:top-auto md:mt-2 md:w-[320px] rounded-[14px] py-1 z-50 overflow-hidden fade-in-up"
                 style={{ background: 'var(--surface-elevated)', boxShadow: '0 8px 40px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)', animationDuration: '0.2s' }}>
                 <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--separator)' }}>
                   <p className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>Notificações</p>

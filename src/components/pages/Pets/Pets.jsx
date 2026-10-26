@@ -189,7 +189,36 @@ const PetsPage = () => {
             <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Tente outros filtros ou termos de busca.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Celular: cartões tocáveis (a tabela cortava status e próxima vacina) */}
+          <ul className="md:hidden list-none m-0 p-0">
+            {filteredPets.map((pet, i) => {
+              const nv = nextVaccineByPet[pet.id];
+              return (
+                <li key={pet.id} style={{ borderBottom: i === filteredPets.length - 1 ? 'none' : '1px solid var(--separator)' }}>
+                  <button onClick={() => navigate(`/pets/${pet.id}`)} className="w-full px-4 py-3.5 flex items-center gap-3 text-left">
+                    <div className="w-10 h-10 rounded-[12px] overflow-hidden flex items-center justify-center font-semibold text-[14px] flex-shrink-0"
+                      style={{ background: 'rgba(0,122,255,0.1)', color: 'var(--apple-blue)' }}>
+                      {pet.imageUrl ? <img src={pet.imageUrl} alt="" className="w-full h-full object-cover" /> : (pet.name?.[0]?.toUpperCase() || '?')}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium truncate" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{pet.name}</span>
+                        <StatusBadge status={pet.status} />
+                      </div>
+                      <div className="truncate" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                        {pet.ownerName || pet.owner || '—'} · {pet.species}{pet.breed ? ` · ${pet.breed}` : ''}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5" style={{ fontSize: '12px', color: nv ? 'var(--apple-orange)' : 'var(--text-tertiary)' }}>
+                        {nv ? <><Syringe size={12} strokeWidth={1.5} /> {nv.name}: {nv.due.toLocaleDateString('pt-BR')}</> : 'Vacinas em dia'}
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
                 <tr style={{ background: 'rgba(116,116,128,0.06)', borderBottom: '1px solid var(--separator)' }}>
@@ -260,6 +289,7 @@ const PetsPage = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

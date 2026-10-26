@@ -20,7 +20,7 @@ const KpiCard = ({ label, value, accentColor, icon: Icon, delay }) => (
       <div className="text-[28px] font-bold leading-none" style={{ color: accentColor, letterSpacing: '-0.02em' }}>{value}</div>
       <div className="text-[13px] mt-1" style={{ color: 'var(--text-secondary)' }}>{label}</div>
     </div>
-    <div className="w-10 h-10 rounded-[12px] flex items-center justify-center flex-shrink-0" style={{ background: `${accentColor}18` }}>
+    <div className="hidden sm:flex w-10 h-10 rounded-[12px] items-center justify-center flex-shrink-0" style={{ background: `${accentColor}18` }}>
       <Icon size={20} strokeWidth={1.5} style={{ color: accentColor }} />
     </div>
   </div>

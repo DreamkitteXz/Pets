@@ -113,6 +113,65 @@ const VaccinePage = () => {
         v.name?.toLowerCase().includes(q);
     });
 
+  // Ações da linha — usadas na tabela (desktop) e nos cartões (celular).
+  const renderActions = (vaccine) => (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      {normalizeStatus(vaccine.status) === 'pending' && (
+        <>
+          <button
+            onClick={() => handleApprove(vaccine.id)}
+            disabled={busyId === vaccine.id}
+            className="inline-flex items-center gap-1 font-medium transition-opacity duration-100"
+            style={{ fontSize: '14px', color: 'var(--apple-green)', opacity: busyId === vaccine.id ? 0.5 : 1 }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+            onMouseLeave={e => e.currentTarget.style.opacity = busyId === vaccine.id ? '0.5' : '1'}
+          >
+            <Check size={14} strokeWidth={2.5} /> Aprovar
+          </button>
+          <button
+            onClick={() => { setRejectTarget(vaccine); setRejectReason(''); }}
+            disabled={busyId === vaccine.id}
+            className="inline-flex items-center gap-1 font-medium transition-opacity duration-100"
+            style={{ fontSize: '14px', color: 'var(--apple-red)', opacity: busyId === vaccine.id ? 0.5 : 1 }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+            onMouseLeave={e => e.currentTarget.style.opacity = busyId === vaccine.id ? '0.5' : '1'}
+          >
+            <X size={14} strokeWidth={2.5} /> Rejeitar
+          </button>
+        </>
+      )}
+      <button
+        onClick={() => { setSelectedVaccine(vaccine); setIsModalOpen(true); }}
+        className="font-medium transition-opacity duration-100"
+        style={{ fontSize: '15px', color: 'var(--apple-blue)' }}
+        onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+      >
+        Ver
+      </button>
+      {normalizeStatus(vaccine.status) === 'pending' && (
+        <button
+          onClick={() => { setSelectedVaccine(vaccine); setIsEditModalOpen(true); }}
+          className="font-medium transition-opacity duration-100"
+          style={{ fontSize: '15px', color: 'var(--text-secondary)' }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
+          Editar
+        </button>
+      )}
+      <button
+        onClick={() => { setSelectedVaccine(vaccine); setIsDeleteModalOpen(true); }}
+        className="font-medium transition-opacity duration-100"
+        style={{ fontSize: '15px', color: 'var(--apple-red)' }}
+        onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+      >
+        Arquivar
+      </button>
+    </div>
+  );
+
   return (
     <div className="min-h-full font-sf">
 
@@ -195,7 +254,29 @@ const VaccinePage = () => {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* Celular: cartões — a tabela espremida escondia status e ações */}
+              <ul className="md:hidden list-none m-0 p-0">
+                {filteredVaccines.map((vaccine, i) => (
+                  <li key={vaccine.id} className="px-4 py-4 flex flex-col gap-2"
+                    style={{ borderBottom: i === filteredVaccines.length - 1 ? 'none' : '1px solid var(--separator)' }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{vaccine.name || '—'}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                          {vaccine.petName || '—'} · {vaccine.ownerName || '—'}
+                        </div>
+                      </div>
+                      <StatusBadge status={vaccine.status} />
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
+                      {formatDate(vaccine.administrationDate)} · Lote {vaccine.batchNumber || '—'}
+                    </div>
+                    {renderActions(vaccine)}
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr style={{ background: 'rgba(116,116,128,0.06)', borderBottom: '1px solid var(--separator)' }}>
@@ -240,61 +321,7 @@ const VaccinePage = () => {
                             <StatusBadge status={vaccine.status} />
                           </td>
                           <td style={{ padding: '14px 20px', border: 'none' }}>
-                            <div className="flex items-center gap-3">
-                              {normalizeStatus(vaccine.status) === 'pending' && (
-                                <>
-                                  <button
-                                    onClick={() => handleApprove(vaccine.id)}
-                                    disabled={busyId === vaccine.id}
-                                    className="inline-flex items-center gap-1 font-medium transition-opacity duration-100"
-                                    style={{ fontSize: '14px', color: 'var(--apple-green)', opacity: busyId === vaccine.id ? 0.5 : 1 }}
-                                    onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
-                                    onMouseLeave={e => e.currentTarget.style.opacity = busyId === vaccine.id ? '0.5' : '1'}
-                                  >
-                                    <Check size={14} strokeWidth={2.5} /> Aprovar
-                                  </button>
-                                  <button
-                                    onClick={() => { setRejectTarget(vaccine); setRejectReason(''); }}
-                                    disabled={busyId === vaccine.id}
-                                    className="inline-flex items-center gap-1 font-medium transition-opacity duration-100"
-                                    style={{ fontSize: '14px', color: 'var(--apple-red)', opacity: busyId === vaccine.id ? 0.5 : 1 }}
-                                    onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
-                                    onMouseLeave={e => e.currentTarget.style.opacity = busyId === vaccine.id ? '0.5' : '1'}
-                                  >
-                                    <X size={14} strokeWidth={2.5} /> Rejeitar
-                                  </button>
-                                </>
-                              )}
-                              <button
-                                onClick={() => { setSelectedVaccine(vaccine); setIsModalOpen(true); }}
-                                className="font-medium transition-opacity duration-100"
-                                style={{ fontSize: '15px', color: 'var(--apple-blue)' }}
-                                onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
-                                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                              >
-                                Ver
-                              </button>
-                              {normalizeStatus(vaccine.status) === 'pending' && (
-                                <button
-                                  onClick={() => { setSelectedVaccine(vaccine); setIsEditModalOpen(true); }}
-                                  className="font-medium transition-opacity duration-100"
-                                  style={{ fontSize: '15px', color: 'var(--text-secondary)' }}
-                                  onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
-                                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                                >
-                                  Editar
-                                </button>
-                              )}
-                              <button
-                                onClick={() => { setSelectedVaccine(vaccine); setIsDeleteModalOpen(true); }}
-                                className="font-medium transition-opacity duration-100"
-                                style={{ fontSize: '15px', color: 'var(--apple-red)' }}
-                                onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
-                                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                              >
-                                Arquivar
-                              </button>
-                            </div>
+                            {renderActions(vaccine)}
                           </td>
                         </tr>
                       );
@@ -302,6 +329,7 @@ const VaccinePage = () => {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         </>

@@ -139,7 +139,25 @@ const VencimentosPage = () => {
                 <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Nada neste período.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* Celular: cartões — a tabela empurrava a data da próxima dose para fora da tela */}
+              <ul className="md:hidden list-none m-0 p-0">
+                {filtered.map((it, i) => (
+                  <li key={`${it.tipo}_${it.id}`} className="px-4 py-3.5 flex items-start justify-between gap-3"
+                    style={{ borderBottom: i === filtered.length - 1 ? 'none' : '1px solid var(--separator)' }}>
+                    <div className="min-w-0">
+                      <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{it.name || '—'}</div>
+                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{it.petName || '—'} · {it.ownerName || '—'}</div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <TypeBadge tipo={it.tipo} />
+                        <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{fmt(it.nextDueDate)}</span>
+                      </div>
+                    </div>
+                    <DueChip du={daysUntil(it.nextDueDate)} />
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr style={{ background: 'rgba(116,116,128,0.06)', borderBottom: '1px solid var(--separator)' }}>
@@ -174,6 +192,7 @@ const VencimentosPage = () => {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         </>

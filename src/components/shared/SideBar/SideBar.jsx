@@ -4,12 +4,16 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { auth, db } from "../../../config/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
-import { LogOut, ChevronLeft } from "lucide-react";
+import { LogOut, ChevronLeft, X } from "lucide-react";
 import LogoWhite from "../../../assets/logos/logo_white";
 import LogoutModal from "../LogoutModal/LogoutModal";
+import { useMediaQuery, DESKTOP_QUERY } from "../../../hooks/useMediaQuery";
 
-export default function SideBar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export default function SideBar({ mobileOpen = false, onMobileClose }) {
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const [collapsedPref, setIsCollapsed] = useState(false);
+  // No celular a gaveta sempre abre expandida; recolher é só do desktop.
+  const isCollapsed = isDesktop && collapsedPref;
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -37,11 +41,28 @@ export default function SideBar() {
     }
   };
 
+  // Esc fecha a gaveta no celular.
+  useEffect(() => {
+    if (isDesktop || !mobileOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') onMobileClose?.(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isDesktop, mobileOpen, onMobileClose]);
+
   return (
     <>
+      {/* Fundo escurecido da gaveta (só celular) */}
+      {!isDesktop && mobileOpen && (
+        <div className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={onMobileClose} aria-hidden="true" />
+      )}
       <aside
+        id="app-sidebar"
+        aria-label="Menu principal"
         style={{ background: '#1C1C1E', borderRight: '1px solid rgba(84,84,88,0.4)' }}
-        className={`flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}`}
+        className={isDesktop
+          ? `flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}`
+          : `fixed inset-y-0 left-0 z-50 w-[264px] max-w-[85vw] flex flex-col transition-transform duration-300 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        {...(!isDesktop && !mobileOpen ? { inert: '' } : {})}
       >
         {/* Logo + collapse */}
         <div className="flex items-center justify-between h-[60px] px-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(84,84,88,0.25)' }}>
@@ -60,17 +81,22 @@ export default function SideBar() {
             </div>
           )}
           <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="flex-shrink-0 rounded-[8px] p-1.5 transition-all duration-200"
+            onClick={() => (isDesktop ? setIsCollapsed(!collapsedPref) : onMobileClose?.())}
+            aria-label={isDesktop ? (isCollapsed ? 'Expandir menu' : 'Recolher menu') : 'Fechar menu'}
+            className="flex-shrink-0 rounded-[8px] p-1.5 transition-all duration-200 ml-auto"
             style={{ color: 'rgba(255,255,255,0.35)' }}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
-            <ChevronLeft
-              size={16}
-              strokeWidth={2}
-              style={{ transform: isCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }}
-            />
+            {isDesktop ? (
+              <ChevronLeft
+                size={16}
+                strokeWidth={2}
+                style={{ transform: isCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }}
+              />
+            ) : (
+              <X size={18} strokeWidth={2} />
+            )}
           </button>
         </div>
 

@@ -91,7 +91,9 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const { userData, loading, updateUserData } = useUser();
   const { setDark } = useTheme();
-  const [role, setRole] = useState('veterinarian');
+  // Papel vem do perfil e não é editável aqui: a rule só deixa defini-lo no
+  // onboarding (trocar de tutor para vet sem verificação seria brecha).
+  const role = userData?.role || 'veterinarian';
   const [formData, setFormData] = useState({
     name: '', email: '', phone: '', cpf: '',
     street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '',
@@ -111,7 +113,6 @@ const Settings = () => {
         notifications: userData.notifications || false, darkMode: userData.darkMode || false,
         language: userData.language || 'pt-BR', twoFactorAuth: userData.twoFactorAuth || false,
       });
-      setRole(userData.role || 'veterinarian');
     }
   }, [userData]);
 
@@ -150,7 +151,8 @@ const Settings = () => {
         </h1>
       </div>
 
-      <div className="flex gap-6 items-start">
+      {/* Celular: abas em cima, conteúdo embaixo (antes ficavam lado a lado e o conteúdo saía da tela) */}
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-start">
 
         {/* ── Sidebar tabs ──────────────────────────────────────────────── */}
         <div
@@ -205,7 +207,7 @@ const Settings = () => {
         </div>
 
         {/* ── Form content ─────────────────────────────────────────────── */}
-        <div className="fade-in-up flex-1 min-w-0" style={{ animationDelay: '100ms' }}>
+        <div className="fade-in-up flex-1 min-w-0 w-full" style={{ animationDelay: '100ms' }}>
           <form onSubmit={handleSubmit}>
 
             {/* Section header */}
@@ -218,7 +220,7 @@ const Settings = () => {
               <div className="space-y-4">
                 {/* Avatar */}
                 <div
-                  className="rounded-[16px] p-6 flex items-center gap-5"
+                  className="rounded-[16px] p-5 md:p-6 flex items-center gap-4 md:gap-5"
                   style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
                 >
                   <div
@@ -253,15 +255,10 @@ const Settings = () => {
                 {/* Role */}
                 <div className="rounded-[16px] p-5" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                   <p className="font-semibold mb-3" style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo de Conta</p>
-                  <div className="flex gap-3">
-                    {['veterinarian', 'tutor'].map(r => (
-                      <label key={r} className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="role" checked={role === r} onChange={() => setRole(r)}
-                          className="accent-[--apple-blue]" style={{ accentColor: 'var(--apple-blue)' }} />
-                        <span style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{r === 'veterinarian' ? 'Veterinário' : 'Tutor de Pet'}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <p style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{role === 'veterinarian' ? 'Veterinário' : 'Tutor de Pet'}</p>
+                  <p className="mt-1" style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
+                    O tipo de conta é definido no cadastro. Para alterá-lo, fale com o suporte.
+                  </p>
                 </div>
               </div>
             )}
