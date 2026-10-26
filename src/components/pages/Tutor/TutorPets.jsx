@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, PawPrint, ChevronRight, Plus } from 'lucide-react';
 import { useTutorPets } from '../../../hooks/useTutorPets';
-import NewPetModal from './NewPetModal';
+import PetFormModal from './PetFormModal';
 import { toDate } from '../../../utils/dates';
 
 const getAge = (birthDate) => {
@@ -93,9 +93,11 @@ const TutorPets = () => {
                   className="fade-in-up rounded-[18px] p-5 text-left transition-transform duration-150 hover:scale-[1.01]"
                   style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: `${80 + i * 40}ms` }}>
                   <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-[14px] flex items-center justify-center font-bold text-[18px]"
+                    <div className="w-12 h-12 rounded-[14px] overflow-hidden flex items-center justify-center font-bold text-[18px]"
                       style={{ background: 'rgba(0,122,255,0.1)', color: 'var(--apple-blue)' }}>
-                      {pet.name?.[0]?.toUpperCase() || '?'}
+                      {pet.imageUrl
+                        ? <img src={pet.imageUrl} alt="" className="w-full h-full object-cover" />
+                        : (pet.name?.[0]?.toUpperCase() || '?')}
                     </div>
                     <ChevronRight size={18} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
                   </div>
@@ -112,11 +114,11 @@ const TutorPets = () => {
         </>
       )}
 
-      <NewPetModal
+      <PetFormModal
         isOpen={newPetOpen}
         onClose={() => setNewPetOpen(false)}
-        onCreate={createPet}
-        onCreated={(id) => navigate(`/meus-pets/${id}`)}
+        onSubmit={createPet}
+        onDone={(id) => navigate(`/meus-pets/${id}`)}
       />
     </div>
   );

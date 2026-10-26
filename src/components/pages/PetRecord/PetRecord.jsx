@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Plus, Stethoscope, Syringe, Bug, Scale,
+  ArrowLeft, Plus, Stethoscope, Syringe, Bug, Scale, Pencil,
   CheckCircle, Clock, XCircle, CalendarClock, Weight, FileText,
 } from 'lucide-react';
 import { usePetRecord } from '../../../hooks/usePetRecord';
@@ -11,7 +11,10 @@ import { toDate } from '../../../utils/dates';
 import WeightChart from './WeightChart';
 import RecordFormModal from './RecordFormModal';
 import NewApplicationModal from './NewApplicationModal';
+import ValidationActions from './ValidationActions';
 import PetVetsCard from '../Tutor/PetVetsCard';
+import PetFormModal from '../Tutor/PetFormModal';
+import { petService } from '../../../services/firebase/petService';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (v) => {
@@ -80,15 +83,18 @@ const TABS = [
 const PetRecord = () => {
   const { petId } = useParams();
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const { pet, vaccines, dewormings, consultas, pesos, loading, error, addConsulta, addPeso, refresh } = usePetRecord(petId);
   const [tab, setTab] = useState('consultas');
   const [modalType, setModalType] = useState(null); // 'consulta' | 'peso' | null
   const [newApp, setNewApp] = useState(null); // null | 'vacina' | 'vermifugo'
+  const [editOpen, setEditOpen] = useState(false);
 
   // Tutors view the record read-only; vets can add records.
   const isTutor = userProfile?.role === 'tutor';
   const backTo = isTutor ? '/meus-pets' : '/pets';
+  // Só o veterinário responsável valida, e só o que ainda está pendente.
+  const canValidate = (r) => !isTutor && normalizeStatus(r.status) === 'pending' && r.veterinarianId === user?.uid;
 
   if (loading) {
     return (
@@ -133,12 +139,23 @@ const PetRecord = () => {
       {/* ── Summary card ─────────────────────────────────────────────────── */}
       <div className="fade-in-up rounded-[20px] p-6 mb-5" style={{ ...card, animationDelay: '40ms' }}>
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-[16px] flex items-center justify-center font-bold text-[22px] flex-shrink-0"
+          <div className="w-14 h-14 rounded-[16px] overflow-hidden flex items-center justify-center font-bold text-[22px] flex-shrink-0"
             style={{ background: 'rgba(0,122,255,0.1)', color: 'var(--apple-blue)' }}>
-            {pet.name?.[0]?.toUpperCase() || '?'}
+            {pet.imageUrl
+              ? <img src={pet.imageUrl} alt={`Foto de ${pet.name}`} className="w-full h-full object-cover" />
+              : (pet.name?.[0]?.toUpperCase() || '?')}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="font-bold" style={{ fontSize: '26px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{pet.name}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="font-bold" style={{ fontSize: '26px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{pet.name}</h1>
+              {isTutor && (
+                <button onClick={() => setEditOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-[8px] font-medium"
+                  style={{ fontSize: '13px', color: 'var(--apple-blue)', background: 'var(--surface-secondary)' }}>
+                  <Pencil size={13} strokeWidth={2} /> Editar
+                </button>
+              )}
+            </div>
             <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
               {pet.species}{pet.breed ? ` · ${pet.breed}` : ''} · {getAge(pet.birthDate)}
             </p>
@@ -274,15 +291,13 @@ const PetRecord = () => {
             <div className="px-6 py-4 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--separator)' }}>
               <h2 className="font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>Vacinas ({vaccines.length})</h2>
               <div className="flex items-center gap-3 flex-shrink-0">
-                {!isTutor && (
-                  <button onClick={() => setNewApp('vacina')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] font-medium transition-opacity duration-150"
-                    style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)' }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-                    <Plus size={15} strokeWidth={2.5} /> Nova vacina
-                  </button>
-                )}
+                <button onClick={() => setNewApp('vacina')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] font-medium transition-opacity duration-150"
+                  style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)' }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                  <Plus size={15} strokeWidth={2.5} /> {isTutor ? 'Registrar vacina' : 'Nova vacina'}
+                </button>
                 <button onClick={() => navigate(isTutor ? '/minhas-vacinas' : '/vacinas')} className="font-medium" style={{ fontSize: '13px', color: 'var(--apple-blue)' }}>
                   {isTutor ? 'Ver todas →' : 'Gerenciar →'}
                 </button>
@@ -294,14 +309,17 @@ const PetRecord = () => {
               vaccines.map((v, i) => {
                 const s = VAC_STATUS[normalizeStatus(v.status)] || { label: v.status || '—', color: 'var(--apple-gray-1)', bg: 'rgba(142,142,147,0.1)' };
                 return (
-                  <div key={v.id} className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: i < vaccines.length - 1 ? '1px solid var(--separator)' : 'none' }}>
+                  <div key={v.id} className="px-6 py-4 flex flex-wrap items-center justify-between gap-3" style={{ borderBottom: i < vaccines.length - 1 ? '1px solid var(--separator)' : 'none' }}>
                     <div>
                       <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{v.name}</div>
                       <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                         Aplicada: {fmt(v.administrationDate)} · Próxima: {fmt(v.nextDueDate)}
                       </div>
                     </div>
-                    <Badge label={s.label} color={s.color} bg={s.bg} icon={s.icon} />
+                    <div className="flex items-center gap-3">
+                      {canValidate(v) && <ValidationActions record={v} collection="vaccines" onDone={refresh} />}
+                      <Badge label={s.label} color={s.color} bg={s.bg} icon={s.icon} />
+                    </div>
                   </div>
                 );
               })
@@ -314,15 +332,13 @@ const PetRecord = () => {
           <div className="rounded-[20px] overflow-hidden" style={card}>
             <div className="px-6 py-4 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--separator)' }}>
               <h2 className="font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>Vermifugações ({dewormings.length})</h2>
-              {!isTutor && (
-                <button onClick={() => setNewApp('vermifugo')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] font-medium transition-opacity duration-150 flex-shrink-0"
-                  style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)' }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-                  <Plus size={15} strokeWidth={2.5} /> Novo vermífugo
-                </button>
-              )}
+              <button onClick={() => setNewApp('vermifugo')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] font-medium transition-opacity duration-150 flex-shrink-0"
+                style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)' }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                <Plus size={15} strokeWidth={2.5} /> {isTutor ? 'Registrar vermífugo' : 'Novo vermífugo'}
+              </button>
             </div>
             {dewormings.length === 0 ? (
               <EmptyState icon={Bug} text="Nenhuma vermifugação registrada." />
@@ -330,14 +346,17 @@ const PetRecord = () => {
               dewormings.map((d, i) => {
                 const s = DEW_STATUS[d.status] || { label: d.status || '—', color: 'var(--apple-gray-1)', bg: 'rgba(142,142,147,0.1)' };
                 return (
-                  <div key={d.id} className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: i < dewormings.length - 1 ? '1px solid var(--separator)' : 'none' }}>
+                  <div key={d.id} className="px-6 py-4 flex flex-wrap items-center justify-between gap-3" style={{ borderBottom: i < dewormings.length - 1 ? '1px solid var(--separator)' : 'none' }}>
                     <div>
                       <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{d.name}</div>
                       <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                         Aplicado: {fmt(d.administrationDate)} · Próximo: {fmt(d.nextDueDate)}{d.dosage ? ` · ${d.dosage}` : ''}
                       </div>
                     </div>
-                    <Badge label={s.label} color={s.color} bg={s.bg} />
+                    <div className="flex items-center gap-3">
+                      {canValidate(d) && <ValidationActions record={d} collection="deworming" onDone={refresh} />}
+                      <Badge label={s.label} color={s.color} bg={s.bg} />
+                    </div>
                   </div>
                 );
               })
@@ -347,6 +366,16 @@ const PetRecord = () => {
       </div>
 
       {/* ── Add record modal (consulta/peso) ─────────────────────────────── */}
+      {isTutor && (
+        <PetFormModal
+          isOpen={editOpen}
+          initialPet={pet}
+          onClose={() => setEditOpen(false)}
+          onSubmit={(data, photo) => petService.updatePet(user.uid, pet.id, data, photo)}
+          onDone={async () => { setEditOpen(false); await refresh(); }}
+        />
+      )}
+
       <RecordFormModal
         isOpen={modalType !== null}
         type={modalType}
@@ -355,15 +384,15 @@ const PetRecord = () => {
       />
 
       {/* ── Nova aplicação — vacina ou vermífugo (vet) ───────────────────── */}
-      {!isTutor && (
-        <NewApplicationModal
-          isOpen={newApp !== null}
-          type={newApp || 'vacina'}
-          onClose={() => setNewApp(null)}
-          pet={pet}
-          onCreated={refresh}
-        />
-      )}
+      {/* Vet registra já aprovado; tutor envia aplicação feita fora para validação. */}
+      <NewApplicationModal
+        isOpen={newApp !== null}
+        type={newApp || 'vacina'}
+        mode={isTutor ? 'tutor' : 'vet'}
+        onClose={() => setNewApp(null)}
+        pet={pet}
+        onCreated={refresh}
+      />
     </div>
   );
 };

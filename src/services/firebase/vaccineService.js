@@ -3,6 +3,7 @@ import {
   query, 
   where, 
   getDocs, 
+  addDoc,
   updateDoc,
   doc,
   serverTimestamp
@@ -95,6 +96,40 @@ export const vaccineService = {
       logger.error(`Error creating application in '${collectionName}':`, error);
       throw error;
     }
+  },
+
+  // Submissão do TUTOR — vacina ou vermífugo aplicado fora, para o veterinário
+  // vinculado validar. Grava direto: a rule só aceita do cliente exatamente isto
+  // (status 'pending', dono do pet == quem envia, sem validação forjada), e quem
+  // aprova é o vet pela CF updateVaccineStatus.
+  async submitByTutor(collectionName, data, labelImage) {
+    const { location, ...rest } = data;
+
+    let imageUrl = null;
+    let labelImageMetadata = null;
+    if (labelImage) {
+      imageUrl = await vaccineService.uploadLabelImage(labelImage);
+      labelImageMetadata = {
+        name: labelImage.name || '',
+        size: labelImage.size || 0,
+        contentType: labelImage.type || 'image/jpeg',
+        timeCreated: serverTimestamp(),
+        updated: serverTimestamp(),
+        ...(location ? { location } : {}),
+      };
+    }
+
+    const docRef = await addDoc(collection(db, collectionName), {
+      ...rest,
+      labelImage: imageUrl,
+      ...(labelImageMetadata ? { labelImageMetadata } : {}),
+      status: 'pending',
+      tutorAcknowledged: false,
+      active: true,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return docRef.id;
   },
 
   // Vacina (coleção `vaccines`).

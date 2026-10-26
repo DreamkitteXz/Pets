@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Syringe, CheckCircle, Clock, Check } from 'lucide-react';
+import { Syringe, CheckCircle, Clock, Check, Bug, Send } from 'lucide-react';
 import { useTutorVaccines } from '../../../hooks/useTutorVaccines';
 import { normalizeStatus } from '../../../utils/vaccineStatus';
 import { toDate } from '../../../utils/dates';
@@ -30,22 +30,22 @@ const TutorVaccines = () => {
   const { vaccines, loading, acknowledge } = useTutorVaccines();
   const [busyId, setBusyId] = useState(null);
 
-  const pending = vaccines.filter(v => !v.tutorAcknowledged).length;
+  const pending = vaccines.filter(v => v.needsAck).length;
   const acknowledged = vaccines.filter(v => v.tutorAcknowledged).length;
 
-  const handleAck = async (id) => {
-    setBusyId(id);
-    try { await acknowledge(id); } finally { setBusyId(null); }
+  const handleAck = async (v) => {
+    setBusyId(v.id);
+    try { await acknowledge(v.id, v.kind); } finally { setBusyId(null); }
   };
 
   return (
     <div className="min-h-full font-sf">
       <div className="mb-6 fade-in-up">
         <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Vacinas
+          Vacinas e vermífugos
         </h1>
         <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-          Confirme que está ciente das vacinas registradas para os seus pets.
+          Confirme que está ciente das aplicações registradas pelo veterinário para os seus pets.
         </p>
       </div>
 
@@ -67,8 +67,8 @@ const TutorVaccines = () => {
                 <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
                   <Syringe size={28} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
                 </div>
-                <p className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>Nenhuma vacina registrada</p>
-                <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>As vacinas dos seus pets aparecerão aqui.</p>
+                <p className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>Nenhuma aplicação registrada</p>
+                <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>As vacinas e os vermífugos dos seus pets aparecerão aqui.</p>
               </div>
             ) : (
               vaccines.map((v, i) => {
@@ -78,7 +78,10 @@ const TutorVaccines = () => {
                     style={{ borderBottom: i < vaccines.length - 1 ? '1px solid var(--separator)' : 'none' }}>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>
+                        <span className="inline-flex items-center gap-1.5 font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>
+                          {v.kind === 'deworming'
+                            ? <Bug size={14} strokeWidth={1.75} aria-label="Vermífugo" style={{ color: 'var(--text-tertiary)' }} />
+                            : <Syringe size={14} strokeWidth={1.75} aria-label="Vacina" style={{ color: 'var(--text-tertiary)' }} />}
                           {v.name} <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>· {v.petName}</span>
                         </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
@@ -94,13 +97,18 @@ const TutorVaccines = () => {
                       )}
                     </div>
 
-                    {v.tutorAcknowledged ? (
+                    {v.sentByTutor ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium flex-shrink-0"
+                        style={{ background: 'rgba(0,122,255,0.10)', color: 'var(--apple-blue)' }}>
+                        <Send size={11} strokeWidth={2} /> Enviado por você
+                      </span>
+                    ) : v.tutorAcknowledged ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium flex-shrink-0"
                         style={{ background: 'rgba(52,199,89,0.12)', color: 'var(--apple-green)' }}>
                         <CheckCircle size={11} strokeWidth={2} /> Ciente{v.tutorAcknowledgedAt ? ` em ${fmt(v.tutorAcknowledgedAt)}` : ''}
                       </span>
                     ) : (
-                      <button onClick={() => handleAck(v.id)} disabled={busyId === v.id}
+                      <button onClick={() => handleAck(v)} disabled={busyId === v.id}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] font-medium transition-opacity duration-150 flex-shrink-0"
                         style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)', opacity: busyId === v.id ? 0.5 : 1, cursor: busyId === v.id ? 'default' : 'pointer' }}>
                         <Check size={14} strokeWidth={2.5} /> Confirmar ciência

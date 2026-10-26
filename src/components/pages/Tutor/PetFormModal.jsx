@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertCircle } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, AlertCircle, Camera } from 'lucide-react';
+import { toDate, toDateInput } from '../../../utils/dates';
 
 // Valores gravados iguais aos do app (pet_model / add_pet): o prontuário do
 // veterinário e a carteira exibem estes textos como vieram.
@@ -24,11 +26,30 @@ const BREEDS = {
   ],
 };
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => toDateInput();
+const MAX_PHOTO_MB = 15; // antes da compressão (que entrega ~1 MB)
 
 const EMPTY = {
   name: '', species: '', gender: '', breed: SRD, birthDate: '', color: '',
   isNeutered: false, chipNumber: '', weight: '', allergies: '', chronicConditions: '',
+};
+
+// Pet salvo → valores do formulário (modo edição).
+const fromPet = (pet) => {
+  const birth = toDate(pet.birthDate);
+  return {
+    name: pet.name || '',
+    species: pet.species || '',
+    gender: pet.gender || '',
+    breed: pet.breed || SRD,
+    birthDate: birth ? toDateInput(birth) : '',
+    color: pet.color || '',
+    isNeutered: !!pet.isNeutered,
+    chipNumber: pet.chipNumber || '',
+    weight: pet.weight != null ? String(pet.weight) : '',
+    allergies: Array.isArray(pet.allergies) ? pet.allergies.join(', ') : (pet.allergies || ''),
+    chronicConditions: pet.chronicConditions || '',
+  };
 };
 
 const inputStyle = {
@@ -79,24 +100,51 @@ const Segmented = ({ options, value, onChange, labels = {} }) => (
 );
 
 /**
- * Cadastro de pet pelo tutor. `onCreate(data)` grava e devolve o id do pet.
+ * Formulário de pet do tutor — cadastro (sem `initialPet`) ou edição.
+ * `onSubmit(data, photoFile)` grava; o retorno (id do pet no cadastro) vai para `onDone`.
  */
-export default function NewPetModal({ isOpen, onClose, onCreate, onCreated }) {
+export default function PetFormModal({ isOpen, onClose, onSubmit, onDone, initialPet }) {
+  const isEdit = !!initialPet;
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
-      setForm(EMPTY);
+      setForm(initialPet ? fromPet(initialPet) : EMPTY);
       setErrors({});
       setSubmitError('');
       setSaving(false);
+      setPhotoFile(null);
+      setPhotoPreview(null);
     }
-  }, [isOpen]);
+  }, [isOpen, initialPet]);
+
+  // Libera a URL temporária da prévia ao trocar de foto ou fechar.
+  useEffect(() => () => { if (photoPreview) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
 
   if (!isOpen) return null;
+
+  const choosePhoto = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setErrors((x) => ({ ...x, photo: 'Escolha um arquivo de imagem.' }));
+      return;
+    }
+    if (file.size > MAX_PHOTO_MB * 1024 * 1024) {
+      setErrors((x) => ({ ...x, photo: `A foto precisa ter até ${MAX_PHOTO_MB} MB.` }));
+      return;
+    }
+    setErrors((x) => ({ ...x, photo: undefined }));
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+  const shownPhoto = photoPreview || initialPet?.imageUrl || null;
 
   // Corrigir o campo apaga o erro dele na hora — sem esperar novo envio.
   const clearError = (k) => setErrors((e) => (e[k] ? { ...e, [k]: undefined } : e));
@@ -127,7 +175,7 @@ export default function NewPetModal({ isOpen, onClose, onCreate, onCreated }) {
     setSaving(true);
     setSubmitError('');
     try {
-      const id = await onCreate({
+      const result = await onSubmit({
         name: form.name.trim(),
         species: form.species,
         gender: form.gender,
@@ -140,15 +188,17 @@ export default function NewPetModal({ isOpen, onClose, onCreate, onCreated }) {
         weight: form.weight !== '' ? Number(form.weight) : null,
         allergies: form.allergies.split(',').map((a) => a.trim()).filter(Boolean),
         chronicConditions: form.chronicConditions.trim(),
-      });
-      onCreated?.(id);
+      }, photoFile);
+      onDone?.(result);
     } catch (err) {
-      setSubmitError(err?.message || 'Não foi possível cadastrar o pet. Tente novamente.');
+      setSubmitError(err?.message || `Não foi possível ${isEdit ? 'salvar' : 'cadastrar'} o pet. Tente novamente.`);
       setSaving(false);
     }
   };
 
-  return (
+  // Portal no body: na edição o modal abre de dentro do card do prontuário,
+  // que tem animação com transform (prenderia o `position: fixed`).
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sf overflow-y-auto"
       style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
@@ -157,13 +207,13 @@ export default function NewPetModal({ isOpen, onClose, onCreate, onCreated }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="new-pet-title"
+        aria-labelledby="pet-form-title"
         className="fade-in-up rounded-[20px] w-full max-w-[520px] my-8 overflow-hidden"
         style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--separator)' }}>
-          <h2 id="new-pet-title" className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>Cadastrar pet</h2>
+          <h2 id="pet-form-title" className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>{isEdit ? 'Editar pet' : 'Cadastrar pet'}</h2>
           <button onClick={onClose} aria-label="Fechar" className="rounded-[8px] p-1.5 transition-colors duration-150"
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-secondary)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
@@ -172,6 +222,25 @@ export default function NewPetModal({ isOpen, onClose, onCreate, onCreated }) {
         </div>
 
         <form onSubmit={handleSubmit} noValidate className="px-6 py-5 flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-[18px] overflow-hidden flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(0,122,255,0.1)' }}>
+              {shownPhoto
+                ? <img src={shownPhoto} alt="Foto do pet" className="w-full h-full object-cover" />
+                : <Camera size={22} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />}
+            </div>
+            <div>
+              <label className="inline-block px-3 py-1.5 rounded-[9px] font-medium cursor-pointer"
+                style={{ fontSize: '14px', color: 'var(--apple-blue)', background: 'var(--surface-secondary)' }}>
+                {shownPhoto ? 'Trocar foto' : 'Adicionar foto'}
+                <input type="file" accept="image/*" onChange={choosePhoto} className="sr-only" aria-label="Foto do pet" />
+              </label>
+              <p className="mt-1" style={{ fontSize: '12px', color: errors.photo ? 'var(--apple-red)' : 'var(--text-tertiary)' }}>
+                {errors.photo || 'Opcional. A localização gravada na foto é removida.'}
+              </p>
+            </div>
+          </div>
+
           <Field label="Nome" error={errors.name}>
             <input type="text" value={form.name} onChange={set('name')} maxLength={40}
               style={inputStyle} placeholder="Ex.: Mel" autoFocus />
@@ -241,11 +310,12 @@ export default function NewPetModal({ isOpen, onClose, onCreate, onCreated }) {
             <button type="submit" disabled={saving}
               className="px-5 py-2.5 rounded-[10px] font-medium transition-opacity duration-150"
               style={{ fontSize: '15px', color: '#fff', background: 'var(--apple-blue)', opacity: saving ? 0.5 : 1, cursor: saving ? 'default' : 'pointer' }}>
-              {saving ? 'Salvando...' : 'Cadastrar'}
+              {saving ? 'Salvando...' : (isEdit ? 'Salvar' : 'Cadastrar')}
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

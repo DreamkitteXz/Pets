@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { toDate } from '../../../utils/dates';
+import { toDate, toDateInput, fromDateInput } from '../../../utils/dates';
 
+// Data local no formato do campo (toISOString usaria UTC e voltaria um dia).
 const toInputDate = (v) => {
   const d = toDate(v);
-  return d ? d.toISOString().slice(0, 10) : '';
+  return d ? toDateInput(d) : '';
 };
 
 // Edição de campos clínicos da vacina. Só deve ser aberta enquanto o registro
@@ -43,9 +44,9 @@ const VaccineEditModal = ({ isOpen, onClose, vaccine, onSave }) => {
         manufacturer: formData.manufacturer,
         batchNumber: formData.batchNumber,
         notes: formData.notes,
-        ...(formData.administrationDate ? { administrationDate: new Date(formData.administrationDate) } : {}),
-        ...(formData.expirationDate ? { expirationDate: new Date(formData.expirationDate) } : {}),
-        ...(formData.nextDueDate ? { nextDueDate: new Date(formData.nextDueDate) } : {}),
+        ...(formData.administrationDate ? { administrationDate: fromDateInput(formData.administrationDate) } : {}),
+        ...(formData.expirationDate ? { expirationDate: fromDateInput(formData.expirationDate) } : {}),
+        ...(formData.nextDueDate ? { nextDueDate: fromDateInput(formData.nextDueDate) } : {}),
       });
       onClose();
     } finally {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, query, where, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import { petService } from '../services/firebase/petService';
 
 /**
  * Pets owned by the logged-in tutor (pets where ownerId == uid).
@@ -30,14 +31,16 @@ export function useTutorPets() {
   // Cadastro feito pelo próprio tutor. A rule exige createdBy == ownerId == uid.
   // Nasce sem veterinário: o vínculo (`veterinarians`) acontece depois, quando o
   // tutor associar um veterinário ao pet.
-  const createPet = useCallback(async (data) => {
+  const createPet = useCallback(async (data, photoFile) => {
     if (!user?.uid) throw new Error('Sessão expirada. Faça login novamente.');
     const { birthDate, weight, allergies, ...rest } = data;
+    const imageUrl = photoFile ? await petService.uploadPetPhoto(user.uid, photoFile) : null;
     const ref = await addDoc(collection(db, 'pets'), {
       ...rest,
       birthDate: Timestamp.fromDate(birthDate),
       ...(weight ? { weight } : {}),
       ...(allergies?.length ? { allergies } : {}),
+      ...(imageUrl ? { imageUrl } : {}),
       ownerId: user.uid,
       ownerName: userProfile?.name || '',
       veterinarians: [],

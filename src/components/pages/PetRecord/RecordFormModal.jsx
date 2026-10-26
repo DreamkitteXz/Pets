@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { toDateInput } from '../../../utils/dates';
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => toDateInput();
 
 const Field = ({ label, children }) => (
   <div>

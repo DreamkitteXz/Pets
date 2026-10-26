@@ -9,12 +9,13 @@ import { db } from '../config/firebase';
  * ativos com CRMV, e só name/crmv/specialties/yearsOfExperience — nunca cpf,
  * e-mail, telefone ou endereço. `users` continua fechado para o tutor.
  */
-export function useVetDirectory() {
+export function useVetDirectory(enabled = true) {
   const [vets, setVets] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!enabled) return undefined;
     let cancelled = false;
     (async () => {
       try {
@@ -30,7 +31,7 @@ export function useVetDirectory() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [enabled]);
 
   return { vets, loading, error };
 }

@@ -27,3 +27,15 @@ export const toMillis = (value) => {
   const d = toDate(value);
   return d ? d.getTime() : 0;
 };
+
+// ── <input type="date"> ────────────────────────────────────────────────────
+// O campo trabalha com 'yyyy-mm-dd' SEM fuso. `new Date('2026-10-26')` lê como
+// meia-noite UTC — no Brasil (UTC-3) isso é 21h do dia anterior, e a data
+// gravada/exibida voltava um dia. Converta sempre por estas duas funções.
+
+// Data local → 'yyyy-mm-dd' (padrão "hoje" dos campos; toISOString seria UTC).
+export const toDateInput = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+// 'yyyy-mm-dd' → Date ao meio-dia local (margem de 12h para qualquer fuso do Brasil).
+export const fromDateInput = (value) => (value ? new Date(`${value}T12:00:00`) : null);

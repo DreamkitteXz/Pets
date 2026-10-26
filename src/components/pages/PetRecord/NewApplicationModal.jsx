@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, MapPin, AlertCircle } from 'lucide-react';
 import { vaccineService } from '../../../services/firebase/vaccineService';
 import { useCatalog } from '../../../hooks/useCatalog';
+import { useAuth } from '../../../context/AuthContext';
+import { useVetDirectory } from '../../../hooks/useVetDirectory';
+import { toDateInput, fromDateInput } from '../../../utils/dates';
 
 const DAY = 24 * 60 * 60 * 1000;
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => toDateInput();
 
 const inputStyle = {
   width: '100%',
@@ -37,12 +40,17 @@ const getCurrentLocation = () => new Promise((resolve) => {
 });
 
 /**
- * Cadastro de aplicação feito pelo próprio veterinário.
- * O registro nasce com status 'approved' (auto-validado pelo CRMV de quem aplicou).
- * `type` permite reuso futuro (vermífugo) — por ora, 'vacina'.
+ * Registro de aplicação (vacina ou vermífugo).
+ *  • mode 'vet'   — o veterinário que aplicou registra; nasce 'approved' (CF, CRMV dele).
+ *  • mode 'tutor' — o tutor registra uma aplicação feita fora; nasce 'pending' e vai
+ *    para um dos veterinários vinculados ao pet validar.
  */
-export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vacina', onCreated }) {
+export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vacina', mode = 'vet', onCreated }) {
+  const isTutorMode = mode === 'tutor';
   const { items: catalog } = useCatalog(type);
+  const { user, userProfile } = useAuth();
+  const { vets: directory } = useVetDirectory(isTutorMode && isOpen);
+  const [selectedVetId, setSelectedVetId] = useState('');
   const [form, setForm] = useState({});
   const [selectedCatalogId, setSelectedCatalogId] = useState('');
   const [labelFile, setLabelFile] = useState(null);
@@ -61,17 +69,30 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
       setLabelFile(null);
       setAttachLocation(false);
       setSelectedCatalogId('');
+      setSelectedVetId('');
       setError('');
+      // O modal continua montado depois de fechar; sem isto, o segundo registro
+      // na mesma tela já abria travado em "Salvando..." (o sucesso não zera `saving`).
+      setSaving(false);
     }
   }, [isOpen]);
+
+  // Veterinários que atendem este pet (só eles podem validar a submissão do tutor).
+  const linkedVets = useMemo(() => (isTutorMode
+    ? directory.filter((v) => (pet?.veterinarians || []).includes(v.uid))
+    : []), [isTutorMode, directory, pet]);
+  // Com um único vet vinculado, já vem escolhido.
+  useEffect(() => {
+    if (isTutorMode && isOpen && linkedVets.length === 1 && !selectedVetId) setSelectedVetId(linkedVets[0].uid);
+  }, [isTutorMode, isOpen, linkedVets, selectedVetId]);
 
   // Recalcula a próxima dose ao mudar a data de aplicação (se item do catálogo escolhido).
   useEffect(() => {
     if (!isOpen || !selectedCatalogId) return;
     const item = catalog.find(c => c.id === selectedCatalogId);
     if (!item?.reforcoDias || !form.administrationDate) return;
-    const next = new Date(new Date(form.administrationDate).getTime() + item.reforcoDias * DAY);
-    setForm(f => ({ ...f, nextDueDate: next.toISOString().slice(0, 10) }));
+    const next = new Date(fromDateInput(form.administrationDate).getTime() + item.reforcoDias * DAY);
+    setForm(f => ({ ...f, nextDueDate: toDateInput(next) }));
   }, [form.administrationDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null;
@@ -82,7 +103,7 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
   const namePlaceholder = isDeworming ? 'Ex.: Milbemax' : 'Ex.: V10 Polivalente';
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
-  const valid = (form.name || '').trim() && form.administrationDate;
+  const valid = (form.name || '').trim() && form.administrationDate && (!isTutorMode || selectedVetId);
 
   // Item do catálogo selecionado (para pré-preenchimento e validação por espécie).
   const chosen = catalog.find(c => c.id === selectedCatalogId) || null;
@@ -94,9 +115,9 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
     const item = catalog.find(c => c.id === id);
     if (!item) return;
     setForm(f => {
-      const adm = f.administrationDate ? new Date(f.administrationDate) : new Date();
+      const adm = f.administrationDate ? fromDateInput(f.administrationDate) : new Date();
       const next = item.reforcoDias ? new Date(adm.getTime() + item.reforcoDias * DAY) : null;
-      return { ...f, name: item.name, manufacturer: item.manufacturer || '', nextDueDate: next ? next.toISOString().slice(0, 10) : f.nextDueDate };
+      return { ...f, name: item.name, manufacturer: item.manufacturer || '', nextDueDate: next ? toDateInput(next) : f.nextDueDate };
     });
   };
 
@@ -117,9 +138,9 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
         ...(isDeworming ? { dosage: (form.dosage || '').trim() } : { dose: (form.dose || '').trim() }),
         route: form.route || '',
         applicationSite: (form.applicationSite || '').trim(),
-        administrationDate: form.administrationDate ? new Date(form.administrationDate) : new Date(),
-        expirationDate: form.expirationDate ? new Date(form.expirationDate) : null,
-        nextDueDate: form.nextDueDate ? new Date(form.nextDueDate) : null,
+        administrationDate: fromDateInput(form.administrationDate) || new Date(),
+        expirationDate: fromDateInput(form.expirationDate),
+        nextDueDate: fromDateInput(form.nextDueDate),
         // Snapshot clínico (ponto-no-tempo)
         petId: pet.id,
         petName: pet.name || '',
@@ -135,7 +156,18 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
         ...(location ? { location } : {}),
       };
 
-      if (isDeworming) await vaccineService.createDeworming(data, labelFile);
+      if (isTutorMode) {
+        const vet = linkedVets.find((v) => v.uid === selectedVetId);
+        await vaccineService.submitByTutor(isDeworming ? 'deworming' : 'vaccines', {
+          ...data,
+          ownerId: user.uid,
+          ownerName: userProfile?.name || pet.ownerName || '',
+          veterinarianId: selectedVetId,
+          veterinarianName: vet?.name || '',
+          crmvNumber: vet?.crmv || '',
+          createdBy: user.uid,
+        }, labelFile);
+      } else if (isDeworming) await vaccineService.createDeworming(data, labelFile);
       else await vaccineService.createVaccine(data, labelFile);
       if (onCreated) await onCreated();
       onClose();
@@ -163,7 +195,7 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
               {title}
             </h2>
             <p className="mt-0.5" style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
-              {pet?.name} · será registrado como aprovado (seu CRMV)
+              {pet?.name} · {isTutorMode ? 'vai para validação do veterinário' : 'será registrado como aprovado (seu CRMV)'}
             </p>
           </div>
           <button onClick={onClose} className="rounded-[8px] p-1.5 transition-colors duration-150"
@@ -175,6 +207,23 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
 
         {/* Body */}
         <form onSubmit={handleSubmit} className="px-7 py-6 flex flex-col gap-4">
+          {isTutorMode && (
+            linkedVets.length === 0 ? (
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-[10px]"
+                style={{ background: 'rgba(255,149,0,0.10)', color: 'var(--apple-orange)', fontSize: '13px' }}>
+                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                Vincule um veterinário a {pet?.name} antes de registrar — é ele quem valida o registro.
+              </div>
+            ) : (
+              <Field label="Veterinário que vai validar" required>
+                <select value={selectedVetId} onChange={(e) => setSelectedVetId(e.target.value)} style={{ ...inputStyle, appearance: 'auto' }}>
+                  <option value="">— Escolha —</option>
+                  {linkedVets.map((v) => <option key={v.uid} value={v.uid}>{v.name} · {v.crmv}</option>)}
+                </select>
+              </Field>
+            )
+          )}
+
           {catalog.length > 0 && (
             <Field label="Catálogo">
               <select value={selectedCatalogId} onChange={e => chooseCatalog(e.target.value)} style={{ ...inputStyle, appearance: 'auto' }}>
@@ -289,7 +338,7 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
             <button type="submit" disabled={!valid || saving}
               className="px-5 py-2.5 rounded-[10px] font-medium transition-opacity duration-150"
               style={{ fontSize: '15px', color: '#fff', background: 'var(--apple-blue)', opacity: (!valid || saving) ? 0.5 : 1, cursor: (!valid || saving) ? 'default' : 'pointer' }}>
-              {saving ? 'Salvando...' : 'Registrar aplicação'}
+              {saving ? 'Salvando...' : (isTutorMode ? 'Enviar para validação' : 'Registrar aplicação')}
             </button>
           </div>
         </form>

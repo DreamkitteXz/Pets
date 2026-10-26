@@ -33,7 +33,7 @@ const TutorHome = () => {
     const d = toDate(v.nextDueDate);
     return d && d >= now && d <= in30;
   }).length;
-  const pendingApprovals = vaccines.filter(v => !v.tutorAcknowledged).length;
+  const pendingApprovals = vaccines.filter(v => v.needsAck).length;
 
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
@@ -52,7 +52,7 @@ const TutorHome = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <KpiCard label="Meus pets" value={pets.length} accentColor="var(--apple-blue)" icon={PawPrint} delay={50} />
-        <KpiCard label="Vacinas próximas (30d)" value={upcomingVaccines} accentColor="var(--apple-orange)" icon={Syringe} delay={100} />
+        <KpiCard label="Doses próximas (30d)" value={upcomingVaccines} accentColor="var(--apple-orange)" icon={Syringe} delay={100} />
         <KpiCard label="Aguardando sua ciência" value={pendingApprovals} accentColor="var(--apple-indigo)" icon={ClipboardCheck} delay={150} />
       </div>
 
@@ -85,9 +85,11 @@ const TutorHome = () => {
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.04)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-[12px] flex items-center justify-center font-semibold text-[15px] flex-shrink-0"
+                <div className="w-10 h-10 rounded-[12px] overflow-hidden flex items-center justify-center font-semibold text-[15px] flex-shrink-0"
                   style={{ background: 'rgba(0,122,255,0.1)', color: 'var(--apple-blue)' }}>
-                  {pet.name?.[0]?.toUpperCase() || '?'}
+                  {pet.imageUrl
+                    ? <img src={pet.imageUrl} alt="" className="w-full h-full object-cover" />
+                    : (pet.name?.[0]?.toUpperCase() || '?')}
                 </div>
                 <div className="text-left">
                   <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{pet.name}</div>

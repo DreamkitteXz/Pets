@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
-import { toDate } from '../utils/dates';
+import { toDate, fromDateInput } from '../utils/dates';
 
 /**
  * Aggregates a single pet's clinical record:
@@ -67,7 +67,7 @@ export function usePetRecord(petId) {
   const addConsulta = useCallback(async ({ date, motivo, diagnostico, observacoes }) => {
     const uid = user?.uid || '';
     await addDoc(collection(db, 'pets', petId, 'consultas'), {
-      date: date ? new Date(date) : serverTimestamp(),
+      date: fromDateInput(date) || serverTimestamp(),
       motivo: motivo || '',
       diagnostico: diagnostico || '',
       observacoes: observacoes || '',
@@ -86,7 +86,7 @@ export function usePetRecord(petId) {
     const uid = user?.uid || '';
     await addDoc(collection(db, 'pets', petId, 'pesos'), {
       weight: Number(weight),
-      date: date ? new Date(date) : serverTimestamp(),
+      date: fromDateInput(date) || serverTimestamp(),
       notes: notes || '',
       registeredBy: uid,
       // Trilha de auditoria
