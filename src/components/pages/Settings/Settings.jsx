@@ -90,7 +90,7 @@ const TABS = [
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const { userData, loading, updateUserData } = useUser();
-  const { setDark } = useTheme();
+  const { isDark, setDark } = useTheme();
   // Papel vem do perfil e não é editável aqui: a rule só deixa defini-lo no
   // onboarding (trocar de tutor para vet sem verificação seria brecha).
   const role = userData?.role || 'veterinarian';
@@ -98,7 +98,7 @@ const Settings = () => {
     name: '', email: '', phone: '', cpf: '',
     street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '',
     crmv: '', specialties: [], yearsOfExperience: 0,
-    notifications: false, darkMode: false, language: 'pt-BR', twoFactorAuth: false,
+    notifications: false, language: 'pt-BR', twoFactorAuth: false,
   });
 
   useEffect(() => {
@@ -110,7 +110,7 @@ const Settings = () => {
         city: userData.address?.city || '', state: userData.address?.state || '', zipCode: userData.address?.zipCode || '',
         crmv: userData.crmv || '', specialties: userData.specialties || [],
         yearsOfExperience: userData.yearsOfExperience || 0,
-        notifications: userData.notifications || false, darkMode: userData.darkMode || false,
+        notifications: userData.notifications || false,
         language: userData.language || 'pt-BR', twoFactorAuth: userData.twoFactorAuth || false,
       });
     }
@@ -119,9 +119,9 @@ const Settings = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const newValue = type === 'checkbox' ? checked : value;
+    // Tema aplica e grava na hora (ThemeContext); não passa pelo "Salvar".
+    if (name === 'darkMode') { setDark(newValue); return; }
     setFormData(prev => ({ ...prev, [name]: newValue }));
-    // Apply dark mode instantly — no need to wait for Firestore save
-    if (name === 'darkMode') setDark(newValue);
   };
 
   const handleSubmit = async (e) => {
@@ -337,7 +337,7 @@ const Settings = () => {
               <div className="space-y-4">
                 <div className="rounded-[16px] overflow-hidden" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                   <ToggleRow label="Notificações" sublabel="Receba alertas de vacinação e consultas" name="notifications" checked={formData.notifications} onChange={handleChange} />
-                  <ToggleRow label="Modo Escuro" sublabel="Aparência escura para a interface" name="darkMode" checked={formData.darkMode} onChange={handleChange} />
+                  <ToggleRow label="Modo Escuro" sublabel="Aparência escura para a interface" name="darkMode" checked={isDark} onChange={handleChange} />
                   <ToggleRow label="Autenticação em 2 Fatores" sublabel="Segurança adicional no login" name="twoFactorAuth" checked={formData.twoFactorAuth} onChange={handleChange} isLast />
                 </div>
 

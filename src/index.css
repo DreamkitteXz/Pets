@@ -531,36 +531,8 @@
 	--separator: rgba(60, 60, 67, 0.12);
 }
 
-/* ── Dark mode — system preference (baseline) ───────────────────────────── */
-
-@media (prefers-color-scheme: dark) {
-	:root {
-		--header-bg:           rgba(28, 28, 30, 0.88);
-		--header-search-bg:    rgba(118, 118, 128, 0.24);
-		--header-btn-hover-bg: rgba(118, 118, 128, 0.24);
-
-		--apple-blue:   #0A84FF;
-		--apple-green:  #30D158;
-		--apple-red:    #FF453A;
-		--apple-orange: #FF9F0A;
-		--apple-yellow: #FFD60A;
-		--apple-purple: #BF5AF2;
-
-		--surface-primary:           #1C1C1E;
-		--surface-secondary:         #2C2C2E;
-		--surface-grouped:           #000000;
-		--surface-grouped-secondary: #1C1C1E;
-		--surface-elevated:          #1C1C1E;
-
-		--text-primary:   rgba(255, 255, 255, 0.92);
-		--text-secondary: rgba(255, 255, 255, 0.55);
-		--text-tertiary:  rgba(255, 255, 255, 0.30);
-
-		--separator: rgba(84, 84, 88, 0.55);
-	}
-}
-
-/* Explicit .dark class — overrides @media so user preference wins */
+/* Dark mode — só com a classe .dark (preferência salva do usuário). O padrão
+   é claro: o tema NÃO segue o modo escuro do sistema. */
 html.dark {
 	--header-bg:           rgba(28, 28, 30, 0.88);
 	--header-search-bg:    rgba(118, 118, 128, 0.24);

@@ -1,17 +1,21 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
 import { useAuth } from './AuthContext';
 
 const ThemeContext = createContext({ isDark: false, setDark: () => {} });
 
 export const useTheme = () => useContext(ThemeContext);
 
+const STORAGE_KEY = 'petto-theme';
+
 /**
  * ThemeProvider — manages dark/light mode across the app.
  *
- * Priority (highest → lowest):
- *   1. User's stored preference in Firestore (userProfile.darkMode)
- *   2. Value persisted in localStorage (for instant load before Firestore resolves)
- *   3. OS / system preference via matchMedia
+ * O tema padrão é CLARO (não segue o modo escuro do sistema). A fonte da
+ * verdade é `userProfile.darkMode` no Firestore: só fica escuro com
+ * `darkMode === true`. O localStorage é apenas cache para não piscar no
+ * carregamento, antes do perfil chegar.
  *
  * Applies the `dark` or `light` class to <html> so CSS variables switch,
  * and so Tailwind's darkMode: 'class' utilities work.
@@ -19,57 +23,42 @@ export const useTheme = () => useContext(ThemeContext);
  * Must be rendered *inside* AuthProvider so it can access userProfile.
  */
 export const ThemeProvider = ({ children }) => {
-  const { userProfile } = useAuth();
+  const { user, userProfile, loading } = useAuth();
 
   const [isDark, setIsDarkState] = useState(() => {
-    // Read from localStorage on initial render (before Firestore loads)
-    const stored = localStorage.getItem('petto-theme');
-    if (stored === 'dark') return true;
-    if (stored === 'light') return false;
-    // Fall back to system preference
-    return typeof window !== 'undefined'
-      ? window.matchMedia('(prefers-color-scheme: dark)').matches
-      : false;
+    try { return localStorage.getItem(STORAGE_KEY) === 'dark'; } catch { return false; }
   });
 
-  // Sync from Firestore userProfile when it becomes available
+  // Perfil carregado manda; sem login (ou conta sem preferência) é claro.
   useEffect(() => {
-    if (userProfile && typeof userProfile.darkMode === 'boolean') {
-      setIsDarkState(userProfile.darkMode);
-    }
-  }, [userProfile?.darkMode]);
+    if (loading) return;
+    setIsDarkState(Boolean(user && userProfile?.darkMode === true));
+  }, [loading, user, userProfile?.darkMode]);
 
   // Apply class to <html> and persist whenever isDark changes
   useEffect(() => {
     const html = document.documentElement;
-    if (isDark) {
-      html.classList.add('dark');
-      html.classList.remove('light');
-    } else {
-      html.classList.remove('dark');
-      html.classList.add('light');
-    }
-    localStorage.setItem('petto-theme', isDark ? 'dark' : 'light');
+    html.classList.toggle('dark', isDark);
+    html.classList.toggle('light', !isDark);
+    try { localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light'); } catch { /* sem storage */ }
   }, [isDark]);
 
-  // Also react to OS-level changes while the user has no stored preference
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e) => {
-      // Only follow system if the user hasn't set a personal preference
-      const stored = localStorage.getItem('petto-theme');
-      if (!stored || stored === 'system') setIsDarkState(e.matches);
-    };
-    mq.addEventListener('change', handleChange);
-    return () => mq.removeEventListener('change', handleChange);
-  }, []);
-
   /**
-   * setDark(bool) — called by Settings toggle for instant feedback.
-   * The Settings form still saves to Firestore on submit; this gives
-   * immediate visual response without waiting for the round-trip.
+   * setDark(bool) — chamado pelo toggle em Configurações. Aplica na hora e já
+   * grava no perfil, para o toggle e o tema nunca ficarem divergentes.
    */
-  const setDark = (value) => setIsDarkState(Boolean(value));
+  const setDark = async (value) => {
+    const next = Boolean(value);
+    setIsDarkState(next);
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    try {
+      await updateDoc(doc(db, 'users', uid), { darkMode: next });
+    } catch {
+      // Sem salvar, voltar ao valor anterior mantém tela e toggle coerentes.
+      setIsDarkState(!next);
+    }
+  };
 
   return (
     <ThemeContext.Provider value={{ isDark, setDark }}>
