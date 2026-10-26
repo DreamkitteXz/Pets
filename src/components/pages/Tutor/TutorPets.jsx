@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, PawPrint, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Search, PawPrint, ChevronRight, Plus } from 'lucide-react';
 import { useTutorPets } from '../../../hooks/useTutorPets';
+import NewPetModal from './NewPetModal';
 import { toDate } from '../../../utils/dates';
 
 const getAge = (birthDate) => {
@@ -15,8 +16,16 @@ const getAge = (birthDate) => {
 
 const TutorPets = () => {
   const navigate = useNavigate();
-  const { pets, loading, error } = useTutorPets();
+  const location = useLocation();
+  const { pets, loading, error, createPet } = useTutorPets();
   const [searchTerm, setSearchTerm] = useState('');
+  // O atalho do Início chega com { openNewPet: true } para abrir o cadastro direto.
+  const [newPetOpen, setNewPetOpen] = useState(Boolean(location.state?.openNewPet));
+
+  // Consome o pedido: sem isso, recarregar a página reabriria o cadastro.
+  useEffect(() => {
+    if (location.state?.openNewPet) navigate(location.pathname, { replace: true, state: null });
+  }, [location, navigate]);
 
   const filtered = pets.filter(p => {
     if (!searchTerm) return true;
@@ -26,13 +35,22 @@ const TutorPets = () => {
 
   return (
     <div className="min-h-full font-sf">
-      <div className="mb-6 fade-in-up">
-        <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Meus Pets
-        </h1>
-        <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-          {pets.length} pet{pets.length !== 1 ? 's' : ''} vinculado{pets.length !== 1 ? 's' : ''} à sua conta
-        </p>
+      <div className="mb-6 fade-in-up flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            Meus Pets
+          </h1>
+          <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+            {pets.length} pet{pets.length !== 1 ? 's' : ''} cadastrado{pets.length !== 1 ? 's' : ''} na sua conta
+          </p>
+        </div>
+        {pets.length > 0 && (
+          <button onClick={() => setNewPetOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-[10px] font-medium transition-opacity duration-150 hover:opacity-90"
+            style={{ fontSize: '15px', color: '#fff', background: 'var(--apple-blue)' }}>
+            <Plus size={16} strokeWidth={2.5} /> Cadastrar pet
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -61,7 +79,12 @@ const TutorPets = () => {
                 <PawPrint size={28} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
               </div>
               <p className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>Nenhum pet ainda</p>
-              <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Quando um veterinário cadastrar seus pets, eles aparecerão aqui.</p>
+              <p className="text-center px-6" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Cadastre seu pet para guardar a carteira de vacinação e o histórico de saúde dele.</p>
+              <button onClick={() => setNewPetOpen(true)}
+                className="mt-2 flex items-center gap-1.5 px-4 py-2.5 rounded-[10px] font-medium transition-opacity duration-150 hover:opacity-90"
+                style={{ fontSize: '15px', color: '#fff', background: 'var(--apple-blue)' }}>
+                <Plus size={16} strokeWidth={2.5} /> Cadastrar pet
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -88,6 +111,13 @@ const TutorPets = () => {
           )}
         </>
       )}
+
+      <NewPetModal
+        isOpen={newPetOpen}
+        onClose={() => setNewPetOpen(false)}
+        onCreate={createPet}
+        onCreated={(id) => navigate(`/meus-pets/${id}`)}
+      />
     </div>
   );
 };

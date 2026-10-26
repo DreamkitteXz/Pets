@@ -11,6 +11,7 @@ import { toDate } from '../../../utils/dates';
 import WeightChart from './WeightChart';
 import RecordFormModal from './RecordFormModal';
 import NewApplicationModal from './NewApplicationModal';
+import PetVetsCard from '../Tutor/PetVetsCard';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (v) => {
@@ -162,6 +163,9 @@ const PetRecord = () => {
           <InfoItem label="Condições crônicas" value={pet.chronicConditions} />
         </div>
       </div>
+
+      {/* ── Veterinários do pet (tutor escolhe quem atende) ─────────────── */}
+      {isTutor && <PetVetsCard pet={pet} onChanged={refresh} />}
 
       {/* ── Segmented tabs ───────────────────────────────────────────────── */}
       <div className="fade-in-up flex gap-1 p-1 rounded-[12px] mb-5 overflow-x-auto"

@@ -71,7 +71,11 @@ const TutorHome = () => {
         ) : pets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
             <PawPrint size={26} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Nenhum pet vinculado à sua conta ainda.</p>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Você ainda não cadastrou nenhum pet.</p>
+            <button onClick={() => navigate('/meus-pets', { state: { openNewPet: true } })}
+              className="mt-1 font-medium" style={{ fontSize: '14px', color: 'var(--apple-blue)' }}>
+              Cadastrar meu primeiro pet →
+            </button>
           </div>
         ) : (
           pets.map((pet, i) => (
