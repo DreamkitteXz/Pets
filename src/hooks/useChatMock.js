@@ -19,7 +19,7 @@ export function useChatMock() {
 
   const selectConversation = useCallback((id) => {
     setActiveConversaId(id);
-    chatMock.markRead(id);
+    if (id) chatMock.markRead(id); // null = fechar a conversa (voltar no celular)
   }, []);
 
   const sendMessage = useCallback((texto) => {

@@ -36,13 +36,13 @@ export default function MessageThread({ messages, loading, conversation }) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2.5">
+    <div className="flex-1 min-h-0 overflow-y-auto px-3 md:px-5 py-4 flex flex-col gap-2.5">
       {messages.map((msg) => {
         const isMine = msg.remetente === user?.uid;
         return (
           <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
             <div
-              className="max-w-[72%] px-4 py-2.5 rounded-[18px]"
+              className="max-w-[85%] md:max-w-[72%] px-3.5 md:px-4 py-2.5 rounded-[18px]"
               style={{
                 background: isMine ? 'var(--apple-blue)' : 'var(--surface-secondary)',
                 borderBottomRightRadius: isMine ? '4px' : '18px',

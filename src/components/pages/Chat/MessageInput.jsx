@@ -19,7 +19,7 @@ export default function MessageInput({ onSend, disabled }) {
 
   return (
     <div
-      className="px-4 py-3 flex items-end gap-2"
+      className="px-3 md:px-4 py-3 flex items-end gap-2 flex-shrink-0"
       style={{ borderTop: '1px solid var(--separator)' }}
     >
       <div
@@ -35,7 +35,7 @@ export default function MessageInput({ onSend, disabled }) {
           disabled={disabled}
           className="w-full bg-transparent border-none outline-none resize-none"
           style={{
-            fontSize: '15px',
+            fontSize: '16px', // < 16px faz o iPhone dar zoom ao focar o campo
             color: 'var(--text-primary)',
             maxHeight: '120px',
             lineHeight: '1.4',
@@ -45,7 +45,8 @@ export default function MessageInput({ onSend, disabled }) {
       <button
         onClick={handleSend}
         disabled={disabled || !text.trim()}
-        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-opacity duration-150"
+        aria-label="Enviar mensagem"
+        className="w-10 h-10 md:w-9 md:h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-opacity duration-150"
         style={{
           background: 'var(--apple-blue)',
           opacity: disabled || !text.trim() ? 0.4 : 1,
