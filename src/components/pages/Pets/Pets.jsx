@@ -67,7 +67,7 @@ const PetsPage = () => {
   {
     const now = new Date();
     (vetVaccines || []).forEach(v => {
-      if (v.active === false) return;
+      if (v.active === false || v.kind !== 'vaccines') return; // o hook também traz vermífugos
       const due = toDate(v.nextDueDate);
       if (!due || due <= now) return;
       const prev = nextVaccineByPet[v.petId];

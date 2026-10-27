@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, CheckCircle, Clock, XCircle, ClipboardList, Check, X } from 'lucide-react';
+import { Search, Filter, CheckCircle, Clock, XCircle, ClipboardList, Check, X, Syringe, Bug } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../../config/firebase';
 import VaccineDetailsModal from './VaccineDetailsModal';
@@ -33,6 +33,17 @@ const StatusBadge = ({ status }) => {
 
 const formatDate = (date) => formatDateBR(date);
 
+// Vacina ou vermífugo — a lista e a validação cobrem as duas coleções.
+const KindTag = ({ kind }) => {
+  const isDew = kind === 'deworming';
+  const Icon = isDew ? Bug : Syringe;
+  return (
+    <span className="inline-flex items-center gap-1" style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+      <Icon size={12} strokeWidth={1.75} /> {isDew ? 'Vermífugo' : 'Vacina'}
+    </span>
+  );
+};
+
 // ── KPI stat card ──────────────────────────────────────────────────────────
 const KpiCard = ({ label, value, accentColor, icon: Icon, delay }) => (
   <div
@@ -54,6 +65,7 @@ const VaccinePage = () => {
   const { vaccines, loading, refresh } = useVetVaccines();
   const { user } = useAuth();
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterKind, setFilterKind] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVaccine, setSelectedVaccine] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,20 +77,21 @@ const VaccinePage = () => {
 
   const handleSaveEdit = async (payload) => {
     if (!selectedVaccine) return;
-    await vaccineService.updateVaccine(selectedVaccine.id, { ...payload, updatedBy: user?.uid });
+    await vaccineService.updateApplication(selectedVaccine.kind || 'vaccines', selectedVaccine.id, { ...payload, updatedBy: user?.uid });
     await refresh();
   };
 
   const handleDelete = async (vaccineId) => {
-    await vaccineService.deleteVaccine(vaccineId, user?.uid);
+    await vaccineService.softDelete(selectedVaccine?.kind || 'vaccines', vaccineId, user?.uid);
     await refresh();
   };
 
   // Validação em 1 clique — usa a MESMA Cloud Function (status só via CF).
-  const handleApprove = async (vaccineId) => {
+  const handleApprove = async (vaccine) => {
+    const vaccineId = vaccine.id;
     setBusyId(vaccineId);
     try {
-      await updateVaccineStatusFn({ vaccineId, isApproved: true, notes: '', rejectionReason: '' });
+      await updateVaccineStatusFn({ vaccineId, collection: vaccine.kind || 'vaccines', isApproved: true, notes: '', rejectionReason: '' });
       await refresh();
     } catch (err) {
       alert(err?.message || 'Erro ao aprovar. Tente novamente.');
@@ -91,7 +104,7 @@ const VaccinePage = () => {
     if (!rejectTarget || !rejectReason.trim()) return;
     setBusyId(rejectTarget.id);
     try {
-      await updateVaccineStatusFn({ vaccineId: rejectTarget.id, isApproved: false, notes: '', rejectionReason: rejectReason.trim() });
+      await updateVaccineStatusFn({ vaccineId: rejectTarget.id, collection: rejectTarget.kind || 'vaccines', isApproved: false, notes: '', rejectionReason: rejectReason.trim() });
       setRejectTarget(null);
       setRejectReason('');
       await refresh();
@@ -104,6 +117,7 @@ const VaccinePage = () => {
 
   const filteredVaccines = vaccines
     .filter(v => filterStatus === 'all' || normalizeStatus(v.status) === filterStatus)
+    .filter(v => filterKind === 'all' || v.kind === filterKind)
     .filter(v => {
       if (!searchTerm) return true;
       const q = searchTerm.toLowerCase();
@@ -119,7 +133,7 @@ const VaccinePage = () => {
       {normalizeStatus(vaccine.status) === 'pending' && (
         <>
           <button
-            onClick={() => handleApprove(vaccine.id)}
+            onClick={() => handleApprove(vaccine)}
             disabled={busyId === vaccine.id}
             className="inline-flex items-center gap-1 font-medium transition-opacity duration-100"
             style={{ fontSize: '14px', color: 'var(--apple-green)', opacity: busyId === vaccine.id ? 0.5 : 1 }}
@@ -181,7 +195,7 @@ const VaccinePage = () => {
           Vacinas
         </h1>
         <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-          Revise e valide os registros de vacinação associados ao seu CRMV.
+          Revise e valide as vacinas e os vermífugos associados ao seu CRMV.
         </p>
       </div>
 
@@ -210,7 +224,7 @@ const VaccinePage = () => {
               <Search size={14} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
               <input
                 type="text"
-                placeholder="Buscar por pet, tutor ou vacina..."
+                placeholder="Buscar por pet, tutor ou produto..."
                 className="bg-transparent border-none outline-none flex-1"
                 style={{ fontSize: '15px', color: 'var(--text-primary)' }}
                 value={searchTerm}
@@ -231,6 +245,19 @@ const VaccinePage = () => {
                 <option value="rejected">Rejeitado</option>
               </select>
             </div>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-[10px]" style={{ background: 'var(--surface-secondary)' }}>
+              <select
+                aria-label="Tipo de registro"
+                className="bg-transparent border-none outline-none"
+                style={{ fontSize: '15px', color: 'var(--text-primary)' }}
+                value={filterKind}
+                onChange={e => setFilterKind(e.target.value)}
+              >
+                <option value="all">Vacinas e vermífugos</option>
+                <option value="vaccines">Só vacinas</option>
+                <option value="deworming">Só vermífugos</option>
+              </select>
+            </div>
             <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
               {filteredVaccines.length} de {vaccines.length}
             </span>
@@ -247,10 +274,10 @@ const VaccinePage = () => {
                   <ClipboardList size={28} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
                 </div>
                 <p className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>
-                  {vaccines.length === 0 ? 'Nenhuma vacina registrada' : 'Nenhum resultado'}
+                  {vaccines.length === 0 ? 'Nenhum registro ainda' : 'Nenhum resultado'}
                 </p>
                 <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-                  {vaccines.length === 0 ? 'Os registros de vacinas aparecerão aqui.' : 'Tente outros filtros.'}
+                  {vaccines.length === 0 ? 'As vacinas e os vermífugos aparecerão aqui.' : 'Tente outros filtros.'}
                 </p>
               </div>
             ) : (
@@ -263,6 +290,7 @@ const VaccinePage = () => {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{vaccine.name || '—'}</div>
+                        <KindTag kind={vaccine.kind} />
                         <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                           {vaccine.petName || '—'} · {vaccine.ownerName || '—'}
                         </div>
@@ -280,7 +308,7 @@ const VaccinePage = () => {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr style={{ background: 'rgba(116,116,128,0.06)', borderBottom: '1px solid var(--separator)' }}>
-                      {['Data / ID', 'Pet · Tutor', 'Vacina', 'CRMV', 'Status', 'Ações'].map(h => (
+                      {['Data / ID', 'Pet · Tutor', 'Produto', 'CRMV', 'Status', 'Ações'].map(h => (
                         <th key={h} className="text-left font-semibold uppercase"
                           style={{ padding: '10px 20px', fontSize: '11px', letterSpacing: '0.06em', color: 'var(--text-secondary)', border: 'none', background: 'transparent' }}>
                           {h}
@@ -311,6 +339,7 @@ const VaccinePage = () => {
                           </td>
                           <td style={{ padding: '14px 20px', border: 'none' }}>
                             <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{vaccine.name || '—'}</div>
+                            <KindTag kind={vaccine.kind} />
                             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Lote: {vaccine.batchNumber || '—'}</div>
                           </td>
                           <td style={{ padding: '14px 20px', border: 'none' }}>

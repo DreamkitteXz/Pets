@@ -105,6 +105,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
   }, [isMetadataModalOpen, vaccine?.labelImageMetadata?.location]);
 
   if (!isOpen || !vaccine || !currentUser) return null;
+  const isDew = vaccine.kind === 'deworming';
 
   // Contrato único de validação: validationDetails.vetValidation.* (formato aninhado).
   const vetVal = vaccine.validationDetails?.vetValidation || {};
@@ -126,6 +127,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
     try {
       await updateVaccineStatusFn({
         vaccineId:       vaccine.id,
+        collection:      vaccine.kind || 'vaccines', // vermífugo valida na coleção dele
         isApproved,
         notes:           validationNote,
         rejectionReason: isApproved ? '' : rejectionReason,
@@ -191,7 +193,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
           <div className="flex items-center gap-3 min-w-0">
             <div>
               <h2 className="font-bold" style={{ fontSize: '22px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                Detalhes da Vacina
+                Detalhes {isDew ? "do Vermífugo" : "da Vacina"}
               </h2>
               <div className="mt-0.5" style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
                 ID: {vaccine.id}
@@ -215,7 +217,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
           {/* Label image */}
           {vaccine?.labelImage && (
             <Section
-              title="Foto do Rótulo da Vacina"
+              title={isDew ? "Foto do Rótulo do Vermífugo" : "Foto do Rótulo da Vacina"}
               action={vaccine?.labelImageMetadata && (
                 <button
                   onClick={() => setIsMetadataModalOpen(true)}
@@ -267,9 +269,9 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
           </div>
 
           {/* Vaccine info */}
-          <Section title="Informações da Vacina">
+          <Section title={isDew ? "Informações do Vermífugo" : "Informações da Vacina"}>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <InfoItem label="Nome da Vacina" value={vaccine.name} />
+              <InfoItem label={isDew ? "Produto" : "Nome da Vacina"} value={vaccine.name} />
               <InfoItem label="Fabricante" value={vaccine.manufacturer} />
               <InfoItem label="Número do Lote" value={vaccine.batchNumber} />
               <InfoItem label="Data de Administração" value={formatDate(vaccine.administrationDate)} />
@@ -328,7 +330,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
             <div className="rounded-[14px] p-5" style={{ background: 'rgba(0,122,255,0.06)', border: '1px solid rgba(0,122,255,0.18)' }}>
               <div className="flex items-center gap-2 mb-4">
                 <AlertCircle size={18} strokeWidth={1.75} style={{ color: 'var(--apple-blue)' }} />
-                <h3 className="font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>Validação da Vacina</h3>
+                <h3 className="font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>Validação {isDew ? "do Vermífugo" : "da Vacina"}</h3>
               </div>
 
               <div className="flex flex-col gap-4">
@@ -350,7 +352,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
                   <div className="rounded-[12px] p-4" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                     <div className="flex items-center gap-2 mb-2">
                       <CheckCircle size={16} strokeWidth={2} style={{ color: 'var(--apple-green)' }} />
-                      <h4 className="font-semibold" style={{ fontSize: '14px', color: 'var(--text-primary)' }}>Aprovar Vacina</h4>
+                      <h4 className="font-semibold" style={{ fontSize: '14px', color: 'var(--text-primary)' }}>Aprovar {isDew ? "Vermífugo" : "Vacina"}</h4>
                     </div>
                     <p className="mb-4" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                       Confirme a aprovação desta vacina após verificar todos os detalhes.
@@ -370,7 +372,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
                   <div className="rounded-[12px] p-4" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                     <div className="flex items-center gap-2 mb-2">
                       <XCircle size={16} strokeWidth={2} style={{ color: 'var(--apple-red)' }} />
-                      <h4 className="font-semibold" style={{ fontSize: '14px', color: 'var(--text-primary)' }}>Rejeitar Vacina</h4>
+                      <h4 className="font-semibold" style={{ fontSize: '14px', color: 'var(--text-primary)' }}>Rejeitar {isDew ? "Vermífugo" : "Vacina"}</h4>
                     </div>
                     <div className="flex flex-col gap-3">
                       <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>

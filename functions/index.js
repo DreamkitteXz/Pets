@@ -630,6 +630,7 @@ exports.adminListVets = onCall(
     snap.forEach((d) => {
       const u = d.data();
       if (!u.crmv) return; // onboarding incompleto: nada a conferir ainda
+      if (d.id === actor.uid) return; // o próprio cadastro nunca é decidido por si mesmo
       const s = CRMV_STATUSES.includes(u.crmvStatus) ? u.crmvStatus : 'pending';
       counts[s] += 1;
       if (s !== status) return;

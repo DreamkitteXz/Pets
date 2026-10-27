@@ -16,13 +16,16 @@ const useVetVaccines = () => {
       return;
     }
     try {
-      const q = query(collection(db, "vaccines"), where("veterinarianId", "==", user.uid));
-      const querySnapshot = await getDocs(q);
+      // Vacinas E vermífugos do vet: mesmo formato, mesma validação (a CF
+      // recebe `collection`). `kind` diz de qual coleção cada um veio.
+      const [vacSnap, dewSnap] = await Promise.all(['vaccines', 'deworming'].map((col) =>
+        getDocs(query(collection(db, col), where("veterinarianId", "==", user.uid)))));
       // Exclui registros com exclusão lógica (active === false). Legados sem o
       // campo `active` continuam visíveis.
-      const vaccinesData = querySnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(v => v.active !== false);
+      const vaccinesData = [
+        ...vacSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), kind: 'vaccines' })),
+        ...dewSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), kind: 'deworming' })),
+      ].filter(v => v.active !== false);
       setVaccines(vaccinesData);
       setError(null);
     } catch (err) {

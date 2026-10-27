@@ -11,8 +11,9 @@ import { useAuth } from '../../../context/AuthContext';
  * sem precisar recarregar. Só informa — quem bloqueia de fato são as CFs.
  */
 export default function VetVerificationBanner() {
-  const { user, userProfile } = useAuth();
-  const isVet = userProfile?.role === 'veterinarian';
+  const { user, userProfile, isAdmin } = useAuth();
+  // Conta de administração não atua como vet: o aviso de análise não se aplica.
+  const isVet = userProfile?.role === 'veterinarian' && !isAdmin;
   const [live, setLive] = useState(null);
 
   useEffect(() => {
