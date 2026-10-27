@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import SideBar from '../SideBar/SideBar';
 import Header from '../Header/Header';
+import VetVerificationBanner from '../VetVerificationBanner/VetVerificationBanner';
 import { PROTECTED_ROUTES } from '../../../lib/consts/routes';
 
 const Layout = () => {
@@ -29,6 +30,7 @@ const Layout = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header currentRoute={currentRoute} onMenuClick={() => setMobileNavOpen(true)} />
         <main className="flex-1 p-4 md:p-6 overflow-auto">
+          <VetVerificationBanner />
           <Outlet />
         </main>
       </div>

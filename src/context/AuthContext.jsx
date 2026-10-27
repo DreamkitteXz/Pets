@@ -23,6 +23,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Claim `admin` do token. Serve só para MOSTRAR a área de administração:
+  // quem garante o acesso são as CFs (`requireAdmin`), não esta flag.
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Re-fetch the Firestore profile for the current user. Used after onboarding
   // so routing/sidebar pick up the freshly-set role without a full reload.
@@ -51,8 +54,15 @@ export const AuthProvider = ({ children }) => {
         } catch {
           setUserProfile(null);
         }
+        try {
+          const { claims } = await firebaseUser.getIdTokenResult();
+          setIsAdmin(claims.admin === true && claims.email_verified === true);
+        } catch {
+          setIsAdmin(false);
+        }
       } else {
         setUserProfile(null);
+        setIsAdmin(false);
       }
 
       setLoading(false);
@@ -65,6 +75,7 @@ export const AuthProvider = ({ children }) => {
     user,
     userProfile,
     loading,
+    isAdmin,
     refreshProfile,
     signIn: signInWithEmail,
     signUp: signUpWithEmail,

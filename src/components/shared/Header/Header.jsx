@@ -59,6 +59,9 @@ export default function Header({ onMenuClick }) {
     if (n.type === 'VACCINE_VALIDATION') {
       return n.status === 'rejected' ? 'Uma vacina foi rejeitada' : 'Uma vacina foi validada';
     }
+    if (n.type === 'CRMV_REVIEW') {
+      return n.status === 'approved' ? 'Seu CRMV foi aprovado' : 'Seu CRMV não foi aprovado — veja em Configurações';
+    }
     return 'Notificação';
   };
   const notifTime = (n) => {

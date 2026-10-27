@@ -166,6 +166,69 @@ describe('users — campos que decidem acesso', () => {
   });
 });
 
+/* ── S4: verificação do CRMV ───────────────────────────────────────────── */
+
+describe('users — verificação do CRMV (só a administração aprova)', () => {
+  const vetAprovado = { role: 'veterinarian', status: 'active', crmv: 'CRMV-SP 12345', crmvStatus: 'approved', crmvReview: { status: 'approved' } };
+
+  it('onboarding de vet entra como pending', async () => {
+    await seed('users', VET, { email: 'v@x.com', status: 'pending' });
+    await assertSucceeds(setDoc(doc(asUser(VET), 'users', VET), {
+      role: 'veterinarian', status: 'active', crmv: 'CRMV-SP 12345', crmvStatus: 'pending', profileCompleted: true,
+    }, { merge: true }));
+  });
+  it('NÃO se autoaprova no onboarding', async () => {
+    await seed('users', VET, { email: 'v@x.com', status: 'pending' });
+    await assertFails(setDoc(doc(asUser(VET), 'users', VET), {
+      role: 'veterinarian', status: 'active', crmv: 'CRMV-SP 12345', crmvStatus: 'approved',
+    }, { merge: true }));
+  });
+  it('NÃO cria o perfil já aprovado', async () => {
+    await assertFails(setDoc(doc(asUser(VET), 'users', VET), { role: 'veterinarian', crmvStatus: 'approved' }));
+  });
+  it('NÃO cria o perfil com crmvReview forjado', async () => {
+    await assertFails(setDoc(doc(asUser(VET), 'users', VET), { role: 'veterinarian', crmvReview: { status: 'approved' } }));
+  });
+  it('NÃO troca pending → approved', async () => {
+    await seed('users', VET, { ...vetAprovado, crmvStatus: 'pending', crmvReview: null });
+    await assertFails(updateDoc(doc(asUser(VET), 'users', VET), { crmvStatus: 'approved' }));
+  });
+  it('NÃO sai de rejected sem trocar o CRMV', async () => {
+    await seed('users', VET, { ...vetAprovado, crmvStatus: 'rejected' });
+    await assertFails(updateDoc(doc(asUser(VET), 'users', VET), { crmvStatus: 'pending' }));
+  });
+  it('recusado reenvia trocando o CRMV (volta para pending)', async () => {
+    await seed('users', VET, { ...vetAprovado, crmvStatus: 'rejected' });
+    await assertSucceeds(updateDoc(doc(asUser(VET), 'users', VET), { crmv: 'CRMV-MG 54321', crmvStatus: 'pending' }));
+  });
+  it('aprovado NÃO troca o CRMV mantendo a aprovação', async () => {
+    await seed('users', VET, vetAprovado);
+    await assertFails(updateDoc(doc(asUser(VET), 'users', VET), { crmv: 'CRMV-MG 99999' }));
+  });
+  it('aprovado troca o CRMV e volta para análise', async () => {
+    await seed('users', VET, vetAprovado);
+    await assertSucceeds(updateDoc(doc(asUser(VET), 'users', VET), { crmv: 'CRMV-MG 99999', crmvStatus: 'pending' }));
+  });
+  it('NÃO mexe em crmvReview', async () => {
+    await seed('users', VET, vetAprovado);
+    await assertFails(updateDoc(doc(asUser(VET), 'users', VET), { 'crmvReview.status': 'forjado', crmv: 'CRMV-MG 1', crmvStatus: 'pending' }));
+  });
+  it('aprovado edita nome/telefone sem perder nada', async () => {
+    await seed('users', VET, vetAprovado);
+    await assertSucceeds(updateDoc(doc(asUser(VET), 'users', VET), { name: 'Dra. Ana', phone: '11999999999' }));
+  });
+  it('app sem o campo: vet antigo troca CRMV (continua não verificado)', async () => {
+    await seed('users', VET, { role: 'veterinarian', status: 'active', crmv: 'CRMV-SP 12345' });
+    await assertSucceeds(updateDoc(doc(asUser(VET), 'users', VET), { crmv: 'CRMV-SP 12346' }));
+  });
+  it('ninguém lê nem escreve o log de auditoria', async () => {
+    await seed('admin_audit_log', 'a1', { action: 'crmv_review' });
+    const { getDoc } = require('firebase/firestore');
+    await assertFails(getDoc(doc(asUser(VET, { admin: true }), 'admin_audit_log', 'a1')));
+    await assertFails(setDoc(doc(asUser(VET, { admin: true }), 'admin_audit_log', 'a2'), { x: 1 }));
+  });
+});
+
 /* ── S5: pets ──────────────────────────────────────────────────────────── */
 
 describe('pets — criação e dono', () => {

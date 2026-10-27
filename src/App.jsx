@@ -7,6 +7,8 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import RoleRoute from './components/auth/RoleRoute';
 import ProfileGate from './components/auth/ProfileGate';
 import RoleRedirect from './components/auth/RoleRedirect';
+import AdminRoute from './components/auth/AdminRoute';
+import AdminVets from './components/pages/Admin/AdminVets';
 
 // Auth Pages
 import Login from './components/pages/Auth/Login/Auth';
@@ -94,6 +96,11 @@ const App = () => {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/support" element={<Support />} />
+
+                {/* Administração — claim `admin` (as CFs conferem de novo) */}
+                <Route element={<AdminRoute />}>
+                  <Route path="/admin" element={<AdminVets />} />
+                </Route>
               </Route>
             </Route>
           </Route>

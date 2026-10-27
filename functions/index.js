@@ -295,6 +295,16 @@ async function requireActiveVet(uid) {
   if (!vet || vet.role !== 'veterinarian' || vet.status !== 'active' || !validateCrmv(vet.crmv || '')) {
     throw new HttpsError('permission-denied', 'Apenas veterinários ativos com CRMV podem fazer isto.');
   }
+  // S4: declarar um CRMV não basta — ele precisa ter sido conferido pela
+  // administração (`adminReviewVet`). Campo ausente = ainda não verificado.
+  if (vet.crmvStatus !== 'approved') {
+    throw new HttpsError(
+      'permission-denied',
+      vet.crmvStatus === 'rejected'
+        ? 'Seu CRMV não foi aprovado. Veja o motivo em Configurações e reenvie para análise.'
+        : 'Seu CRMV está em análise. Você poderá validar e registrar aplicações assim que for aprovado.',
+    );
+  }
   return vet;
 }
 
@@ -526,13 +536,14 @@ exports.mirrorVetDirectory = onDocumentWritten(
 
     const ref = db.collection('vet_directory').doc(uid);
 
-    // Só veterinário ATIVO aparece. Perfil incompleto ainda não tem crmv, e
-    // listar um vet sem CRMV daria ao tutor uma escolha que a validação da
-    // vacina depois recusaria.
+    // Só veterinário ATIVO e com CRMV APROVADO pela administração aparece.
+    // Listar um vet não verificado daria ao tutor uma escolha que a validação
+    // da vacina depois recusaria — e exporia tutores a um CRMV falso.
     const publishable =
       after &&
       after.role === 'veterinarian' &&
       after.status === 'active' &&
+      after.crmvStatus === 'approved' &&
       !!after.crmv;
 
     if (!publishable) {
@@ -555,5 +566,194 @@ exports.mirrorVetDirectory = onDocumentWritten(
     // do perfil ficaria fossilizado no diretório público.
     await ref.set(projection);
     logger.info('vet_directory atualizado', { uid });
+  }
+);
+
+/* ── Administração: verificação do CRMV (S4) ─────────────────────────────────
+ *
+ * Quem é admin: custom claim `admin: true` no Auth. Só o Admin SDK define
+ * claims (script `functions/scripts/set-admin.js`) — nenhum cliente consegue,
+ * e nada no Firestore concede o papel.
+ *
+ * Toda ação de admin passa por aqui, nunca por escrita direta do cliente:
+ *  • claim conferido no TOKEN e de novo no registro do Auth (remover o admin
+ *    vale na hora, sem esperar o token de 1h expirar);
+ *  • e-mail verificado e login recente (sessão de até 12h para agir);
+ *  • ninguém decide sobre o próprio CRMV;
+ *  • a decisão confere o CRMV que o admin viu (se o vet trocou no meio, aborta);
+ *  • decisão + log de auditoria na MESMA transação: não existe aprovação sem
+ *    registro de quem, quando, de onde e por quê.
+ * Respostas levam só o necessário para conferir o CRMV — nada de CPF/endereço.
+ */
+const ADMIN_MAX_SESSION_S = 12 * 60 * 60;
+const CRMV_STATUSES = ['pending', 'approved', 'rejected'];
+
+async function requireAdmin(request) {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+  }
+  const { uid, token } = request.auth;
+  if (token.admin !== true || token.email_verified !== true) {
+    logger.warn('admin: acesso negado', { uid });
+    throw new HttpsError('permission-denied', 'Acesso restrito à administração.');
+  }
+  const ageS = Math.floor(Date.now() / 1000) - Number(token.auth_time || 0);
+  if (ageS > ADMIN_MAX_SESSION_S) {
+    throw new HttpsError('unauthenticated', 'Por segurança, entre novamente para usar a administração.', { reason: 'reauth' });
+  }
+  const record = await auth.getUser(uid);
+  if (record.disabled || record.customClaims?.admin !== true) {
+    logger.warn('admin: claim revogado com token ainda válido', { uid });
+    throw new HttpsError('permission-denied', 'Acesso restrito à administração.');
+  }
+  return { uid, email: record.email || token.email || '' };
+}
+
+const toIso = (ts) => (ts && typeof ts.toDate === 'function' ? ts.toDate().toISOString() : null);
+
+/* ── adminListVets ──────────────────────────────────────────────────────────
+ * Input: { status: 'pending' | 'approved' | 'rejected' }
+ * Output: { vets: [...], counts: { pending, approved, rejected }, audit: [...] }
+ */
+exports.adminListVets = onCall(
+  { region: 'southamerica-east1' },
+  async (request) => {
+    const actor = await requireAdmin(request);
+    const status = request.data?.status || 'pending';
+    if (!CRMV_STATUSES.includes(status)) {
+      throw new HttpsError('invalid-argument', 'Filtro inválido.');
+    }
+
+    const snap = await db.collection('users').where('role', '==', 'veterinarian').limit(1000).get();
+    const counts = { pending: 0, approved: 0, rejected: 0 };
+    const vets = [];
+    snap.forEach((d) => {
+      const u = d.data();
+      if (!u.crmv) return; // onboarding incompleto: nada a conferir ainda
+      const s = CRMV_STATUSES.includes(u.crmvStatus) ? u.crmvStatus : 'pending';
+      counts[s] += 1;
+      if (s !== status) return;
+      vets.push({
+        uid:               d.id,
+        name:              u.name || '',
+        email:             u.email || '',
+        phone:             u.phone || '',
+        crmv:              u.crmv,
+        specialties:       Array.isArray(u.specialties) ? u.specialties : [],
+        yearsOfExperience: u.yearsOfExperience || 0,
+        accountStatus:     u.status || '',
+        crmvStatus:        s,
+        createdAt:         toIso(u.createdAt),
+        review: u.crmvReview ? {
+          reviewedAt:      toIso(u.crmvReview.reviewedAt),
+          reviewedByEmail: u.crmvReview.reviewedByEmail || '',
+          reason:          u.crmvReview.reason || '',
+          crmv:            u.crmvReview.crmv || '',
+        } : null,
+      });
+    });
+    vets.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+
+    const auditSnap = await db.collection('admin_audit_log').orderBy('at', 'desc').limit(20).get();
+    const audit = auditSnap.docs.map((d) => {
+      const a = d.data();
+      return {
+        id: d.id, at: toIso(a.at), actorEmail: a.actorEmail, decision: a.decision,
+        targetName: a.targetName, targetCrmv: a.targetCrmv, reason: a.reason || '',
+        previousStatus: a.previousStatus, newStatus: a.newStatus,
+      };
+    });
+
+    logger.info('admin: listou veterinários', { actor: actor.uid, status, total: vets.length });
+    return { vets, counts, audit };
+  }
+);
+
+/* ── adminReviewVet ─────────────────────────────────────────────────────────
+ * Input: { uid, decision: 'approve' | 'reject', reason?, expectedCrmv }
+ * Recusar (inclusive revogar uma aprovação) exige motivo — o vet vê o motivo.
+ */
+exports.adminReviewVet = onCall(
+  { region: 'southamerica-east1' },
+  async (request) => {
+    const actor = await requireAdmin(request);
+    const { uid, decision, reason, expectedCrmv } = request.data || {};
+
+    if (typeof uid !== 'string' || !uid || uid.length > 128) {
+      throw new HttpsError('invalid-argument', 'Veterinário inválido.');
+    }
+    if (!['approve', 'reject'].includes(decision)) {
+      throw new HttpsError('invalid-argument', 'Decisão inválida.');
+    }
+    const cleanReason = typeof reason === 'string' ? reason.trim().slice(0, 500) : '';
+    if (decision === 'reject' && cleanReason.length < 5) {
+      throw new HttpsError('invalid-argument', 'Explique o motivo da recusa (mínimo 5 caracteres).');
+    }
+    if (uid === actor.uid) {
+      throw new HttpsError('permission-denied', 'Ninguém aprova ou recusa o próprio CRMV.');
+    }
+
+    const newStatus = decision === 'approve' ? 'approved' : 'rejected';
+    const userRef   = db.collection('users').doc(uid);
+    const auditRef  = db.collection('admin_audit_log').doc();
+
+    const result = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists) throw new HttpsError('not-found', 'Veterinário não encontrado.');
+      const u = snap.data();
+      if (u.role !== 'veterinarian') {
+        throw new HttpsError('failed-precondition', 'Esta conta não é de veterinário.');
+      }
+      if (!validateCrmv(u.crmv || '')) {
+        throw new HttpsError('failed-precondition', 'O CRMV cadastrado está em formato inválido.');
+      }
+      if (typeof expectedCrmv !== 'string' || expectedCrmv !== u.crmv) {
+        throw new HttpsError('aborted', 'O CRMV deste veterinário mudou enquanto você analisava. Recarregue a lista.');
+      }
+      const previousStatus = CRMV_STATUSES.includes(u.crmvStatus) ? u.crmvStatus : 'pending';
+      if (previousStatus === newStatus) {
+        throw new HttpsError('failed-precondition', 'Este CRMV já está com essa decisão.');
+      }
+
+      const now = FieldValue.serverTimestamp();
+      tx.update(userRef, {
+        crmvStatus: newStatus,
+        crmvReview: {
+          status:          newStatus,
+          crmv:            u.crmv,
+          reason:          cleanReason,
+          reviewedBy:      actor.uid,
+          reviewedByEmail: actor.email,
+          reviewedAt:      now,
+        },
+      });
+      tx.set(auditRef, {
+        action:         'crmv_review',
+        decision,
+        previousStatus,
+        newStatus,
+        reason:         cleanReason,
+        targetUid:      uid,
+        targetName:     u.name || '',
+        targetCrmv:     u.crmv,
+        actorUid:       actor.uid,
+        actorEmail:     actor.email,
+        ip:             request.rawRequest?.ip || '',
+        userAgent:      String(request.rawRequest?.headers?.['user-agent'] || '').slice(0, 300),
+        at:             now,
+      });
+      return { previousStatus };
+    });
+
+    await userRef.collection('notifications').add({
+      type:      'CRMV_REVIEW',
+      status:    newStatus,
+      reason:    cleanReason,
+      read:      false,
+      createdAt: FieldValue.serverTimestamp(),
+    }).catch((err) => logger.warn('admin: falha ao notificar vet', { uid, err: err.message }));
+
+    logger.info('admin: decisão de CRMV', { actor: actor.uid, target: uid, from: result.previousStatus, to: newStatus });
+    return { status: newStatus };
   }
 );

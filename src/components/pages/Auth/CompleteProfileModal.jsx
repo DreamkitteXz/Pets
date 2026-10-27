@@ -171,7 +171,8 @@ const CompleteProfileModal = () => {
       updatedAt: serverTimestamp(),
     };
     const payload = role === 'veterinarian'
-      ? { ...common, crmv: form.crmv, specialties: form.specialties, yearsOfExperience: form.yearsOfExperience ? Number(form.yearsOfExperience) : 0 }
+      // CRMV entra em análise: só a administração aprova (CF adminReviewVet).
+      ? { ...common, crmv: form.crmv, crmvStatus: 'pending', specialties: form.specialties, yearsOfExperience: form.yearsOfExperience ? Number(form.yearsOfExperience) : 0 }
       : { ...common, pets: userProfile?.pets || [], preferredVetId: '', emergencyContact: { name: form.emergencyName, phone: form.emergencyPhone, relationship: form.emergencyRelationship } };
 
     try {

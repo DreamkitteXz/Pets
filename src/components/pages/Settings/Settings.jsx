@@ -126,7 +126,21 @@ const Settings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const success = await updateUserData(formData);
+    const payload = { ...formData };
+    // Trocar o CRMV reenvia para análise da administração (a rule exige isso:
+    // um CRMV novo nunca herda a aprovação do anterior).
+    if (role === 'veterinarian') {
+      payload.crmv = formData.crmv.trim().toUpperCase();
+      if (payload.crmv !== (userData?.crmv || '')) {
+        if (!/^CRMV-[A-Z]{2}\s\d{1,5}$/.test(payload.crmv)) {
+          alert('CRMV inválido. Use o formato CRMV-UF 12345 (ex.: CRMV-SP 12345).');
+          return;
+        }
+        if (!window.confirm('Trocar o CRMV envia seu cadastro para uma nova análise. Até ser aprovado, você não valida vacinas nem aparece para os tutores. Continuar?')) return;
+        payload.crmvStatus = 'pending';
+      }
+    }
+    const success = await updateUserData(payload);
     if (success) alert('Configurações salvas com sucesso!');
     else alert('Erro ao salvar. Tente novamente.');
   };
@@ -294,7 +308,14 @@ const Settings = () => {
                   className="rounded-[16px] p-5 grid grid-cols-1 md:grid-cols-2 gap-4"
                   style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
                 >
-                  <Field label="CRMV"><Input type="text" name="crmv" value={formData.crmv} onChange={handleChange} /></Field>
+                  <Field label="CRMV">
+                    <Input type="text" name="crmv" value={formData.crmv} onChange={handleChange} />
+                    <p className="mt-1.5" style={{ fontSize: '12px', color: userData?.crmvStatus === 'approved' ? 'var(--apple-green)' : userData?.crmvStatus === 'rejected' ? 'var(--apple-red)' : 'var(--apple-orange)' }}>
+                      {userData?.crmvStatus === 'approved' ? 'Verificado pela administração.'
+                        : userData?.crmvStatus === 'rejected' ? `Não aprovado${userData?.crmvReview?.reason ? `: ${userData.crmvReview.reason}` : ''}. Corrija e salve para reenviar.`
+                        : 'Em análise pela administração.'}
+                    </p>
+                  </Field>
                   <Field label="Anos de Experiência"><Input type="number" name="yearsOfExperience" value={formData.yearsOfExperience} onChange={handleChange} /></Field>
                 </div>
 

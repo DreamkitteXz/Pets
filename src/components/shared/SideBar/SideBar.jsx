@@ -4,10 +4,13 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { auth, db } from "../../../config/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
-import { LogOut, ChevronLeft, X } from "lucide-react";
+import { LogOut, ChevronLeft, X, ShieldCheck } from "lucide-react";
+import { useAuth } from "../../../context/AuthContext";
 import LogoWhite from "../../../assets/logos/logo_white";
 import LogoutModal from "../LogoutModal/LogoutModal";
 import { useMediaQuery, DESKTOP_QUERY } from "../../../hooks/useMediaQuery";
+
+const ADMIN_LINK = { key: 'admin', label: 'Administração', path: '/admin', icon: <ShieldCheck size={20} strokeWidth={1.5} /> };
 
 export default function SideBar({ mobileOpen = false, onMobileClose }) {
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
@@ -18,6 +21,7 @@ export default function SideBar({ mobileOpen = false, onMobileClose }) {
   const [loading, setLoading] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -105,6 +109,7 @@ export default function SideBar({ mobileOpen = false, onMobileClose }) {
           {(currentUser?.role === 'tutor' ? TUTOR_SIDEBAR_LINKS : DASHBOARD_SIDEBAR_LINKS).map((item) => (
             <SideBarLink key={item.key} item={item} isCollapsed={isCollapsed} />
           ))}
+          {isAdmin && <SideBarLink item={ADMIN_LINK} isCollapsed={isCollapsed} />}
         </nav>
 
         {/* Bottom nav */}

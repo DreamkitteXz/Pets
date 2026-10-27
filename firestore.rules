@@ -17,6 +17,13 @@ service cloud.firestore {
     //  • emailVerified: só pode refletir o token do Auth (cadastro com Google
     //    grava `true` legitimamente). Fora isso, só a CF `verifyOtp` (Admin SDK).
     //  • delete negado: apagar e recriar o doc seria um jeito de trocar de role.
+    //  • crmvStatus / crmvReview (S4): a APROVAÇÃO do CRMV é da administração,
+    //    pela CF `adminReviewVet`. O cliente nunca grava `approved`/`rejected`
+    //    nem `crmvReview`; só pode voltar a `pending` JUNTO com uma troca de
+    //    CRMV (reenvio para análise). E trocar o CRMV de um vet aprovado exige
+    //    sair de `approved` — um CRMV novo nunca herda a aprovação do anterior.
+    //    Campo ausente = não verificado (o app, que não conhece o campo, segue
+    //    funcionando e cai na fila de análise).
     match /users/{userId} {
       function isSelf()    { return request.auth != null && request.auth.uid == userId; }
       function incoming()  { return request.resource.data; }
@@ -27,18 +34,28 @@ service cloud.firestore {
           || incoming().emailVerified == false
           || incoming().emailVerified == request.auth.token.email_verified;
       }
+      function crmvOk() {
+        return !changed().hasAny(['crmvReview'])
+          && (!changed().hasAny(['crmvStatus'])
+              || (incoming().crmvStatus == 'pending' && changed().hasAny(['crmv'])))
+          && (!changed().hasAny(['crmv'])
+              || incoming().get('crmvStatus', 'pending') != 'approved');
+      }
 
       allow read: if isSelf();
       allow create: if isSelf()
         && (!('role' in incoming()) || validRole(incoming().role))
         && (!('status' in incoming()) || incoming().status in ['pending', 'active'])
+        && (!('crmvStatus' in incoming()) || incoming().crmvStatus == 'pending')
+        && !('crmvReview' in incoming())
         && verifiedOk();
       allow update: if isSelf()
         && (!changed().hasAny(['role'])
             || (resource.data.get('role', null) == null && validRole(incoming().role)))
         && (!changed().hasAny(['status'])
             || (resource.data.get('status', 'pending') == 'pending' && incoming().status == 'active'))
-        && (!changed().hasAny(['emailVerified']) || verifiedOk());
+        && (!changed().hasAny(['emailVerified']) || verifiedOk())
+        && crmvOk();
       allow delete: if false;
 
       match /notifications/{notificationId} {
@@ -282,6 +299,13 @@ service cloud.firestore {
     match /app_config/{document} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // Log de auditoria da administração (aprovar/recusar CRMV). Só o Admin SDK
+    // escreve e lê (CFs `adminReviewVet` / `adminListVets`): nenhum cliente —
+    // nem o próprio admin — consegue editar ou apagar o histórico.
+    match /admin_audit_log/{entryId} {
+      allow read, write: if false;
     }
 
     // Deny everything not explicitly covered above.
