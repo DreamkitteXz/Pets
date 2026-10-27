@@ -98,7 +98,7 @@ const Settings = () => {
     name: '', email: '', phone: '', cpf: '',
     street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '',
     crmv: '', specialties: [], yearsOfExperience: 0,
-    notifications: false, language: 'pt-BR', twoFactorAuth: false,
+    notifications: false, emailReminders: true, language: 'pt-BR', twoFactorAuth: false,
   });
 
   useEffect(() => {
@@ -111,6 +111,8 @@ const Settings = () => {
         crmv: userData.crmv || '', specialties: userData.specialties || [],
         yearsOfExperience: userData.yearsOfExperience || 0,
         notifications: userData.notifications || false,
+        // Ligado por padrão: só `false` explícito desliga (CF sendDueReminders).
+        emailReminders: userData.emailReminders !== false,
         language: userData.language || 'pt-BR', twoFactorAuth: userData.twoFactorAuth || false,
       });
     }
@@ -358,6 +360,9 @@ const Settings = () => {
               <div className="space-y-4">
                 <div className="rounded-[16px] overflow-hidden" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                   <ToggleRow label="Notificações" sublabel="Receba alertas de vacinação e consultas" name="notifications" checked={formData.notifications} onChange={handleChange} />
+                  {role === 'tutor' && (
+                    <ToggleRow label="Lembretes por e-mail" sublabel="Aviso quando uma vacina ou vermífugo dos seus pets estiver para vencer" name="emailReminders" checked={formData.emailReminders} onChange={handleChange} />
+                  )}
                   <ToggleRow label="Modo Escuro" sublabel="Aparência escura para a interface" name="darkMode" checked={isDark} onChange={handleChange} />
                   <ToggleRow label="Autenticação em 2 Fatores" sublabel="Segurança adicional no login" name="twoFactorAuth" checked={formData.twoFactorAuth} onChange={handleChange} isLast />
                 </div>

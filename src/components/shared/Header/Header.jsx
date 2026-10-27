@@ -59,6 +59,11 @@ export default function Header({ onMenuClick }) {
     if (n.type === 'VACCINE_VALIDATION') {
       return n.status === 'rejected' ? 'Uma vacina foi rejeitada' : 'Uma vacina foi validada';
     }
+    if (n.type === 'DUE_REMINDER') {
+      return n.count === 1
+        ? `${n.items?.[0]?.pet || 'Seu pet'}: ${n.items?.[0]?.name || 'dose'} ${n.overdue ? 'está vencida' : 'vence em breve'}`
+        : `${n.count} doses dos seus pets ${n.overdue ? 'precisam de atenção' : 'vencem em breve'}`;
+    }
     if (n.type === 'CRMV_REVIEW') {
       return n.status === 'approved' ? 'Seu CRMV foi aprovado' : 'Seu CRMV não foi aprovado — veja em Configurações';
     }

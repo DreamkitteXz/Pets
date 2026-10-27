@@ -655,8 +655,9 @@ exports.adminListVets = onCall(
     });
     vets.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
 
-    const auditSnap = await db.collection('admin_audit_log').orderBy('at', 'desc').limit(20).get();
-    const audit = auditSnap.docs.map((d) => {
+    // O log também guarda outras ações (ex.: disparo de lembretes); aqui só decisões de CRMV.
+    const auditSnap = await db.collection('admin_audit_log').orderBy('at', 'desc').limit(60).get();
+    const audit = auditSnap.docs.filter((d) => d.data().action === 'crmv_review').slice(0, 20).map((d) => {
       const a = d.data();
       return {
         id: d.id, at: toIso(a.at), actorEmail: a.actorEmail, decision: a.decision,
@@ -756,5 +757,301 @@ exports.adminReviewVet = onCall(
 
     logger.info('admin: decisão de CRMV', { actor: actor.uid, target: uid, from: result.previousStatus, to: newStatus });
     return { status: newStatus };
+  }
+);
+
+/* ── Lembretes de vencimento por e-mail (W6) ─────────────────────────────────
+ *
+ * Todo dia às 9h (Brasília) avisa o TUTOR das vacinas e vermífugos que vencem
+ * nos próximos 7 dias ou que venceram há até 30 dias. Um e-mail por tutor,
+ * reunindo todos os pets, mais o mesmo aviso no sininho do site.
+ *
+ *  • Cada lembrete sai UMA vez por etapa (a vencer / vencido) e por data de
+ *    vencimento: `reminder_log/{coleção}_{id}_{etapa}_{data}` é criado com
+ *    `create()` ANTES do envio — se duas execuções coincidirem (agendada e
+ *    manual), só uma consegue o registro. Falhou o envio, o registro é
+ *    apagado e o lembrete tenta de novo no dia seguinte.
+ *  • Dose substituída não gera aviso: se o pet já tomou uma aplicação mais
+ *    nova do mesmo produto, a próxima dose da antiga não vale mais.
+ *  • Tutor desliga em Configurações (`emailReminders: false`); ligado por padrão.
+ *    Só vai para e-mail verificado no Auth.
+ *  • Tudo que veio do usuário (nome do pet, do produto) é escapado no HTML.
+ */
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+
+const REMINDER_KINDS = { vaccines: 'Vacina', deworming: 'Vermífugo' };
+const DAY_MS = 24 * 60 * 60 * 1000;
+const UPCOMING_DAYS = 7;
+const OVERDUE_LOOKBACK_DAYS = 30;
+const APP_URL = 'https://pet-app-fccae.web.app';
+const SP_TZ = 'America/Sao_Paulo';
+
+const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+const normName = (s) => String(s || '').trim().toLowerCase();
+const tsMillis = (ts) => (ts && typeof ts.toMillis === 'function' ? ts.toMillis() : ts instanceof Date ? ts.getTime() : 0);
+// Dia-calendário em São Paulo: "vence hoje" tem que ser hoje para o tutor, não em UTC.
+const spDay = (date) => {
+  const [y, m, d] = date.toLocaleDateString('en-CA', { timeZone: SP_TZ }).split('-').map(Number);
+  return Date.UTC(y, m - 1, d) / DAY_MS;
+};
+const fmtBR = (date) => date.toLocaleDateString('pt-BR', { timeZone: SP_TZ, day: '2-digit', month: '2-digit', year: 'numeric' });
+
+function whenText(days) {
+  if (days === 0) return 'vence hoje';
+  if (days === 1) return 'vence amanhã';
+  if (days > 1) return `vence em ${days} dias`;
+  if (days === -1) return 'venceu ontem';
+  return `venceu há ${-days} dias`;
+}
+
+/** Lista o que precisa de lembrete hoje, agrupado por tutor. Não escreve nada. */
+async function collectDueReminders(now) {
+  const today = spDay(now);
+  const from  = Timestamp.fromMillis(now.getTime() - (OVERDUE_LOOKBACK_DAYS + 1) * DAY_MS);
+  const to    = Timestamp.fromMillis(now.getTime() + (UPCOMING_DAYS + 1) * DAY_MS);
+  const history = new Map(); // `${col}:${petId}` → aplicações do pet
+  const items = [];
+
+  for (const col of Object.keys(REMINDER_KINDS)) {
+    const snap = await db.collection(col)
+      .where('nextDueDate', '>=', from).where('nextDueDate', '<=', to).get();
+    for (const d of snap.docs) {
+      const r = d.data();
+      if (r.active === false || r.status === 'rejected' || !r.ownerId || !r.petId) continue;
+      const due = r.nextDueDate.toDate();
+      const days = spDay(due) - today;
+      if (days > UPCOMING_DAYS || days < -OVERDUE_LOOKBACK_DAYS) continue;
+
+      const key = `${col}:${r.petId}`;
+      if (!history.has(key)) {
+        const h = await db.collection(col).where('petId', '==', r.petId).get();
+        history.set(key, h.docs.map((x) => ({ id: x.id, ...x.data() })));
+      }
+      const mine = tsMillis(r.administrationDate) || tsMillis(r.createdAt);
+      const superseded = history.get(key).some((o) => o.id !== d.id
+        && o.active !== false && o.status !== 'rejected'
+        && normName(o.name) === normName(r.name)
+        && (tsMillis(o.administrationDate) || tsMillis(o.createdAt)) > mine);
+      if (superseded) continue;
+
+      const stage = days < 0 ? 'overdue' : 'upcoming';
+      items.push({
+        logId: `${col}_${d.id}_${stage}_${due.toISOString().slice(0, 10)}`,
+        collection: col, recordId: d.id, ownerId: r.ownerId, petId: r.petId,
+        kindLabel: REMINDER_KINDS[col], name: r.name || REMINDER_KINDS[col], due, days, stage,
+      });
+    }
+  }
+
+  // Já avisados (mesma etapa e mesma data de vencimento) saem da lista.
+  const logRefs = items.map((i) => db.collection('reminder_log').doc(i.logId));
+  const logs = logRefs.length ? await db.getAll(...logRefs) : [];
+  const pending = items.filter((_, idx) => !logs[idx].exists);
+
+  const byOwner = new Map();
+  pending.forEach((i) => {
+    if (!byOwner.has(i.ownerId)) byOwner.set(i.ownerId, []);
+    byOwner.get(i.ownerId).push(i);
+  });
+  return byOwner;
+}
+
+function buildReminderEmailHtml(firstName, items) {
+  const year = new Date().getFullYear();
+  const rows = items.map((i) => `
+              <tr>
+                <td style="padding:14px 0;border-bottom:1px solid #eef0f3;">
+                  <p style="margin:0;color:#0f172a;font-size:15px;font-weight:600;">${escapeHtml(i.petName)} · ${escapeHtml(i.name)}</p>
+                  <p style="margin:3px 0 0;color:#5b6470;font-size:13px;">
+                    ${escapeHtml(i.kindLabel)} ·
+                    <strong style="color:${i.days < 0 ? '#d92d20' : '#b54708'};">${escapeHtml(whenText(i.days))}</strong>
+                    (${escapeHtml(fmtBR(i.due))})
+                  </p>
+                </td>
+              </tr>`).join('');
+  return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Lembrete de vencimento</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table width="480" cellpadding="0" cellspacing="0"
+               style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);max-width:100%;">
+          <tr>
+            <td style="background:#023047;padding:26px 32px;">
+              <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.02em;">Pets</span>
+              <span style="display:block;color:rgba(255,255,255,0.45);font-size:12px;margin-top:2px;">Sistema de Documentação Pet</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 32px 8px;">
+              <h1 style="color:#0f172a;font-size:21px;font-weight:700;margin:0 0 10px;letter-spacing:-0.01em;">
+                ${items.length === 1 ? 'Uma dose precisa de atenção' : `${items.length} doses precisam de atenção`}
+              </h1>
+              <p style="color:#5b6470;font-size:14px;line-height:1.65;margin:0 0 8px;">
+                ${firstName ? `Olá, <strong style="color:#111827">${escapeHtml(firstName)}</strong>!` : 'Olá!'}
+                Estas aplicações dos seus pets vencem em breve ou já venceram. Combine a próxima dose com o veterinário.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0">${rows}
+              </table>
+              <table cellpadding="0" cellspacing="0" style="margin:24px 0 28px;">
+                <tr><td style="background:#0a84ff;border-radius:10px;">
+                  <a href="${APP_URL}/minhas-vacinas" style="display:inline-block;padding:12px 22px;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;">Ver a carteira dos pets</a>
+                </td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="border-top:1px solid #e3e6ea;padding:16px 32px;text-align:center;">
+              <p style="color:#9aa0a9;font-size:11px;line-height:1.6;margin:0;">
+                Você recebe este lembrete porque tem pets cadastrados no Pets App.<br>
+                Para não receber mais: <a href="${APP_URL}/settings" style="color:#9aa0a9;">Configurações → Sistema → Lembretes por e-mail</a>.<br>
+                © ${year} Pets App · pet-app-fccae.web.app
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+}
+
+// No emulador nada sai de verdade: a mensagem vai para `dev_outbox` (só emulador).
+function reminderTransport() {
+  if (process.env.FUNCTIONS_EMULATOR === 'true') {
+    return {
+      sendMail: async (msg) => {
+        await db.collection('dev_outbox').add({ ...msg, at: FieldValue.serverTimestamp() });
+        return { messageId: 'emulator' };
+      },
+    };
+  }
+  return createTransporter();
+}
+
+/**
+ * Envia (ou, com dryRun, só lista) os lembretes de hoje.
+ * Retorna um resumo para o log / página de admin.
+ */
+async function runDueReminders({ now = new Date(), dryRun = false } = {}) {
+  const byOwner = await collectDueReminders(now);
+  const summary = { tutors: 0, items: 0, sent: 0, skipped: [], preview: [] };
+  const transporter = dryRun ? null : reminderTransport();
+  const petCache = new Map();
+  const petName = async (petId) => {
+    if (!petCache.has(petId)) {
+      const p = await db.collection('pets').doc(petId).get();
+      petCache.set(petId, p.exists ? (p.data().name || 'Seu pet') : 'Seu pet');
+    }
+    return petCache.get(petId);
+  };
+
+  for (const [ownerId, list] of byOwner) {
+    const userSnap = await db.collection('users').doc(ownerId).get();
+    const profile = userSnap.exists ? userSnap.data() : {};
+    if (profile.emailReminders === false) { summary.skipped.push({ ownerId, reason: 'desligou os lembretes' }); continue; }
+    const authUser = await auth.getUser(ownerId).catch(() => null);
+    if (!authUser?.email || !authUser.emailVerified || authUser.disabled) {
+      summary.skipped.push({ ownerId, reason: 'sem e-mail verificado' });
+      continue;
+    }
+
+    for (const i of list) i.petName = await petName(i.petId);
+    list.sort((a, b) => a.days - b.days);
+    summary.tutors += 1;
+    summary.items += list.length;
+    if (dryRun) {
+      summary.preview.push({
+        email: authUser.email,
+        items: list.map((i) => ({ pet: i.petName, kind: i.kindLabel, name: i.name, when: whenText(i.days), due: fmtBR(i.due) })),
+      });
+      continue;
+    }
+
+    // Reserva cada lembrete antes de enviar: quem não conseguir o create() já foi
+    // (ou está sendo) avisado por outra execução.
+    const claimed = [];
+    for (const i of list) {
+      try {
+        await db.collection('reminder_log').doc(i.logId).create({
+          ownerId, collection: i.collection, recordId: i.recordId, stage: i.stage,
+          dueDate: Timestamp.fromDate(i.due), status: 'sending', at: FieldValue.serverTimestamp(),
+        });
+        claimed.push(i);
+      } catch { /* já reservado */ }
+    }
+    if (!claimed.length) continue;
+
+    const first = (profile.name || authUser.displayName || '').split(' ')[0];
+    const subject = claimed.length === 1
+      ? `${claimed[0].petName}: ${claimed[0].kindLabel.toLowerCase()} ${whenText(claimed[0].days)}`
+      : `${claimed.length} doses dos seus pets precisam de atenção`;
+    try {
+      await transporter.sendMail({
+        from: `"Pets App" <${process.env.GMAIL_EMAIL || 'no-reply@pet-app-fccae.web.app'}>`,
+        to: authUser.email,
+        subject,
+        html: buildReminderEmailHtml(first, claimed),
+      });
+    } catch (err) {
+      logger.error('lembretes: falha no envio', { ownerId, err: err.message });
+      await Promise.all(claimed.map((i) => db.collection('reminder_log').doc(i.logId).delete().catch(() => {})));
+      summary.skipped.push({ ownerId, reason: 'falha no envio' });
+      continue;
+    }
+
+    const batch = db.batch();
+    claimed.forEach((i) => batch.update(db.collection('reminder_log').doc(i.logId), { status: 'sent' }));
+    batch.set(db.collection('users').doc(ownerId).collection('notifications').doc(), {
+      type: 'DUE_REMINDER',
+      count: claimed.length,
+      overdue: claimed.some((i) => i.days < 0),
+      items: claimed.map((i) => ({ pet: i.petName, kind: i.collection, name: i.name, days: i.days })),
+      read: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+    summary.sent += claimed.length;
+  }
+
+  logger.info('lembretes: execução', { dryRun, tutors: summary.tutors, items: summary.items, sent: summary.sent, skipped: summary.skipped.length });
+  return summary;
+}
+
+exports.sendDueReminders = onSchedule(
+  {
+    schedule: 'every day 09:00',
+    timeZone: SP_TZ,
+    region:   'southamerica-east1',
+    secrets:  [gmailEmailSecret, gmailPasswordSecret],
+    retryCount: 0, // reenvio fica a cargo do próximo dia (o registro garante que não duplica)
+  },
+  async () => { await runDueReminders({ now: new Date() }); }
+);
+
+/* adminRunReminders — { dryRun: boolean }: pré-visualiza ou dispara agora. */
+exports.adminRunReminders = onCall(
+  { region: 'southamerica-east1', secrets: [gmailEmailSecret, gmailPasswordSecret] },
+  async (request) => {
+    const actor = await requireAdmin(request);
+    const dryRun = request.data?.dryRun !== false;
+    const summary = await runDueReminders({ now: new Date(), dryRun });
+    if (!dryRun) {
+      await db.collection('admin_audit_log').add({
+        action: 'reminders_run', actorUid: actor.uid, actorEmail: actor.email,
+        sent: summary.sent, tutors: summary.tutors, at: FieldValue.serverTimestamp(),
+      });
+    }
+    return summary;
   }
 );

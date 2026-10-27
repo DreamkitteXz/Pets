@@ -308,6 +308,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Registro dos lembretes de vencimento já enviados (evita e-mail duplicado).
+    // Só a CF `sendDueReminders` / `adminRunReminders` escreve e lê.
+    match /reminder_log/{entryId} {
+      allow read, write: if false;
+    }
+
     // Deny everything not explicitly covered above.
     match /{document=**} {
       allow read, write: if false;

@@ -3,11 +3,12 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { httpsCallable } from 'firebase/functions';
 import { signOut } from 'firebase/auth';
-import { ShieldCheck, Copy, Check, ExternalLink, RefreshCw, AlertCircle, History } from 'lucide-react';
+import { ShieldCheck, Copy, Check, ExternalLink, RefreshCw, AlertCircle, History, Mail } from 'lucide-react';
 import { auth, functions } from '../../../config/firebase';
 
 const listFn   = httpsCallable(functions, 'adminListVets', { timeout: 20000 });
 const reviewFn = httpsCallable(functions, 'adminReviewVet', { timeout: 20000 });
+const remindFn = httpsCallable(functions, 'adminRunReminders', { timeout: 120000 });
 
 const TABS = [
   { id: 'pending',  label: 'Em análise' },
@@ -189,6 +190,77 @@ function VetCard({ vet, onDecide }) {
   );
 }
 
+// Lembretes de vencimento: o envio automático roda todo dia às 9h; aqui dá
+// para ver o que sairia hoje e disparar na hora (não duplica o automático).
+function RemindersCard() {
+  const [busy, setBusy] = useState(null); // 'preview' | 'send'
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+
+  const run = async (dryRun) => {
+    if (!dryRun && !window.confirm('Enviar agora os lembretes de hoje por e-mail aos tutores?')) return;
+    setBusy(dryRun ? 'preview' : 'send');
+    setError('');
+    try {
+      const res = await remindFn({ dryRun });
+      setResult({ ...res.data, dryRun });
+    } catch (err) {
+      setError(err?.message || 'Não foi possível executar.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <section className="rounded-[18px] p-4 md:p-5 flex flex-col gap-3"
+      style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <h2 className="font-semibold flex items-center gap-1.5" style={{ fontSize: '16px', color: 'var(--text-primary)' }}>
+            <Mail size={16} /> Lembretes por e-mail
+          </h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            Enviados todo dia às 9h aos tutores: doses que vencem em até 7 dias ou venceram há até 30.
+          </p>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          <button type="button" onClick={() => run(true)} disabled={!!busy}
+            className="px-3.5 py-2 rounded-[10px] font-semibold"
+            style={{ fontSize: '14px', color: 'var(--apple-blue)', background: 'rgba(0,122,255,0.08)', opacity: busy ? 0.5 : 1 }}>
+            {busy === 'preview' ? 'Verificando…' : 'Pré-visualizar'}
+          </button>
+          <button type="button" onClick={() => run(false)} disabled={!!busy}
+            className="px-3.5 py-2 rounded-[10px] font-semibold"
+            style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)', opacity: busy ? 0.5 : 1 }}>
+            {busy === 'send' ? 'Enviando…' : 'Enviar agora'}
+          </button>
+        </div>
+      </div>
+      {error && <p style={{ fontSize: '13px', color: 'var(--apple-red)' }}>{error}</p>}
+      {result && (
+        <div style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
+          <p className="font-semibold">
+            {result.dryRun
+              ? (result.items ? `Hoje sairiam ${result.items} lembrete(s) para ${result.tutors} tutor(es).` : 'Nenhum lembrete pendente para hoje.')
+              : `${result.sent} lembrete(s) enviado(s).`}
+            {result.skipped?.length ? ` ${result.skipped.length} tutor(es) sem envio (lembretes desligados ou e-mail não verificado).` : ''}
+          </p>
+          {result.dryRun && result.preview?.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {result.preview.map((p) => (
+                <li key={p.email} style={{ color: 'var(--text-secondary)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>{p.email}</strong>:{' '}
+                  {p.items.map((i) => `${i.pet} · ${i.name} (${i.when})`).join('; ')}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function AdminVets() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('pending');
@@ -295,6 +367,8 @@ export default function AdminVets() {
           ))}
         </div>
       )}
+
+      <RemindersCard />
 
       {data.audit?.length > 0 && (
         <section className="mt-2">
