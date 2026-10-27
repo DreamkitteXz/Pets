@@ -73,9 +73,10 @@ const App = () => {
                     <Route path=":petId/carteira" element={<Carteira />} />
                   </Route>
                   <Route path="/vacinas">
-                    <Route index element={<Vaccines />} />
+                    <Route index element={<Vaccines key="vaccines" kind="vaccines" />} />
                     <Route path=":vaccineId" element={<VaccineDetailsModal />} />
                   </Route>
+                  <Route path="/vermifugos" element={<Vaccines key="deworming" kind="deworming" />} />
                   <Route path="/vencimentos" element={<Vencimentos />} />
                   <Route path="/clinicas" element={<Clinicas />} />
                   <Route path="/chat" element={<Chat />} />

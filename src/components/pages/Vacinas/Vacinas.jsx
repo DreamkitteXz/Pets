@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, CheckCircle, Clock, XCircle, ClipboardList, Check, X, Syringe, Bug } from 'lucide-react';
+import { Search, Filter, CheckCircle, Clock, XCircle, ClipboardList, Check, X } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../../config/firebase';
 import VaccineDetailsModal from './VaccineDetailsModal';
@@ -33,15 +33,19 @@ const StatusBadge = ({ status }) => {
 
 const formatDate = (date) => formatDateBR(date);
 
-// Vacina ou vermífugo — a lista e a validação cobrem as duas coleções.
-const KindTag = ({ kind }) => {
-  const isDew = kind === 'deworming';
-  const Icon = isDew ? Bug : Syringe;
-  return (
-    <span className="inline-flex items-center gap-1" style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-      <Icon size={12} strokeWidth={1.75} /> {isDew ? 'Vermífugo' : 'Vacina'}
-    </span>
-  );
+// Uma tela por tipo: /vacinas (coleção vaccines) e /vermifugos (deworming).
+// Mesma validação — a CF recebe `collection`.
+const KIND_TEXT = {
+  vaccines: {
+    title: 'Vacinas', subtitle: 'Revise e valide os registros de vacinação associados ao seu CRMV.',
+    search: 'Buscar por pet, tutor ou vacina...', column: 'Vacina',
+    empty: 'Nenhuma vacina registrada', emptyHint: 'Os registros de vacinas aparecerão aqui.',
+  },
+  deworming: {
+    title: 'Vermífugos', subtitle: 'Revise e valide os registros de vermifugação associados ao seu CRMV.',
+    search: 'Buscar por pet, tutor ou vermífugo...', column: 'Vermífugo',
+    empty: 'Nenhum vermífugo registrado', emptyHint: 'Os registros de vermífugos aparecerão aqui.',
+  },
 };
 
 // ── KPI stat card ──────────────────────────────────────────────────────────
@@ -61,11 +65,12 @@ const KpiCard = ({ label, value, accentColor, icon: Icon, delay }) => (
 );
 
 // ── Page ──────────────────────────────────────────────────────────────────
-const VaccinePage = () => {
-  const { vaccines, loading, refresh } = useVetVaccines();
+const VaccinePage = ({ kind = 'vaccines' }) => {
+  const { vaccines: allRecords, loading, refresh } = useVetVaccines();
+  const vaccines = allRecords.filter(v => v.kind === kind);
+  const text = KIND_TEXT[kind];
   const { user } = useAuth();
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterKind, setFilterKind] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVaccine, setSelectedVaccine] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -117,7 +122,6 @@ const VaccinePage = () => {
 
   const filteredVaccines = vaccines
     .filter(v => filterStatus === 'all' || normalizeStatus(v.status) === filterStatus)
-    .filter(v => filterKind === 'all' || v.kind === filterKind)
     .filter(v => {
       if (!searchTerm) return true;
       const q = searchTerm.toLowerCase();
@@ -192,10 +196,10 @@ const VaccinePage = () => {
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="mb-6 fade-in-up">
         <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Vacinas
+          {text.title}
         </h1>
         <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-          Revise e valide as vacinas e os vermífugos associados ao seu CRMV.
+          {text.subtitle}
         </p>
       </div>
 
@@ -224,7 +228,7 @@ const VaccinePage = () => {
               <Search size={14} strokeWidth={1.5} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
               <input
                 type="text"
-                placeholder="Buscar por pet, tutor ou produto..."
+                placeholder={text.search}
                 className="bg-transparent border-none outline-none flex-1"
                 style={{ fontSize: '15px', color: 'var(--text-primary)' }}
                 value={searchTerm}
@@ -245,19 +249,6 @@ const VaccinePage = () => {
                 <option value="rejected">Rejeitado</option>
               </select>
             </div>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-[10px]" style={{ background: 'var(--surface-secondary)' }}>
-              <select
-                aria-label="Tipo de registro"
-                className="bg-transparent border-none outline-none"
-                style={{ fontSize: '15px', color: 'var(--text-primary)' }}
-                value={filterKind}
-                onChange={e => setFilterKind(e.target.value)}
-              >
-                <option value="all">Vacinas e vermífugos</option>
-                <option value="vaccines">Só vacinas</option>
-                <option value="deworming">Só vermífugos</option>
-              </select>
-            </div>
             <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
               {filteredVaccines.length} de {vaccines.length}
             </span>
@@ -274,10 +265,10 @@ const VaccinePage = () => {
                   <ClipboardList size={28} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
                 </div>
                 <p className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>
-                  {vaccines.length === 0 ? 'Nenhum registro ainda' : 'Nenhum resultado'}
+                  {vaccines.length === 0 ? text.empty : 'Nenhum resultado'}
                 </p>
                 <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-                  {vaccines.length === 0 ? 'As vacinas e os vermífugos aparecerão aqui.' : 'Tente outros filtros.'}
+                  {vaccines.length === 0 ? text.emptyHint : 'Tente outros filtros.'}
                 </p>
               </div>
             ) : (
@@ -290,7 +281,6 @@ const VaccinePage = () => {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{vaccine.name || '—'}</div>
-                        <KindTag kind={vaccine.kind} />
                         <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                           {vaccine.petName || '—'} · {vaccine.ownerName || '—'}
                         </div>
@@ -308,7 +298,7 @@ const VaccinePage = () => {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr style={{ background: 'rgba(116,116,128,0.06)', borderBottom: '1px solid var(--separator)' }}>
-                      {['Data / ID', 'Pet · Tutor', 'Produto', 'CRMV', 'Status', 'Ações'].map(h => (
+                      {['Data / ID', 'Pet · Tutor', text.column, 'CRMV', 'Status', 'Ações'].map(h => (
                         <th key={h} className="text-left font-semibold uppercase"
                           style={{ padding: '10px 20px', fontSize: '11px', letterSpacing: '0.06em', color: 'var(--text-secondary)', border: 'none', background: 'transparent' }}>
                           {h}
@@ -339,7 +329,6 @@ const VaccinePage = () => {
                           </td>
                           <td style={{ padding: '14px 20px', border: 'none' }}>
                             <div className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{vaccine.name || '—'}</div>
-                            <KindTag kind={vaccine.kind} />
                             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Lote: {vaccine.batchNumber || '—'}</div>
                           </td>
                           <td style={{ padding: '14px 20px', border: 'none' }}>
