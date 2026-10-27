@@ -52,3 +52,34 @@ export const formatCEP = (value) => {
     .replace(/(\d{5})(\d)/, '$1-$2')
     .replace(/(-\d{3})\d+?$/, '$1');
 };
+
+// CNPJ: 14 dígitos + 2 dígitos verificadores (a CF createClinicManual valida de novo).
+export const validateCNPJ = (value) => {
+  const d = String(value || '').replace(/\D/g, '');
+  if (d.length !== 14 || /^(\d)\1+$/.test(d)) return false;
+  const digit = (len) => {
+    let sum = 0;
+    let pos = len - 7;
+    for (let i = len; i >= 1; i--) {
+      sum += Number(d[len - i]) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    const r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  return digit(12) === Number(d[12]) && digit(13) === Number(d[13]);
+};
+
+export const formatCNPJ = (value) => value
+  .replace(/\D/g, '')
+  .slice(0, 14)
+  .replace(/^(\d{2})(\d)/, '$1.$2')
+  .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+  .replace(/\.(\d{3})(\d)/, '.$1/$2')
+  .replace(/(\d{4})(\d)/, '$1-$2');
+
+export const formatPhoneBR = (value) => value
+  .replace(/\D/g, '')
+  .slice(0, 11)
+  .replace(/^(\d{2})(\d)/, '($1) $2')
+  .replace(/(\d)(\d{4})$/, '$1-$2');

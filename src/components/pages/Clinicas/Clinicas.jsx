@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { Search, Building2, MapPin, Phone, Users, Stethoscope, Heart } from 'lucide-react';
+import { Search, Building2, MapPin, Phone, Users, Stethoscope, Heart, Plus } from 'lucide-react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../../config/firebase';
+import AddClinicModal from './AddClinicModal';
 import { useClinics } from '../../../hooks/useClinics';
 import { usePets } from '../../../hooks/usePets';
 import { useAuth } from '../../../context/AuthContext';
@@ -44,8 +47,25 @@ const formatAddress = (addr) => {
   return parts.join(' · ') || '—';
 };
 
+const leaveFn = httpsCallable(functions, 'leaveClinic', { timeout: 20000 });
+
 const ClinicasPage = () => {
-  const { clinics, loading, error } = useClinics();
+  const { clinics, loading, error, refresh } = useClinics();
+  const [showAdd, setShowAdd] = useState(false);
+  const [leavingId, setLeavingId] = useState(null);
+
+  const leave = async (clinic) => {
+    if (!window.confirm(`Sair de ${clinic.name}? Você pode entrar de novo depois.`)) return;
+    setLeavingId(clinic.id);
+    try {
+      await leaveFn({ clinicId: clinic.id });
+      await refresh();
+    } catch (err) {
+      alert(err?.message || 'Não foi possível sair da clínica.');
+    } finally {
+      setLeavingId(null);
+    }
+  };
   const { pets } = usePets();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,13 +91,20 @@ const ClinicasPage = () => {
     <div className="min-h-full font-sf">
 
       {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div className="mb-6 fade-in-up">
-        <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Clínicas
-        </h1>
-        <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-          Unidades veterinárias às quais você está associado.
-        </p>
+      <div className="mb-6 fade-in-up flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+        <div>
+          <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            Clínicas
+          </h1>
+          <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
+            Unidades veterinárias às quais você está associado.
+          </p>
+        </div>
+        <button type="button" onClick={() => setShowAdd(true)}
+          className="self-start inline-flex items-center gap-1.5 px-4 py-2.5 rounded-[12px] font-semibold flex-shrink-0"
+          style={{ fontSize: '15px', color: '#fff', background: 'var(--apple-blue)' }}>
+          <Plus size={16} strokeWidth={2.5} /> Adicionar clínica
+        </button>
       </div>
 
       {loading ? (
@@ -135,7 +162,7 @@ const ClinicasPage = () => {
                   {clinics.length === 0 ? 'Nenhuma clínica associada' : 'Nenhum resultado'}
                 </p>
                 <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-                  {clinics.length === 0 ? 'Você ainda não está vinculado a nenhuma clínica.' : 'Tente outros termos de busca.'}
+                  {clinics.length === 0 ? 'Busque sua clínica no Google ou cadastre manualmente em “Adicionar clínica”.' : 'Tente outros termos de busca.'}
                 </p>
               </div>
             ) : (
@@ -143,7 +170,7 @@ const ClinicasPage = () => {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr style={{ background: 'rgba(116,116,128,0.06)', borderBottom: '1px solid var(--separator)' }}>
-                      {['Clínica', 'Endereço', 'Telefone', 'Veterinários', 'Status'].map(h => (
+                      {['Clínica', 'Endereço', 'Telefone', 'Veterinários', 'Status', ''].map(h => (
                         <th key={h} className="text-left font-semibold uppercase"
                           style={{ padding: '10px 20px', fontSize: '11px', letterSpacing: '0.06em', color: 'var(--text-secondary)', border: 'none', background: 'transparent' }}>
                           {h}
@@ -207,6 +234,14 @@ const ClinicasPage = () => {
                           <td style={{ padding: '14px 20px', border: 'none' }}>
                             <StatusBadge status={clinic.status} />
                           </td>
+
+                          <td style={{ padding: '14px 20px', border: 'none', textAlign: 'right' }}>
+                            <button type="button" onClick={() => leave(clinic)} disabled={leavingId === clinic.id}
+                              className="font-medium whitespace-nowrap"
+                              style={{ fontSize: '14px', color: 'var(--apple-red)', opacity: leavingId === clinic.id ? 0.5 : 1 }}>
+                              {leavingId === clinic.id ? 'Saindo…' : 'Sair'}
+                            </button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -217,6 +252,8 @@ const ClinicasPage = () => {
           </div>
         </>
       )}
+
+      {showAdd && <AddClinicModal onClose={() => setShowAdd(false)} onAdded={refresh} />}
     </div>
   );
 };

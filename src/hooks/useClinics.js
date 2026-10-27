@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
@@ -9,25 +9,25 @@ export function useClinics() {
   const [error, setError] = useState(null);
   const { user } = useAuth();
 
-  useEffect(() => {
-    async function fetchClinics() {
-      if (!user?.uid) return;
-      try {
-        // Only clinics where the logged-in vet is in the `veterinarians` array.
-        const q = query(
-          collection(db, 'clinics'),
-          where('veterinarians', 'array-contains', user.uid)
-        );
-        const snap = await getDocs(q);
-        setClinics(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      } catch (err) {
-        setError(err);
-      } finally {
-        setLoading(false);
-      }
+  const fetchClinics = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      // Only clinics where the logged-in vet is in the `veterinarians` array.
+      const q = query(
+        collection(db, 'clinics'),
+        where('veterinarians', 'array-contains', user.uid)
+      );
+      const snap = await getDocs(q);
+      setClinics(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setError(null);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
     }
-    fetchClinics();
   }, [user]);
 
-  return { clinics, loading, error };
+  useEffect(() => { fetchClinics(); }, [fetchClinics]);
+
+  return { clinics, loading, error, refresh: fetchClinics };
 }

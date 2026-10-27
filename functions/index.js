@@ -1055,3 +1055,268 @@ exports.adminRunReminders = onCall(
     return summary;
   }
 );
+
+/* ── Clínicas: veterinário cadastra e entra em clínicas ─────────────────────
+ *
+ * O cliente nunca cria clínica direto (rule). Tudo passa por aqui e exige
+ * veterinário com CRMV APROVADO (`requireActiveVet`).
+ *
+ *  • Busca no Google: Places API (New), chamada SÓ do servidor. A chave fica
+ *    em segredo (`PLACES_API_KEY`), nunca vai ao navegador; cada vet tem
+ *    limite de buscas por hora.
+ *  • "Adicionar do Google" recebe só o placeId e busca os dados de novo no
+ *    Google — o cliente não consegue forjar nome/endereço "vindos do Google".
+ *    O doc tem id determinístico (`gplace_<placeId>`): a mesma clínica nunca
+ *    é cadastrada duas vezes, nem com cliques simultâneos.
+ *  • Manual: campos validados (CNPJ com dígito verificador); com CNPJ, o id é
+ *    `cnpj_<dígitos>` pelo mesmo motivo.
+ *  • Já cadastrada: o vet entra nela (`joinClinic`) em vez de duplicar.
+ */
+const placesApiKeySecret = defineSecret('PLACES_API_KEY');
+// No emulador os testes apontam para um Google falso local; em produção, sempre o real.
+const PLACES_BASE = (process.env.FUNCTIONS_EMULATOR === 'true' && process.env.PLACES_FAKE_URL)
+  || 'https://places.googleapis.com/v1';
+const PLACE_FIELDS = ['id', 'displayName', 'formattedAddress', 'addressComponents',
+  'nationalPhoneNumber', 'websiteUri', 'location', 'businessStatus'];
+const SEARCHES_PER_HOUR = 30;
+
+async function rateLimit(uid, bucket, max, windowS) {
+  const ref = db.collection('rate_limits').doc(`${bucket}_${uid}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const now = Date.now();
+    const hits = (snap.exists ? snap.data().hits || [] : []).filter((t) => t > now - windowS * 1000);
+    if (hits.length >= max) {
+      throw new HttpsError('resource-exhausted', 'Muitas buscas em pouco tempo. Tente de novo em alguns minutos.');
+    }
+    tx.set(ref, { hits: [...hits, now] });
+  });
+}
+
+function placeToClinic(p) {
+  const comp = (type, short = false) => {
+    const c = (p.addressComponents || []).find((x) => (x.types || []).includes(type));
+    return c ? (short ? c.shortText : c.longText) || '' : '';
+  };
+  return {
+    googlePlaceId: p.id,
+    name: p.displayName?.text || '',
+    phone: p.nationalPhoneNumber || '',
+    website: p.websiteUri || '',
+    formattedAddress: p.formattedAddress || '',
+    address: {
+      street:       comp('route'),
+      number:       comp('street_number'),
+      complement:   '',
+      neighborhood: comp('sublocality_level_1') || comp('sublocality'),
+      city:         comp('administrative_area_level_2') || comp('locality'),
+      state:        comp('administrative_area_level_1', true),
+      zipCode:      comp('postal_code'),
+    },
+    location: p.location ? { lat: p.location.latitude, lng: p.location.longitude } : null,
+    businessStatus: p.businessStatus || '',
+  };
+}
+
+async function placesRequest(path, { method = 'GET', body, fieldMask }) {
+  const key = process.env.PLACES_API_KEY;
+  if (!key) throw new HttpsError('failed-precondition', 'Busca no Google ainda não configurada.');
+  const res = await fetch(`${PLACES_BASE}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': fieldMask },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 404) throw new HttpsError('not-found', 'Clínica não encontrada no Google.');
+  if (!res.ok) {
+    logger.error('places: erro', { status: res.status, body: (await res.text()).slice(0, 300) });
+    throw new HttpsError('unavailable', 'A busca no Google falhou. Tente de novo ou cadastre manualmente.');
+  }
+  return res.json();
+}
+
+const clinicIdForPlace = (placeId) => `gplace_${placeId}`;
+const PLACE_ID_RE = /^[A-Za-z0-9_-]{10,300}$/;
+
+/* searchClinicsOnMaps — { query, city? } → { results: [...] } */
+exports.searchClinicsOnMaps = onCall(
+  { region: 'southamerica-east1', secrets: [placesApiKeySecret] },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+    await requireActiveVet(request.auth.uid);
+    const query = String(request.data?.query || '').trim().slice(0, 80);
+    const city  = String(request.data?.city || '').trim().slice(0, 60);
+    if (query.length < 2) throw new HttpsError('invalid-argument', 'Digite o nome da clínica ou o bairro.');
+    await rateLimit(request.auth.uid, 'places', SEARCHES_PER_HOUR, 3600);
+
+    const data = await placesRequest('/places:searchText', {
+      method: 'POST',
+      fieldMask: PLACE_FIELDS.map((f) => `places.${f}`).join(','),
+      body: {
+        textQuery: city ? `${query} ${city}` : query,
+        languageCode: 'pt-BR',
+        regionCode: 'BR',
+        includedType: 'veterinary_care',
+        strictTypeFiltering: true,
+        maxResultCount: 10,
+      },
+    });
+    const results = (data.places || []).map(placeToClinic).filter((c) => c.businessStatus !== 'CLOSED_PERMANENTLY');
+
+    // Marca as que já estão no Pets (e se o vet já faz parte).
+    const refs = results.map((c) => db.collection('clinics').doc(clinicIdForPlace(c.googlePlaceId)));
+    const existing = refs.length ? await db.getAll(...refs) : [];
+    return {
+      results: results.map((c, i) => ({
+        ...c,
+        clinicId: existing[i].exists ? existing[i].id : null,
+        isMember:  existing[i].exists && (existing[i].data().veterinarians || []).includes(request.auth.uid),
+      })),
+    };
+  }
+);
+
+/* addClinicFromGoogle — { placeId } → { clinicId, created } */
+exports.addClinicFromGoogle = onCall(
+  { region: 'southamerica-east1', secrets: [placesApiKeySecret] },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+    const uid = request.auth.uid;
+    await requireActiveVet(uid);
+    const placeId = String(request.data?.placeId || '');
+    if (!PLACE_ID_RE.test(placeId)) throw new HttpsError('invalid-argument', 'Clínica inválida.');
+
+    const ref = db.collection('clinics').doc(clinicIdForPlace(placeId));
+    const snap = await ref.get();
+    if (snap.exists) {
+      await ref.update({ veterinarians: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() });
+      return { clinicId: ref.id, created: false };
+    }
+
+    // Dados oficiais buscados de novo no Google — nada do cliente além do id.
+    const place = placeToClinic(await placesRequest(`/places/${encodeURIComponent(placeId)}?languageCode=pt-BR&regionCode=BR`, {
+      fieldMask: PLACE_FIELDS.join(','),
+    }));
+    if (!place.name) throw new HttpsError('not-found', 'Clínica não encontrada no Google.');
+    const now = FieldValue.serverTimestamp();
+    try {
+      await ref.create({
+        name: place.name, phone: place.phone, email: '', website: place.website, cnpj: '',
+        address: place.address, formattedAddress: place.formattedAddress, location: place.location,
+        googlePlaceId: placeId, source: 'google', status: 'active',
+        veterinarians: [uid], createdBy: uid, createdAt: now, updatedAt: now,
+      });
+      return { clinicId: ref.id, created: true };
+    } catch (err) {
+      // Outro vet cadastrou no mesmo instante: só entra nela.
+      if (err.code === 6 /* ALREADY_EXISTS */) {
+        await ref.update({ veterinarians: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() });
+        return { clinicId: ref.id, created: false };
+      }
+      throw err;
+    }
+  }
+);
+
+function validCnpj(value) {
+  const d = String(value || '').replace(/\D/g, '');
+  if (d.length !== 14 || /^(\d)\1+$/.test(d)) return false;
+  const digit = (len) => {
+    let sum = 0;
+    let pos = len - 7;
+    for (let i = len; i >= 1; i--) {
+      sum += Number(d[len - i]) * pos--;
+      if (pos < 2) pos = 9;
+    }
+    const r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  return digit(12) === Number(d[12]) && digit(13) === Number(d[13]);
+}
+
+const cleanText = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, max);
+
+/* createClinicManual — clínica que não está no Google. */
+exports.createClinicManual = onCall(
+  { region: 'southamerica-east1' },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+    const uid = request.auth.uid;
+    await requireActiveVet(uid);
+    const d = request.data || {};
+    const a = d.address || {};
+
+    const clinic = {
+      name:  cleanText(d.name, 100),
+      phone: cleanText(d.phone, 20),
+      email: cleanText(d.email, 120).toLowerCase(),
+      cnpj:  cleanText(d.cnpj, 18),
+      address: {
+        street:       cleanText(a.street, 120),
+        number:       cleanText(a.number, 10),
+        complement:   cleanText(a.complement, 60),
+        neighborhood: cleanText(a.neighborhood, 80),
+        city:         cleanText(a.city, 80),
+        state:        cleanText(a.state, 2).toUpperCase(),
+        zipCode:      cleanText(a.zipCode, 9),
+      },
+    };
+    const problems = [];
+    if (clinic.name.length < 3) problems.push('nome');
+    if (clinic.cnpj && !validCnpj(clinic.cnpj)) problems.push('CNPJ');
+    const phoneDigits = clinic.phone.replace(/\D/g, '');
+    if (clinic.phone && (phoneDigits.length < 10 || phoneDigits.length > 11)) problems.push('telefone');
+    if (clinic.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(clinic.email)) problems.push('e-mail');
+    if (!clinic.address.street || !clinic.address.city) problems.push('endereço (rua e cidade)');
+    if (!/^[A-Z]{2}$/.test(clinic.address.state)) problems.push('estado (UF)');
+    if (clinic.address.zipCode && clinic.address.zipCode.replace(/\D/g, '').length !== 8) problems.push('CEP');
+    if (problems.length) throw new HttpsError('invalid-argument', `Confira: ${problems.join(', ')}.`);
+
+    const cnpjDigits = clinic.cnpj.replace(/\D/g, '');
+    const ref = cnpjDigits ? db.collection('clinics').doc(`cnpj_${cnpjDigits}`) : db.collection('clinics').doc();
+    const now = FieldValue.serverTimestamp();
+    try {
+      await ref.create({
+        ...clinic, website: '', googlePlaceId: '', source: 'manual', status: 'active',
+        veterinarians: [uid], createdBy: uid, createdAt: now, updatedAt: now,
+      });
+    } catch (err) {
+      if (err.code === 6 /* ALREADY_EXISTS */) {
+        throw new HttpsError('already-exists', 'Já existe uma clínica com este CNPJ. Você pode entrar nela.', { clinicId: ref.id });
+      }
+      throw err;
+    }
+    return { clinicId: ref.id, created: true };
+  }
+);
+
+/* joinClinic / leaveClinic — { clinicId } */
+exports.joinClinic = onCall(
+  { region: 'southamerica-east1' },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+    await requireActiveVet(request.auth.uid);
+    const clinicId = String(request.data?.clinicId || '');
+    if (!/^[A-Za-z0-9_-]{1,350}$/.test(clinicId)) throw new HttpsError('invalid-argument', 'Clínica inválida.');
+    const ref = db.collection('clinics').doc(clinicId);
+    const snap = await ref.get();
+    if (!snap.exists || snap.data().status === 'inactive') throw new HttpsError('not-found', 'Clínica não encontrada.');
+    await ref.update({ veterinarians: FieldValue.arrayUnion(request.auth.uid), updatedAt: FieldValue.serverTimestamp() });
+    return { clinicId };
+  }
+);
+
+exports.leaveClinic = onCall(
+  { region: 'southamerica-east1' },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+    const clinicId = String(request.data?.clinicId || '');
+    if (!/^[A-Za-z0-9_-]{1,350}$/.test(clinicId)) throw new HttpsError('invalid-argument', 'Clínica inválida.');
+    const ref = db.collection('clinics').doc(clinicId);
+    const snap = await ref.get();
+    if (!snap.exists || !(snap.data().veterinarians || []).includes(request.auth.uid)) {
+      throw new HttpsError('not-found', 'Você não faz parte desta clínica.');
+    }
+    await ref.update({ veterinarians: FieldValue.arrayRemove(request.auth.uid), updatedAt: FieldValue.serverTimestamp() });
+    return { clinicId };
+  }
+);

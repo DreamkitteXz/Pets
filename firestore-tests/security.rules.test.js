@@ -166,6 +166,36 @@ describe('users — campos que decidem acesso', () => {
   });
 });
 
+/* ── Clínicas: cadastro só pelas CFs ───────────────────────────────────── */
+
+describe('clinics — escrita restrita', () => {
+  beforeEach(async () => {
+    await seed('clinics', 'c1', { name: 'VetLife', veterinarians: [VET, OTHER], source: 'manual', createdBy: OTHER, status: 'active' });
+  });
+  it('qualquer logado lê', async () => {
+    const { getDoc } = require('firebase/firestore');
+    await assertSucceeds(getDoc(doc(asUser(TUTOR), 'clinics', 'c1')));
+  });
+  it('NÃO cria clínica pelo cliente', async () => {
+    await assertFails(setDoc(doc(asUser(VET), 'clinics', 'c2'), { name: 'X', veterinarians: [VET] }));
+  });
+  it('membro corrige telefone', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(VET), 'clinics', 'c1'), { phone: '(31) 3333-4444' }));
+  });
+  it('membro NÃO remove colega', async () => {
+    await assertFails(updateDoc(doc(asUser(VET), 'clinics', 'c1'), { veterinarians: [VET] }));
+  });
+  it('não-membro NÃO edita', async () => {
+    await assertFails(updateDoc(doc(asUser(TUTOR), 'clinics', 'c1'), { phone: '1' }));
+  });
+  it('NÃO se coloca na clínica pelo cliente', async () => {
+    await assertFails(updateDoc(doc(asUser(TUTOR), 'clinics', 'c1'), { veterinarians: [VET, OTHER, TUTOR] }));
+  });
+  it('NÃO apaga clínica', async () => {
+    await assertFails(deleteDoc(doc(asUser(VET), 'clinics', 'c1')));
+  });
+});
+
 /* ── S4: verificação do CRMV ───────────────────────────────────────────── */
 
 describe('users — verificação do CRMV (só a administração aprova)', () => {
