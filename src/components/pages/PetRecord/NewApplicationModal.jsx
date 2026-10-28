@@ -4,6 +4,8 @@ import { vaccineService } from '../../../services/firebase/vaccineService';
 import { useCatalog } from '../../../hooks/useCatalog';
 import { useAuth } from '../../../context/AuthContext';
 import { useVetDirectory } from '../../../hooks/useVetDirectory';
+import { useClinicOptions, formatClinicAddress } from '../../../hooks/useClinicOptions';
+import { Link } from 'react-router-dom';
 import { toDateInput, fromDateInput } from '../../../utils/dates';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -51,6 +53,9 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
   const { user, userProfile } = useAuth();
   const { vets: directory } = useVetDirectory(isTutorMode && isOpen);
   const [selectedVetId, setSelectedVetId] = useState('');
+  const [clinicId, setClinicId] = useState('');
+  // Vacina exige clínica; vermífugo pode ser aplicado em casa.
+  const clinicRequired = type !== 'vermifugo';
   const [form, setForm] = useState({});
   const [selectedCatalogId, setSelectedCatalogId] = useState('');
   const [labelFile, setLabelFile] = useState(null);
@@ -64,8 +69,8 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
         name: '', manufacturer: '', batchNumber: '', dosage: '', dose: '',
         route: '', applicationSite: '',
         administrationDate: todayISO(), expirationDate: '', nextDueDate: '',
-        clinicName: '',
       });
+      setClinicId('');
       setLabelFile(null);
       setAttachLocation(false);
       setSelectedCatalogId('');
@@ -86,6 +91,15 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
     if (isTutorMode && isOpen && linkedVets.length === 1 && !selectedVetId) setSelectedVetId(linkedVets[0].uid);
   }, [isTutorMode, isOpen, linkedVets, selectedVetId]);
 
+  const { clinics: clinicOptions, loading: clinicsLoading } = useClinicOptions({
+    enabled: isOpen, isTutorMode, vetId: isTutorMode ? selectedVetId : user?.uid,
+  });
+  const selectedClinic = clinicOptions.find((c) => c.id === clinicId) || null;
+  // Com uma única clínica possível (caso comum do vet), já vem escolhida.
+  useEffect(() => {
+    if (isOpen && !clinicId && clinicOptions.length === 1 && !isTutorMode) setClinicId(clinicOptions[0].id);
+  }, [isOpen, clinicId, clinicOptions, isTutorMode]);
+
   // Recalcula a próxima dose ao mudar a data de aplicação (se item do catálogo escolhido).
   useEffect(() => {
     if (!isOpen || !selectedCatalogId) return;
@@ -103,7 +117,8 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
   const namePlaceholder = isDeworming ? 'Ex.: Milbemax' : 'Ex.: V10 Polivalente';
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
-  const valid = (form.name || '').trim() && form.administrationDate && (!isTutorMode || selectedVetId);
+  const valid = (form.name || '').trim() && form.administrationDate && (!isTutorMode || selectedVetId)
+    && (!clinicRequired || selectedClinic);
 
   // Item do catálogo selecionado (para pré-preenchimento e validação por espécie).
   const chosen = catalog.find(c => c.id === selectedCatalogId) || null;
@@ -149,7 +164,11 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
         petWeight: pet.weight ?? null,
         ownerName: pet.ownerName || '',
         ownerContact: pet.ownerContact || '',
-        clinicName: (form.clinicName || '').trim(),
+        // Clínica: retrato do cadastro (no registro do vet a CF refaz a partir do clinicId).
+        clinicId: selectedClinic?.id || null,
+        clinicName: selectedClinic?.name || '',
+        clinicCnpj: selectedClinic?.cnpj || '',
+        clinicAddress: selectedClinic?.address || {},
         // Dono, responsável (nome/CRMV), status "approved", bloco de validação e
         // trilha de auditoria são definidos pela CF createVaccineRecord.
         notes: '',
@@ -224,6 +243,41 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
             )
           )}
 
+          {/* Clínica da aplicação — também é onde a foto do rótulo foi tirada. */}
+          {clinicsLoading ? (
+            <Field label="Clínica" required={clinicRequired}>
+              <div style={{ ...inputStyle, color: 'var(--text-tertiary)' }}>Carregando clínicas…</div>
+            </Field>
+          ) : clinicOptions.length === 0 ? (
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-[10px]"
+              style={{ background: clinicRequired ? 'rgba(255,149,0,0.10)' : 'var(--surface-secondary)', color: clinicRequired ? 'var(--apple-orange)' : 'var(--text-secondary)', fontSize: '13px' }}>
+              <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span>
+                {isTutorMode
+                  ? 'Nenhuma clínica cadastrada ainda. Peça ao veterinário para cadastrar a clínica no Pets.'
+                  : <>Você ainda não faz parte de nenhuma clínica. Cadastre ou entre em uma em <Link to="/clinicas" className="font-semibold" style={{ color: 'var(--apple-blue)' }}>Clínicas</Link>.</>}
+                {!clinicRequired && ' (Opcional para vermífugo.)'}
+              </span>
+            </div>
+          ) : (
+            <Field label="Clínica" required={clinicRequired}>
+              <select value={clinicId} onChange={(e) => setClinicId(e.target.value)} aria-label="Clínica"
+                style={{ ...inputStyle, appearance: 'auto' }}>
+                <option value="">{clinicRequired ? '— Escolha a clínica —' : '— Sem clínica (aplicado em casa) —'}</option>
+                {clinicOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.address?.city ? ` · ${c.address.city}` : ''}{isTutorMode && c.ofSelectedVet ? ' (do veterinário)' : ''}
+                  </option>
+                ))}
+              </select>
+              {selectedClinic && (
+                <p className="mt-1 flex items-start gap-1" style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                  <MapPin size={12} style={{ flexShrink: 0, marginTop: '2px' }} /> {formatClinicAddress(selectedClinic.address) || 'Endereço não informado'}
+                </p>
+              )}
+            </Field>
+          )}
+
           {catalog.length > 0 && (
             <Field label="Catálogo">
               <select value={selectedCatalogId} onChange={e => chooseCatalog(e.target.value)} style={{ ...inputStyle, appearance: 'auto' }}>
@@ -294,9 +348,6 @@ export default function NewApplicationModal({ isOpen, onClose, pet, type = 'vaci
             </Field>
             <Field label="Validade do produto">
               <input type="date" value={form.expirationDate || ''} onChange={set('expirationDate')} style={inputStyle} />
-            </Field>
-            <Field label="Clínica">
-              <input type="text" value={form.clinicName || ''} onChange={set('clinicName')} style={inputStyle} placeholder="Opcional" />
             </Field>
           </div>
 

@@ -321,7 +321,38 @@ const SERVER_OWNED_FIELDS = [
   'status', 'validationDetails', 'veterinarianId', 'veterinarianName', 'crmvNumber',
   'ownerId', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
   'tutorAcknowledged', 'tutorAcknowledgedAt', 'active', 'deletedAt', 'deletedBy',
+  'clinicName', 'clinicCnpj', 'clinicAddress',
 ];
+
+/**
+ * Clínica da aplicação: o cliente manda só o `clinicId`; nome, CNPJ e endereço
+ * vêm do documento da clínica (retrato no momento da aplicação, como os demais
+ * snapshots do registro). Vacina exige clínica; vermífugo pode ser sem
+ * (aplicado em casa). O vet só registra em clínica de que faz parte.
+ */
+async function resolveClinic(clinicId, { required, memberUid }) {
+  if (!clinicId) {
+    if (required) throw new HttpsError('invalid-argument', 'Escolha a clínica onde a vacina foi aplicada.');
+    return null;
+  }
+  if (typeof clinicId !== 'string' || !/^[A-Za-z0-9_-]{1,350}$/.test(clinicId)) {
+    throw new HttpsError('invalid-argument', 'Clínica inválida.');
+  }
+  const snap = await db.collection('clinics').doc(clinicId).get();
+  if (!snap.exists || snap.data().status === 'inactive') {
+    throw new HttpsError('not-found', 'Clínica não encontrada.');
+  }
+  const c = snap.data();
+  if (memberUid && !(c.veterinarians || []).includes(memberUid)) {
+    throw new HttpsError('permission-denied', 'Você não faz parte desta clínica. Entre nela pela tela Clínicas.');
+  }
+  return {
+    clinicId,
+    clinicName:    c.name || '',
+    clinicCnpj:    c.cnpj || '',
+    clinicAddress: c.address || {},
+  };
+}
 
 // Datas chegam do callable como string ISO (ou null) e são gravadas como Timestamp.
 const DATE_FIELDS = ['administrationDate', 'expirationDate', 'nextDueDate', 'reinforcementDate'];
@@ -370,14 +401,21 @@ exports.createVaccineRecord = onCall(
       throw new HttpsError('permission-denied', 'Você não está vinculado a este paciente.');
     }
 
+    const clinic = await resolveClinic(vaccineData.clinicId, { required: collection === 'vaccines', memberUid: uid });
+
     const data = { ...vaccineData };
     SERVER_OWNED_FIELDS.forEach((f) => delete data[f]);
+    delete data.clinicId;
+    if (clinic) Object.assign(data, clinic);
     DATE_FIELDS.forEach((f) => {
       if (f in data) data[f] = toTimestamp(data[f], f);
     });
     if (data.labelImageMetadata && typeof data.labelImageMetadata === 'object') {
+      const { clinicId: _c, clinicName: _n, ...meta } = data.labelImageMetadata;
       data.labelImageMetadata = {
-        ...data.labelImageMetadata,
+        ...meta,
+        // Onde a foto do rótulo foi tirada = clínica da aplicação.
+        ...(clinic ? { clinicId: clinic.clinicId, clinicName: clinic.clinicName } : {}),
         timeCreated: FieldValue.serverTimestamp(),
         updated:     FieldValue.serverTimestamp(),
       };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Info, MapPin, Maximize2, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { X, Info, MapPin, Maximize2, CheckCircle, XCircle, Clock, AlertCircle, Building2 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../../config/firebase';
@@ -7,6 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import logger from '../../../utils/logger';
 import { normalizeStatus } from '../../../utils/vaccineStatus';
 import { toDate } from '../../../utils/dates';
+import { formatClinicAddress } from '../../../hooks/useClinicOptions';
 
 const updateVaccineStatusFn = httpsCallable(functions, 'updateVaccineStatus', { timeout: 15000 });
 
@@ -292,9 +293,7 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
                 <div className="md:col-span-2">
                   <InfoItem
                     label="Endereço"
-                    value={vaccine.clinicAddress
-                      ? `${vaccine.clinicAddress.street || ''}, ${vaccine.clinicAddress.number || ''} — ${vaccine.clinicAddress.neighborhood || ''}, ${vaccine.clinicAddress.city || ''}/${vaccine.clinicAddress.state || ''}`
-                      : null}
+                    value={formatClinicAddress(vaccine.clinicAddress) || null}
                   />
                 </div>
               </div>
@@ -437,6 +436,19 @@ const VaccineDetailsModal = ({ isOpen, onClose, vaccine }) => {
                 <InfoItem label="Tamanho" value={vaccine.labelImageMetadata.size != null ? `${(vaccine.labelImageMetadata.size / 1024).toFixed(2)} KB` : null} />
                 <InfoItem label="Tipo" value={vaccine.labelImageMetadata.contentType} />
                 <InfoItem label="Data de Upload" value={formatDate(vaccine.labelImageMetadata.timeCreated)} />
+                {/* Clínica onde a foto foi tirada = clínica da aplicação (registros antigos: a do registro). */}
+                {(vaccine.labelImageMetadata.clinicName || vaccine.clinicName) && (
+                  <div className="col-span-2 flex items-start gap-1.5">
+                    <Building2 size={14} strokeWidth={1.75} style={{ color: 'var(--text-tertiary)', marginTop: '3px' }} />
+                    <InfoItem
+                      label="Clínica onde a foto foi tirada"
+                      value={[
+                        vaccine.labelImageMetadata.clinicName || vaccine.clinicName,
+                        formatClinicAddress(vaccine.clinicAddress),
+                      ].filter(Boolean).join(' — ')}
+                    />
+                  </div>
+                )}
                 {vaccine.labelImageMetadata.location && (
                   <div className="col-span-2 flex items-center gap-1.5">
                     <MapPin size={14} strokeWidth={1.75} style={{ color: 'var(--text-tertiary)' }} />

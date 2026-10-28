@@ -145,7 +145,7 @@ service cloud.firestore {
       }
 
       allow read: if request.auth != null && (isVet() || isOwner());
-      allow create: if request.auth != null && tutorPendingCreate(request.resource.data.petId);
+      allow create: if request.auth != null && tutorPendingCreate(request.resource.data.petId, true);
       allow update: if request.auth != null && !touchesProtected() && (
         (isOwner() && tutorAckOnly()) ||
         (isVet() && softDeleteOnly()) ||
@@ -173,10 +173,26 @@ service cloud.firestore {
               'active', 'deletedAt', 'deletedBy'];
     }
 
-    function tutorPendingCreate(petId) {
+    // Clínica da aplicação: vacina EXIGE uma clínica cadastrada e ativa;
+    // vermífugo pode vir sem (aplicado em casa). Com clínica, o nome gravado tem
+    // que ser o do cadastro (o registro não exibe uma clínica inventada) e a
+    // clínica da foto do rótulo, se informada, é a mesma da aplicação.
+    function clinicOk(d, required) {
+      let none = !('clinicId' in d) || d.clinicId == null || d.clinicId == '';
+      return none ? !required : (
+        d.clinicId is string
+        && exists(/databases/$(database)/documents/clinics/$(d.clinicId))
+        && get(/databases/$(database)/documents/clinics/$(d.clinicId)).data.get('status', 'active') != 'inactive'
+        && d.get('clinicName', '') == get(/databases/$(database)/documents/clinics/$(d.clinicId)).data.name
+        && (!('labelImageMetadata' in d)
+            || d.labelImageMetadata.get('clinicId', d.clinicId) == d.clinicId));
+    }
+
+    function tutorPendingCreate(petId, clinicRequired) {
       let d = request.resource.data;
       let pet = get(/databases/$(database)/documents/pets/$(petId)).data;
-      return d.status == 'pending'
+      return clinicOk(d, clinicRequired)
+        && d.status == 'pending'
         && d.ownerId == request.auth.uid
         && pet.ownerId == request.auth.uid
         && d.get('tutorAcknowledged', false) == false
@@ -258,7 +274,7 @@ service cloud.firestore {
       }
 
       allow read: if request.auth != null && (isVet() || isOwner());
-      allow create: if request.auth != null && tutorPendingCreate(request.resource.data.petId);
+      allow create: if request.auth != null && tutorPendingCreate(request.resource.data.petId, false);
       allow update: if request.auth != null && !touchesProtected() && (
         (isOwner() && tutorAckOnly()) ||
         (isVet() && softDeleteOnly()) ||

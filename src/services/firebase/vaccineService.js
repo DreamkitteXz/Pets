@@ -16,6 +16,12 @@ import imageCompression from 'browser-image-compression';
 
 const createVaccineRecordFn = httpsCallable(functions, 'createVaccineRecord', { timeout: 20000 });
 
+// A foto do rótulo é tirada na clínica da aplicação: os metadados guardam qual.
+// (Rule e CF conferem que é a mesma clínica do registro.)
+const photoClinic = (data) => (data.clinicId
+  ? { clinicId: data.clinicId, clinicName: data.clinicName || '' }
+  : {});
+
 export const vaccineService = {
   // Upload label image with EXIF stripping — returns download URL
   async uploadLabelImage(labelImage) {
@@ -75,6 +81,7 @@ export const vaccineService = {
           size: labelImage.size || 0,
           contentType: labelImage.type || 'image/jpeg',
           ...(location ? { location } : {}),
+          ...photoClinic(rest),
         };
       }
 
@@ -116,6 +123,7 @@ export const vaccineService = {
         timeCreated: serverTimestamp(),
         updated: serverTimestamp(),
         ...(location ? { location } : {}),
+        ...photoClinic(rest),
       };
     }
 

@@ -40,6 +40,8 @@ const appVaccinePayload = (overrides = {}) => ({
   validationDetails: {
     vetValidation: { status: 'pending', validatedAt: null, validatedBy: null, notes: '', rejectionReason: '' },
   },
+  clinicId: 'clinic_1',
+  clinicName: 'VetLife',
   createdAt: serverTimestamp(),
   updatedAt: serverTimestamp(),
   ...overrides,
@@ -56,6 +58,8 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await seed('pets', 'pet_1', { name: 'Mel', ownerId: TUTOR, createdBy: TUTOR, veterinarians: [VET] });
   await seed('pets', 'pet_other', { name: 'Rex', ownerId: OTHER, createdBy: OTHER, veterinarians: [] });
+  await seed('clinics', 'clinic_1', { name: 'VetLife', status: 'active', veterinarians: [VET] });
+  await seed('clinics', 'clinic_off', { name: 'Fechada', status: 'inactive', veterinarians: [VET] });
 });
 
 /* ── S1: criação de vacina / vermífugo ─────────────────────────────────── */
@@ -163,6 +167,36 @@ describe('users — campos que decidem acesso', () => {
   });
   it('NÃO escreve perfil de outra pessoa', async () => {
     await assertFails(setDoc(doc(asUser(OTHER), 'users', TUTOR), { name: 'x' }));
+  });
+});
+
+/* ── Clínica da aplicação ──────────────────────────────────────────────── */
+
+describe('clínica na submissão do tutor', () => {
+  const put = (col, o) => setDoc(doc(asUser(TUTOR), col, 'r1'), appVaccinePayload(o));
+  it('vacina SEM clínica é recusada', async () => {
+    await assertFails(put('vaccines', { clinicId: null, clinicName: '' }));
+    const { clinicId, clinicName, ...semCampo } = appVaccinePayload();
+    await assertFails(setDoc(doc(asUser(TUTOR), 'vaccines', 'r2'), semCampo));
+  });
+  it('vermífugo sem clínica é aceito (aplicado em casa)', async () => {
+    await assertSucceeds(put('deworming', { clinicId: null, clinicName: '' }));
+  });
+  it('clínica inexistente é recusada', async () => {
+    await assertFails(put('vaccines', { clinicId: 'nao_existe', clinicName: 'X' }));
+  });
+  it('clínica inativa é recusada', async () => {
+    await assertFails(put('vaccines', { clinicId: 'clinic_off', clinicName: 'Fechada' }));
+  });
+  it('nome da clínica diferente do cadastro é recusado', async () => {
+    await assertFails(put('vaccines', { clinicName: 'Clínica Inventada' }));
+    await assertFails(put('deworming', { clinicName: 'Clínica Inventada' }));
+  });
+  it('foto marcada com outra clínica é recusada', async () => {
+    await assertFails(put('vaccines', { labelImageMetadata: { name: 'f.jpg', clinicId: 'clinic_off' } }));
+  });
+  it('foto marcada com a clínica da aplicação é aceita', async () => {
+    await assertSucceeds(put('vaccines', { labelImageMetadata: { name: 'f.jpg', clinicId: 'clinic_1', clinicName: 'VetLife' } }));
   });
 });
 
