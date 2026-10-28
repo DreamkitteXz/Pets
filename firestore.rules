@@ -285,19 +285,50 @@ service cloud.firestore {
 
     // Conversas (chat) — apenas os dois participantes (vet e tutor) acessam.
     // Só o veterinário pode criar a conversa.
+    //
+    // Mensagem com conteúdo clínico faz parte do prontuário (CFMV Res. 1465/2022
+    // art. 13; guarda mínima de 5 anos, Res. 1321/2020): NADA se apaga pelo
+    // cliente — nem conversa, nem mensagem (só exclusão lógica pelo autor).
+    //
+    //  • Conversa: criada SÓ pela CF `openConversation`, que confere no servidor
+    //    o vínculo vet–tutor–pet e o CRMV aprovado. Id `{vetId}_{tutorId}`.
+    //    O participante só mexe no PRÓPRIO marcador de leitura; resumo da última
+    //    mensagem e não lidas são do servidor (CF `onChatMessage`).
+    //  • Mensagem: só participante, em nome próprio, com hora do servidor,
+    //    texto de 1 a 4000 caracteres e campos fechados; conversa encerrada
+    //    não recebe mensagem.
     match /conversas/{conversaId} {
-      allow read, update, delete: if request.auth != null &&
-        (resource.data.vetId == request.auth.uid ||
-         resource.data.tutorId == request.auth.uid);
-      allow create: if request.auth != null &&
-        request.resource.data.vetId == request.auth.uid;
+      function isParticipant(c) { return request.auth != null && request.auth.uid in [c.vetId, c.tutorId]; }
 
-      // Mensagens — herdam o acesso da conversa pai.
+      allow read: if isParticipant(resource.data);
+      allow create, delete: if false;
+      allow update: if isParticipant(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastReadAt', 'unread'])
+        && request.resource.data.lastReadAt.diff(resource.data.get('lastReadAt', {})).affectedKeys().hasOnly([request.auth.uid])
+        && request.resource.data.lastReadAt[request.auth.uid] == request.time
+        && request.resource.data.unread.diff(resource.data.get('unread', {})).affectedKeys().hasOnly([request.auth.uid])
+        && request.resource.data.unread[request.auth.uid] == 0;
+
       match /mensagens/{msgId} {
-        allow read, write: if request.auth != null && (
-          get(/databases/$(database)/documents/conversas/$(conversaId)).data.vetId == request.auth.uid ||
-          get(/databases/$(database)/documents/conversas/$(conversaId)).data.tutorId == request.auth.uid
-        );
+        function conversa() { return get(/databases/$(database)/documents/conversas/$(conversaId)).data; }
+
+        allow read: if isParticipant(conversa());
+        allow create: if isParticipant(conversa())
+          && conversa().get('status', 'active') == 'active'
+          && request.resource.data.keys().hasOnly(['senderId', 'texto', 'tipo', 'createdAt'])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.tipo == 'texto'
+          && request.resource.data.texto is string
+          && request.resource.data.texto.size() > 0
+          && request.resource.data.texto.size() <= 4000;
+        // Exclusão lógica: só o autor, só marcando deletedAt/deletedBy.
+        allow update: if request.auth != null
+          && resource.data.senderId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt', 'deletedBy'])
+          && request.resource.data.deletedBy == request.auth.uid
+          && request.resource.data.deletedAt == request.time;
+        allow delete: if false;
       }
     }
 

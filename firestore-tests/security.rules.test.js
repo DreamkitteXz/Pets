@@ -170,6 +170,64 @@ describe('users — campos que decidem acesso', () => {
   });
 });
 
+/* ── Chat: conversa só pelo servidor; mensagem é prontuário ────────────── */
+
+describe('conversas e mensagens', () => {
+  const C = `${VET}_${TUTOR}`;
+  const { getDoc, addDoc, collection } = require('firebase/firestore');
+  const msg = (o = {}) => ({ senderId: TUTOR, texto: 'Oi, doutora!', tipo: 'texto', createdAt: serverTimestamp(), ...o });
+  beforeEach(async () => {
+    await seed('conversas', C, { vetId: VET, tutorId: TUTOR, status: 'active', unread: { [VET]: 2, [TUTOR]: 0 }, lastReadAt: {} });
+    await seed(`conversas/${C}/mensagens`, 'm1', { senderId: VET, texto: 'Olá', tipo: 'texto', createdAt: new Date() });
+  });
+
+  it('participantes leem; terceiro não', async () => {
+    await assertSucceeds(getDoc(doc(asUser(TUTOR), 'conversas', C)));
+    await assertSucceeds(getDoc(doc(asUser(VET), 'conversas', C, 'mensagens', 'm1')));
+    await assertFails(getDoc(doc(asUser(OTHER), 'conversas', C)));
+    await assertFails(getDoc(doc(asUser(OTHER), 'conversas', C, 'mensagens', 'm1')));
+  });
+  it('cliente NÃO cria conversa (só a CF openConversation)', async () => {
+    await assertFails(setDoc(doc(asUser(VET), 'conversas', `${VET}_${OTHER}`), { vetId: VET, tutorId: OTHER, status: 'active' }));
+  });
+  it('ninguém apaga conversa nem mensagem', async () => {
+    await assertFails(deleteDoc(doc(asUser(VET), 'conversas', C)));
+    await assertFails(deleteDoc(doc(asUser(VET), 'conversas', C, 'mensagens', 'm1')));
+  });
+  it('participante marca a PRÓPRIA leitura', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(VET), 'conversas', C), { [`lastReadAt.${VET}`]: serverTimestamp(), [`unread.${VET}`]: 0 }));
+  });
+  it('NÃO mexe na leitura do outro, no resumo nem inventa não lidas', async () => {
+    await assertFails(updateDoc(doc(asUser(VET), 'conversas', C), { [`lastReadAt.${TUTOR}`]: serverTimestamp(), [`unread.${TUTOR}`]: 0 }));
+    await assertFails(updateDoc(doc(asUser(VET), 'conversas', C), { lastMessage: 'forjada' }));
+    await assertFails(updateDoc(doc(asUser(VET), 'conversas', C), { [`lastReadAt.${VET}`]: serverTimestamp(), [`unread.${VET}`]: 5 }));
+    await assertFails(updateDoc(doc(asUser(VET), 'conversas', C), { status: 'closed' }));
+  });
+  it('participante envia mensagem em nome próprio', async () => {
+    await assertSucceeds(addDoc(collection(asUser(TUTOR), 'conversas', C, 'mensagens'), msg()));
+  });
+  it('mensagem forjada é recusada', async () => {
+    const col = collection(asUser(TUTOR), 'conversas', C, 'mensagens');
+    await assertFails(addDoc(col, msg({ senderId: VET })));                         // em nome do outro
+    await assertFails(addDoc(col, msg({ createdAt: new Date('2020-01-01') })));     // data falsa
+    await assertFails(addDoc(col, msg({ counted: true })));                         // campo do servidor
+    await assertFails(addDoc(col, msg({ texto: '' })));
+    await assertFails(addDoc(col, msg({ texto: 'x'.repeat(4001) })));
+    await assertFails(addDoc(col, msg({ tipo: 'anexo' })));
+    await assertFails(addDoc(collection(asUser(OTHER), 'conversas', C, 'mensagens'), msg({ senderId: OTHER })));
+  });
+  it('conversa encerrada não recebe mensagem', async () => {
+    await seed('conversas', C, { vetId: VET, tutorId: TUTOR, status: 'closed' });
+    await assertFails(addDoc(collection(asUser(TUTOR), 'conversas', C, 'mensagens'), msg()));
+  });
+  it('só o autor faz exclusão lógica; ninguém edita o texto', async () => {
+    const ref = (u) => doc(asUser(u), 'conversas', C, 'mensagens', 'm1');
+    await assertFails(updateDoc(ref(TUTOR), { deletedAt: serverTimestamp(), deletedBy: TUTOR }));
+    await assertFails(updateDoc(ref(VET), { texto: 'editado' }));
+    await assertSucceeds(updateDoc(ref(VET), { deletedAt: serverTimestamp(), deletedBy: VET }));
+  });
+});
+
 /* ── Clínica da aplicação ──────────────────────────────────────────────── */
 
 describe('clínica na submissão do tutor', () => {

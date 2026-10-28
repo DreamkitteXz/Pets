@@ -16,7 +16,7 @@
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { onDocumentWritten }  = require('firebase-functions/v2/firestore');
+const { onDocumentWritten, onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { defineSecret }       = require('firebase-functions/params');
 const logger                 = require('firebase-functions/logger');
 const admin                  = require('firebase-admin');
@@ -1261,5 +1261,108 @@ exports.leaveClinic = onCall(
     }
     await ref.update({ veterinarians: FieldValue.arrayRemove(request.auth.uid), updatedAt: FieldValue.serverTimestamp() });
     return { clinicId };
+  }
+);
+
+/* ── Chat vet ↔ tutor ─────────────────────────────────────────────────────────
+ *
+ * Conversa = um par veterinário–tutor (`conversas/{vetId}_{tutorId}`), aberta
+ * SÓ por aqui: o cliente não cria conversa (rule). Só abre quem tem vínculo
+ * real — o vet está em `pet.veterinarians` de um pet DO tutor — e o vet precisa
+ * de CRMV aprovado. Mensagem com conteúdo clínico é prontuário (CFMV), então
+ * nada é apagado; o servidor mantém o resumo (última mensagem, não lidas).
+ */
+
+/* openConversation — { petId, vetId? } → { conversaId }.
+ * Vet: abre com o dono do pet. Tutor: informa qual vet do pet (`vetId`). */
+exports.openConversation = onCall(
+  { region: 'southamerica-east1' },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Autenticação necessária.');
+    const uid = request.auth.uid;
+    const petId = String(request.data?.petId || '');
+    const vetIdArg = request.data?.vetId ? String(request.data.vetId) : null;
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(petId)) throw new HttpsError('invalid-argument', 'Pet inválido.');
+
+    const petSnap = await db.collection('pets').doc(petId).get();
+    if (!petSnap.exists) throw new HttpsError('not-found', 'Pet não encontrado.');
+    const pet = petSnap.data();
+    const vets = Array.isArray(pet.veterinarians) ? pet.veterinarians : [];
+
+    // Quem é quem: o vet abre com o dono do pet; o tutor abre com um vet do pet.
+    let vetId;
+    let tutorId;
+    if (pet.ownerId === uid) {
+      if (!vetIdArg || !vets.includes(vetIdArg)) {
+        throw new HttpsError('permission-denied', 'Este veterinário não está vinculado ao seu pet.');
+      }
+      vetId = vetIdArg;
+      tutorId = uid;
+    } else if (vets.includes(uid)) {
+      vetId = uid;
+      tutorId = pet.ownerId;
+    } else {
+      throw new HttpsError('permission-denied', 'Você não tem vínculo com este pet.');
+    }
+    if (!tutorId || tutorId === vetId) throw new HttpsError('failed-precondition', 'Conversa inválida.');
+
+    let vet;
+    try {
+      vet = await requireActiveVet(vetId);
+    } catch {
+      throw new HttpsError('failed-precondition', 'Este veterinário ainda não está liberado para conversar (CRMV em análise).');
+    }
+    const tutorSnap = await db.collection('users').doc(tutorId).get();
+    const tutor = tutorSnap.exists ? tutorSnap.data() : {};
+
+    const conversaId = `${vetId}_${tutorId}`;
+    const ref = db.collection('conversas').doc(conversaId);
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (snap.exists) {
+        // Reabrir a mesma conversa por outro pet só acrescenta o pet.
+        tx.update(ref, { petIds: FieldValue.arrayUnion(petId), [`petNames.${petId}`]: pet.name || '' });
+        return;
+      }
+      tx.set(ref, {
+        vetId, tutorId,
+        vetName: vet.name || '', vetCrmv: vet.crmv || '',
+        tutorName: tutor.name || '',
+        petIds: [petId], petNames: { [petId]: pet.name || '' },
+        status: 'active',
+        lastMessage: '', lastMessageAt: null, lastSenderId: null,
+        unread: { [vetId]: 0, [tutorId]: 0 },
+        lastReadAt: {},
+        createdBy: uid,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    });
+    return { conversaId };
+  }
+);
+
+/* onChatMessage — resumo da conversa e não lidas do destinatário.
+ * Idempotente: a marca `counted` na mensagem (só o servidor grava) impede
+ * contar duas vezes se o gatilho rodar repetido. */
+exports.onChatMessage = onDocumentCreated(
+  { document: 'conversas/{conversaId}/mensagens/{msgId}', region: 'southamerica-east1' },
+  async (event) => {
+    const msgRef = event.data?.ref;
+    if (!msgRef) return;
+    const convRef = db.collection('conversas').doc(event.params.conversaId);
+    await db.runTransaction(async (tx) => {
+      const [msgSnap, convSnap] = await Promise.all([tx.get(msgRef), tx.get(convRef)]);
+      if (!msgSnap.exists || !convSnap.exists || msgSnap.data().counted) return;
+      const m = msgSnap.data();
+      const c = convSnap.data();
+      const other = m.senderId === c.vetId ? c.tutorId : c.vetId;
+      tx.update(convRef, {
+        lastMessage: String(m.texto || '').slice(0, 140),
+        lastMessageAt: m.createdAt || FieldValue.serverTimestamp(),
+        lastSenderId: m.senderId,
+        [`unread.${other}`]: FieldValue.increment(1),
+      });
+      tx.update(msgRef, { counted: true });
+    });
   }
 );
