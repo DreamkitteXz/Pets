@@ -67,6 +67,12 @@ export const TUTOR_SIDEBAR_LINKS = [
 		path: '/minhas-vacinas',
 		icon: <Syringe size={20} strokeWidth={1.5} />,
 	},
+	{
+		key: 'meus-vermifugos',
+		label: 'Vermífugos',
+		path: '/meus-vermifugos',
+		icon: <Bug size={20} strokeWidth={1.5} />,
+	},
 ]
 
 export const DASHBOARD_SIDEBAR_BOTTOM_LINKS = [

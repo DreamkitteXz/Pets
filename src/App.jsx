@@ -90,7 +90,8 @@ const App = () => {
                     <Route path=":petId" element={<PetRecord />} />
                     <Route path=":petId/carteira" element={<Carteira />} />
                   </Route>
-                  <Route path="/minhas-vacinas" element={<TutorVaccines />} />
+                  <Route path="/minhas-vacinas" element={<TutorVaccines key="vaccines" kind="vaccines" />} />
+                  <Route path="/meus-vermifugos" element={<TutorVaccines key="deworming" kind="deworming" />} />
                 </Route>
 
                 {/* Any authenticated, onboarded user */}

@@ -942,7 +942,7 @@ function buildReminderEmailHtml(firstName, items) {
               </table>
               <table cellpadding="0" cellspacing="0" style="margin:24px 0 28px;">
                 <tr><td style="background:#0a84ff;border-radius:10px;">
-                  <a href="${APP_URL}/minhas-vacinas" style="display:inline-block;padding:12px 22px;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;">Ver a carteira dos pets</a>
+                  <a href="${APP_URL}/meus-pets" style="display:inline-block;padding:12px 22px;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;">Ver meus pets</a>
                 </td></tr>
               </table>
             </td>

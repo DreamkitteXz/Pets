@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PawPrint, Syringe, ClipboardCheck, ChevronRight } from 'lucide-react';
+import { PawPrint, Syringe, Bug, ClipboardCheck, ChevronRight } from 'lucide-react';
 import { useTutorPets } from '../../../hooks/useTutorPets';
 import { useTutorVaccines } from '../../../hooks/useTutorVaccines';
 import { useAuth } from '../../../context/AuthContext';
@@ -8,18 +8,22 @@ import { toDate } from '../../../utils/dates';
 
 const DAY = 24 * 60 * 60 * 1000;
 
-const KpiCard = ({ label, value, accentColor, icon: Icon, delay }) => (
-  <div className="fade-in-up rounded-[16px] p-5 flex items-center justify-between"
-    style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: `${delay}ms` }}>
-    <div>
-      <div className="text-[28px] font-bold leading-none" style={{ color: accentColor, letterSpacing: '-0.02em' }}>{value}</div>
-      <div className="text-[13px] mt-1" style={{ color: 'var(--text-secondary)' }}>{label}</div>
-    </div>
-    <div className="w-10 h-10 rounded-[12px] flex items-center justify-center flex-shrink-0" style={{ background: `${accentColor}18` }}>
-      <Icon size={20} strokeWidth={1.5} style={{ color: accentColor }} />
-    </div>
-  </div>
-);
+const KpiCard = ({ label, value, accentColor, icon: Icon, delay, onClick }) => {
+  const Tag = onClick ? 'button' : 'div';
+  return (
+    <Tag type={onClick ? 'button' : undefined} onClick={onClick}
+      className="fade-in-up rounded-[16px] p-5 flex items-center justify-between text-left w-full"
+      style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: `${delay}ms` }}>
+      <div>
+        <div className="text-[28px] font-bold leading-none" style={{ color: accentColor, letterSpacing: '-0.02em' }}>{value}</div>
+        <div className="text-[13px] mt-1" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+      </div>
+      <div className="hidden sm:flex w-10 h-10 rounded-[12px] items-center justify-center flex-shrink-0" style={{ background: `${accentColor}18` }}>
+        <Icon size={20} strokeWidth={1.5} style={{ color: accentColor }} />
+      </div>
+    </Tag>
+  );
+};
 
 const TutorHome = () => {
   const navigate = useNavigate();
@@ -29,9 +33,9 @@ const TutorHome = () => {
 
   const now = new Date();
   const in30 = new Date(now.getTime() + 30 * DAY);
-  const upcomingVaccines = vaccines.filter(v => {
+  const upcoming = (kind) => vaccines.filter(v => {
     const d = toDate(v.nextDueDate);
-    return d && d >= now && d <= in30;
+    return v.kind === kind && d && d >= now && d <= in30;
   }).length;
   const pendingApprovals = vaccines.filter(v => v.needsAck).length;
 
@@ -50,9 +54,10 @@ const TutorHome = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <KpiCard label="Meus pets" value={pets.length} accentColor="var(--apple-blue)" icon={PawPrint} delay={50} />
-        <KpiCard label="Doses próximas (30d)" value={upcomingVaccines} accentColor="var(--apple-orange)" icon={Syringe} delay={100} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <KpiCard label="Meus pets" value={pets.length} accentColor="var(--apple-blue)" icon={PawPrint} delay={50} onClick={() => navigate('/meus-pets')} />
+        <KpiCard label="Vacinas próximas (30d)" value={upcoming('vaccines')} accentColor="var(--apple-orange)" icon={Syringe} delay={100} onClick={() => navigate('/minhas-vacinas')} />
+        <KpiCard label="Vermífugos próximos (30d)" value={upcoming('deworming')} accentColor="var(--apple-teal)" icon={Bug} delay={125} onClick={() => navigate('/meus-vermifugos')} />
         <KpiCard label="Aguardando sua ciência" value={pendingApprovals} accentColor="var(--apple-indigo)" icon={ClipboardCheck} delay={150} />
       </div>
 

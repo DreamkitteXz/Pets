@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Syringe, CheckCircle, Clock, Check, Bug, Send } from 'lucide-react';
+import { Syringe, CheckCircle, Clock, Check, Bug, Send, Building2 } from 'lucide-react';
 import { useTutorVaccines } from '../../../hooks/useTutorVaccines';
 import { normalizeStatus } from '../../../utils/vaccineStatus';
 import { toDate } from '../../../utils/dates';
@@ -11,6 +11,20 @@ const VET_STATUS = {
   pending:  { label: 'Pendente', color: 'var(--apple-orange)', bg: 'rgba(255,149,0,0.12)' },
   approved: { label: 'Aprovada', color: 'var(--apple-green)',  bg: 'rgba(52,199,89,0.12)' },
   rejected: { label: 'Rejeitada', color: 'var(--apple-red)',   bg: 'rgba(255,59,48,0.10)' },
+};
+
+// Uma tela por tipo, como no veterinário: /minhas-vacinas e /meus-vermifugos.
+const KIND_TEXT = {
+  vaccines: {
+    title: 'Vacinas', icon: Syringe,
+    subtitle: 'Confirme que está ciente das vacinas registradas pelo veterinário para os seus pets.',
+    empty: 'Nenhuma vacina registrada', emptyHint: 'As vacinas dos seus pets aparecerão aqui.',
+  },
+  deworming: {
+    title: 'Vermífugos', icon: Bug,
+    subtitle: 'Confirme que está ciente dos vermífugos registrados pelo veterinário para os seus pets.',
+    empty: 'Nenhum vermífugo registrado', emptyHint: 'Os vermífugos dos seus pets aparecerão aqui.',
+  },
 };
 
 const KpiCard = ({ label, value, accentColor, icon: Icon, delay }) => (
@@ -26,8 +40,11 @@ const KpiCard = ({ label, value, accentColor, icon: Icon, delay }) => (
   </div>
 );
 
-const TutorVaccines = () => {
-  const { vaccines, loading, acknowledge } = useTutorVaccines();
+const TutorVaccines = ({ kind = 'vaccines' }) => {
+  const { vaccines: all, loading, acknowledge } = useTutorVaccines();
+  const vaccines = all.filter((v) => v.kind === kind);
+  const text = KIND_TEXT[kind];
+  const KindIcon = text.icon;
   const [busyId, setBusyId] = useState(null);
 
   const pending = vaccines.filter(v => v.needsAck).length;
@@ -42,10 +59,10 @@ const TutorVaccines = () => {
     <div className="min-h-full font-sf">
       <div className="mb-6 fade-in-up">
         <h1 className="font-bold" style={{ fontSize: '28px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Vacinas e vermífugos
+          {text.title}
         </h1>
         <p className="mt-1" style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-          Confirme que está ciente das aplicações registradas pelo veterinário para os seus pets.
+          {text.subtitle}
         </p>
       </div>
 
@@ -56,32 +73,31 @@ const TutorVaccines = () => {
       ) : (
         <>
           <div className="grid grid-cols-3 gap-4 mb-6">
-            <KpiCard label="Total" value={vaccines.length} accentColor="var(--apple-blue)" icon={Syringe} delay={50} />
+            <KpiCard label="Total" value={vaccines.length} accentColor="var(--apple-blue)" icon={KindIcon} delay={50} />
             <KpiCard label="Aguardando sua ciência" value={pending} accentColor="var(--apple-orange)" icon={Clock} delay={100} />
             <KpiCard label="Confirmadas" value={acknowledged} accentColor="var(--apple-green)" icon={CheckCircle} delay={150} />
           </div>
 
           <div className="fade-in-up rounded-[20px] overflow-hidden" style={{ background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: '200ms' }}>
             {vaccines.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="flex flex-col items-center justify-center py-20 gap-3 px-6 text-center">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
-                  <Syringe size={28} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
+                  <KindIcon size={28} strokeWidth={1.5} style={{ color: 'var(--apple-blue)' }} />
                 </div>
-                <p className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>Nenhuma aplicação registrada</p>
-                <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>As vacinas e os vermífugos dos seus pets aparecerão aqui.</p>
+                <p className="font-semibold" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>{text.empty}</p>
+                <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>{text.emptyHint}</p>
               </div>
             ) : (
               vaccines.map((v, i) => {
-                const vs = VET_STATUS[normalizeStatus(v.status)] || VET_STATUS.pending;
+                const status = normalizeStatus(v.status);
+                const vs = VET_STATUS[status] || VET_STATUS.pending;
+                const reason = v.validationDetails?.vetValidation?.rejectionReason;
                 return (
-                  <div key={v.id} className="px-6 py-4 flex items-center justify-between gap-4"
+                  <div key={v.id} className="px-4 md:px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
                     style={{ borderBottom: i < vaccines.length - 1 ? '1px solid var(--separator)' : 'none' }}>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1.5 font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>
-                          {v.kind === 'deworming'
-                            ? <Bug size={14} strokeWidth={1.75} aria-label="Vermífugo" style={{ color: 'var(--text-tertiary)' }} />
-                            : <Syringe size={14} strokeWidth={1.75} aria-label="Vacina" style={{ color: 'var(--text-tertiary)' }} />}
+                        <span className="font-medium" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>
                           {v.name} <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>· {v.petName}</span>
                         </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
@@ -92,24 +108,33 @@ const TutorVaccines = () => {
                       <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                         Aplicada: {fmt(v.administrationDate)} · Próxima: {fmt(v.nextDueDate)}
                       </div>
-                      {v.veterinarianName && (
-                        <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{v.veterinarianName}</div>
+                      {(v.clinicName || v.veterinarianName) && (
+                        <div className="flex items-center gap-1 flex-wrap" style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                          {v.clinicName && <><Building2 size={12} strokeWidth={1.75} /> {v.clinicName}{v.clinicAddress?.city ? ` (${v.clinicAddress.city})` : ''}</>}
+                          {v.clinicName && v.veterinarianName && <span>·</span>}
+                          {v.veterinarianName && <span>{v.veterinarianName}</span>}
+                        </div>
+                      )}
+                      {status === 'rejected' && reason && (
+                        <div className="mt-1" style={{ fontSize: '12px', color: 'var(--apple-red)' }}>
+                          Motivo da recusa: {reason}
+                        </div>
                       )}
                     </div>
 
                     {v.sentByTutor ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium flex-shrink-0"
+                      <span className="self-start md:self-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium flex-shrink-0"
                         style={{ background: 'rgba(0,122,255,0.10)', color: 'var(--apple-blue)' }}>
                         <Send size={11} strokeWidth={2} /> Enviado por você
                       </span>
                     ) : v.tutorAcknowledged ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium flex-shrink-0"
+                      <span className="self-start md:self-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium flex-shrink-0"
                         style={{ background: 'rgba(52,199,89,0.12)', color: 'var(--apple-green)' }}>
                         <CheckCircle size={11} strokeWidth={2} /> Ciente{v.tutorAcknowledgedAt ? ` em ${fmt(v.tutorAcknowledgedAt)}` : ''}
                       </span>
                     ) : (
                       <button onClick={() => handleAck(v)} disabled={busyId === v.id}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] font-medium transition-opacity duration-150 flex-shrink-0"
+                        className="self-start md:self-auto flex items-center gap-1.5 px-3 py-2 rounded-[10px] font-medium transition-opacity duration-150 flex-shrink-0"
                         style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)', opacity: busyId === v.id ? 0.5 : 1, cursor: busyId === v.id ? 'default' : 'pointer' }}>
                         <Check size={14} strokeWidth={2.5} /> Confirmar ciência
                       </button>
