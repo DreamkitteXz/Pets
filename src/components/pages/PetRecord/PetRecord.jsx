@@ -253,15 +253,14 @@ const PetRecord = () => {
             <div className="rounded-[20px] p-6" style={card}>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>Evolução do peso</h2>
-                {!isTutor && (
-                  <button onClick={() => setModalType('peso')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] font-medium transition-opacity duration-150"
-                    style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)' }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-                    <Plus size={15} strokeWidth={2.5} /> Registrar peso
-                  </button>
-                )}
+                {/* Tutor registra o próprio auto-relato (marcado "informado pelo tutor"). */}
+                <button onClick={() => setModalType('peso')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] font-medium transition-opacity duration-150"
+                  style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)' }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                  <Plus size={15} strokeWidth={2.5} /> Registrar peso
+                </button>
               </div>
               <WeightChart pesos={pesos} />
             </div>
@@ -272,12 +271,19 @@ const PetRecord = () => {
                   <h2 className="font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>Histórico ({pesos.length})</h2>
                 </div>
                 {[...pesos].reverse().map((p, i, arr) => (
-                  <div key={p.id} className="px-6 py-3 flex items-center justify-between" style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--separator)' : 'none' }}>
-                    <div className="flex items-center gap-2">
+                  <div key={p.id} className="px-4 md:px-6 py-3 flex items-center justify-between gap-3" style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--separator)' : 'none' }}>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
                       <span className="font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{p.weight} kg</span>
-                      {p.notes && <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>· {p.notes}</span>}
+                      <span className="px-2 py-0.5 rounded-full" style={{
+                        fontSize: '11px', fontWeight: 600,
+                        background: p.source === 'tutor' ? 'rgba(255,149,0,0.12)' : 'rgba(0,122,255,0.10)',
+                        color: p.source === 'tutor' ? 'var(--apple-orange)' : 'var(--apple-blue)',
+                      }}>
+                        {p.source === 'tutor' ? 'Informado pelo tutor' : 'Pesagem clínica'}
+                      </span>
+                      {p.notes && <span className="truncate" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>· {p.notes}</span>}
                     </div>
-                    <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{fmt(p.date)}</span>
+                    <span className="flex-shrink-0" style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{fmt(p.date)}</span>
                   </div>
                 ))}
               </div>

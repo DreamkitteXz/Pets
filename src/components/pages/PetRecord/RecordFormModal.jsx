@@ -31,9 +31,11 @@ const inputStyle = {
 export default function RecordFormModal({ isOpen, onClose, type, onSubmit }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({});
+  const [error, setError] = useState('');
 
   React.useEffect(() => {
     if (isOpen) {
+      setError('');
       setForm(type === 'peso'
         ? { weight: '', date: todayISO(), notes: '' }
         : { date: todayISO(), motivo: '', diagnostico: '', observacoes: '' });
@@ -47,16 +49,25 @@ export default function RecordFormModal({ isOpen, onClose, type, onSubmit }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    setError('');
     try {
       await onSubmit(form);
       onClose();
+    } catch (err) {
+      setError(err?.code === 'permission-denied'
+        ? 'Você não tem permissão para registrar isto neste pet.'
+        : 'Não foi possível salvar. Verifique sua conexão e tente de novo.');
     } finally {
       setSaving(false);
     }
   };
 
   const title = type === 'peso' ? 'Registrar peso' : 'Nova consulta';
-  const valid = type === 'peso' ? Number(form.weight) > 0 : (form.motivo || '').trim().length > 0;
+  const weight = Number(form.weight);
+  const futureDate = form.date && form.date > todayISO();
+  const valid = type === 'peso'
+    ? weight > 0 && weight <= 1000 && !futureDate
+    : (form.motivo || '').trim().length > 0;
 
   return (
     <div
@@ -84,14 +95,15 @@ export default function RecordFormModal({ isOpen, onClose, type, onSubmit }) {
           {type === 'peso' ? (
             <>
               <Field label="Peso (kg)">
-                <input type="number" step="0.01" min="0" placeholder="0.00"
+                <input type="number" step="0.01" min="0" max="1000" inputMode="decimal" placeholder="0.00"
                   value={form.weight || ''} onChange={set('weight')} style={inputStyle} autoFocus />
               </Field>
               <Field label="Data">
-                <input type="date" value={form.date || ''} onChange={set('date')} style={inputStyle} />
+                <input type="date" value={form.date || ''} max={todayISO()} onChange={set('date')} style={inputStyle} />
               </Field>
+              {futureDate && <p style={{ fontSize: '12px', color: 'var(--apple-red)', marginTop: '-8px' }}>A data não pode ser no futuro.</p>}
               <Field label="Observações (opcional)">
-                <textarea rows={2} value={form.notes || ''} onChange={set('notes')}
+                <textarea rows={2} maxLength={300} value={form.notes || ''} onChange={set('notes')}
                   style={{ ...inputStyle, resize: 'none' }} placeholder="Ex.: pesagem em jejum" />
               </Field>
             </>
@@ -114,6 +126,8 @@ export default function RecordFormModal({ isOpen, onClose, type, onSubmit }) {
               </Field>
             </>
           )}
+
+          {error && <p role="alert" style={{ fontSize: '13px', color: 'var(--apple-red)' }}>{error}</p>}
 
           {/* Footer */}
           <div className="flex items-center justify-end gap-2 pt-1">

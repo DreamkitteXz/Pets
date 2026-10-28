@@ -87,7 +87,9 @@ export function usePetRecord(petId) {
     await addDoc(collection(db, 'pets', petId, 'pesos'), {
       weight: Number(weight),
       date: fromDateInput(date) || serverTimestamp(),
-      notes: notes || '',
+      notes: (notes || '').trim().slice(0, 300),
+      // Tutor só registra auto-relato (a rule exige source 'tutor'); o do vet é pesagem clínica.
+      source: userProfile?.role === 'tutor' ? 'tutor' : 'vet',
       registeredBy: uid,
       // Trilha de auditoria
       createdBy: uid,
@@ -96,7 +98,7 @@ export function usePetRecord(petId) {
       updatedAt: serverTimestamp(),
     });
     await fetchAll();
-  }, [petId, user, fetchAll]);
+  }, [petId, user, userProfile, fetchAll]);
 
   return {
     pet, vaccines, dewormings, consultas, pesos,

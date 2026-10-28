@@ -106,7 +106,8 @@ service cloud.firestore {
             && request.resource.data.source == 'tutor'
             && request.resource.data.registeredBy == request.auth.uid
             && request.resource.data.weight is number
-            && request.resource.data.weight > 0)
+            && request.resource.data.weight > 0
+            && request.resource.data.weight <= 1000)
         );
         allow update, delete: if request.auth != null && isVet();
       }

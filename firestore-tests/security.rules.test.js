@@ -166,6 +166,37 @@ describe('users — campos que decidem acesso', () => {
   });
 });
 
+/* ── W7: peso informado pelo tutor ─────────────────────────────────────── */
+
+describe('pets/pesos — tutor registra o próprio auto-relato', () => {
+  const peso = (o = {}) => ({ weight: 12.4, source: 'tutor', registeredBy: TUTOR, notes: '', ...o });
+  it('dono registra peso marcado como do tutor', async () => {
+    await assertSucceeds(setDoc(doc(asUser(TUTOR), 'pets', 'pet_1', 'pesos', 'p1'), peso()));
+  });
+  it('dono NÃO se passa por pesagem do vet', async () => {
+    await assertFails(setDoc(doc(asUser(TUTOR), 'pets', 'pet_1', 'pesos', 'p1'), peso({ source: 'vet' })));
+  });
+  it('dono NÃO registra em nome de outro', async () => {
+    await assertFails(setDoc(doc(asUser(TUTOR), 'pets', 'pet_1', 'pesos', 'p1'), peso({ registeredBy: VET })));
+  });
+  it('peso zero, negativo, texto ou absurdo é recusado', async () => {
+    for (const weight of [0, -3, '12', 5000]) {
+      await assertFails(setDoc(doc(asUser(TUTOR), 'pets', 'pet_1', 'pesos', 'p1'), peso({ weight })));
+    }
+  });
+  it('dono NÃO edita nem apaga pesagem', async () => {
+    await seed('pets/pet_1/pesos', 'p2', peso());
+    await assertFails(updateDoc(doc(asUser(TUTOR), 'pets', 'pet_1', 'pesos', 'p2'), { weight: 1 }));
+    await assertFails(deleteDoc(doc(asUser(TUTOR), 'pets', 'pet_1', 'pesos', 'p2')));
+  });
+  it('quem não é dono NÃO registra', async () => {
+    await assertFails(setDoc(doc(asUser(OTHER), 'pets', 'pet_1', 'pesos', 'p1'), peso({ registeredBy: OTHER })));
+  });
+  it('vet vinculado registra pesagem clínica', async () => {
+    await assertSucceeds(setDoc(doc(asUser(VET), 'pets', 'pet_1', 'pesos', 'p1'), peso({ source: 'vet', registeredBy: VET })));
+  });
+});
+
 /* ── Clínicas: cadastro só pelas CFs ───────────────────────────────────── */
 
 describe('clinics — escrita restrita', () => {

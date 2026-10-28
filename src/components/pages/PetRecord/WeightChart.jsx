@@ -14,9 +14,20 @@ const CustomTooltip = ({ active, payload }) => {
     >
       <div className="font-semibold" style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{p.weight} kg</div>
       <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{p.label}</div>
+      <div style={{ fontSize: '11px', color: p.byTutor ? 'var(--apple-orange)' : 'var(--apple-blue)' }}>
+        {p.byTutor ? 'Informado pelo tutor' : 'Pesagem clínica'}
+      </div>
     </div>
   );
 };
+
+// Ponto laranja = auto-relato do tutor; azul = pesagem clínica.
+const SourceDot = ({ cx, cy, payload }) => (
+  cx == null || cy == null ? null : (
+    <circle cx={cx} cy={cy} r={3.5} strokeWidth={0}
+      fill={payload.byTutor ? 'var(--apple-orange)' : 'var(--apple-blue)'} />
+  )
+);
 
 export default function WeightChart({ pesos }) {
   const data = (pesos || [])
@@ -24,6 +35,7 @@ export default function WeightChart({ pesos }) {
       const d = toDate(p.date);
       return {
         weight: p.weight,
+        byTutor: p.source === 'tutor',
         ts: d ? d.getTime() : 0,
         label: d ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' }) : '—',
         short: d ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—',
@@ -65,7 +77,7 @@ export default function WeightChart({ pesos }) {
             dataKey="weight"
             stroke="var(--apple-blue)"
             strokeWidth={2.5}
-            dot={{ r: 3.5, fill: 'var(--apple-blue)', strokeWidth: 0 }}
+            dot={<SourceDot />}
             activeDot={{ r: 5, fill: 'var(--apple-blue)', stroke: 'var(--surface-grouped-secondary)', strokeWidth: 2 }}
           />
         </LineChart>
