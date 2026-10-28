@@ -1350,19 +1350,150 @@ exports.onChatMessage = onDocumentCreated(
     const msgRef = event.data?.ref;
     if (!msgRef) return;
     const convRef = db.collection('conversas').doc(event.params.conversaId);
-    await db.runTransaction(async (tx) => {
+    const result = await db.runTransaction(async (tx) => {
       const [msgSnap, convSnap] = await Promise.all([tx.get(msgRef), tx.get(convRef)]);
-      if (!msgSnap.exists || !convSnap.exists || msgSnap.data().counted) return;
+      if (!msgSnap.exists || !convSnap.exists || msgSnap.data().counted) return null;
       const m = msgSnap.data();
       const c = convSnap.data();
       const other = m.senderId === c.vetId ? c.tutorId : c.vetId;
       tx.update(convRef, {
-        lastMessage: String(m.texto || '').slice(0, 140),
+        lastMessage: messagePreview(m),
         lastMessageAt: m.createdAt || FieldValue.serverTimestamp(),
         lastSenderId: m.senderId,
         [`unread.${other}`]: FieldValue.increment(1),
       });
       tx.update(msgRef, { counted: true });
+      return { other, senderName: m.senderId === c.vetId ? c.vetName : c.tutorName };
     });
+    // Push só na primeira vez que a mensagem é processada (gatilho pode repetir).
+    if (result) await pushNewMessage(result.other, result.senderName, event.params.conversaId);
+  }
+);
+
+function messagePreview(m) {
+  if (m.tipo === 'anexo') {
+    const kind = String(m.anexo?.contentType || '').startsWith('image/') ? '📎 Foto' : '📎 Documento';
+    return (m.texto ? `${kind} · ${m.texto}` : kind).slice(0, 140);
+  }
+  return String(m.texto || '').slice(0, 140);
+}
+
+/**
+ * Push web (FCM) para os aparelhos do destinatário. Texto genérico de
+ * propósito: a notificação aparece na tela bloqueada, então nada de conteúdo
+ * clínico — só quem escreveu. Tokens inválidos são apagados.
+ */
+async function pushNewMessage(uid, senderName, conversaId) {
+  const tokensSnap = await db.collection('users').doc(uid).collection('fcmTokens').get();
+  if (tokensSnap.empty) return;
+  const tokens = tokensSnap.docs.map((d) => d.data().token).filter(Boolean);
+  const link = `${APP_URL}/chat`;
+  try {
+    const res = await admin.messaging().sendEachForMulticast({
+      tokens,
+      webpush: {
+        notification: { title: `Nova mensagem de ${senderName || 'Pets'}`, body: 'Toque para abrir a conversa.', tag: `chat-${conversaId}` },
+        fcmOptions: { link },
+      },
+      data: { link, conversaId },
+    });
+    const dead = [];
+    res.responses.forEach((r, i) => {
+      const code = r.error?.code || '';
+      if (code.includes('registration-token-not-registered') || code.includes('invalid-argument') || code.includes('invalid-registration-token')) {
+        dead.push(tokensSnap.docs[i].ref.delete());
+      }
+    });
+    await Promise.all(dead);
+  } catch (err) {
+    logger.warn('chat push: falha', { uid, err: err.message });
+  }
+}
+
+/* ── E-mail de mensagens não lidas ──────────────────────────────────────────
+ * A cada 15 min: quem tem mensagem não lida há mais de 15 min recebe UM e-mail
+ * (agrupando as conversas), uma vez por "rodada" de mensagens — marca
+ * `emailNotifiedAt.{uid}` com o lastMessageAt avisado. Sem conteúdo da
+ * mensagem (pode ser clínico): só quem escreveu e quantas. Desliga em
+ * Configurações (`emailChatNotifications: false`). Push não chega no iPhone
+ * sem o site instalado; o e-mail cobre esse caso. */
+const CHAT_EMAIL_DELAY_MIN = 15;
+
+async function runChatEmailDigest({ now = new Date(), dryRun = false } = {}) {
+  const from = Timestamp.fromMillis(now.getTime() - 24 * 3600 * 1000);
+  const to   = Timestamp.fromMillis(now.getTime() - CHAT_EMAIL_DELAY_MIN * 60 * 1000);
+  const snap = await db.collection('conversas').where('lastMessageAt', '>=', from).where('lastMessageAt', '<=', to).get();
+
+  const byUser = new Map(); // uid → [{ convRef, name, count, lastMessageAt }]
+  snap.forEach((d) => {
+    const c = d.data();
+    for (const uid of [c.vetId, c.tutorId]) {
+      const count = c.unread?.[uid] || 0;
+      if (!count) continue;
+      const notified = c.emailNotifiedAt?.[uid];
+      if (notified && notified.toMillis() >= c.lastMessageAt.toMillis()) continue;
+      const name = uid === c.vetId ? c.tutorName : `${c.vetName}${c.vetCrmv ? ` (${c.vetCrmv})` : ''}`;
+      if (!byUser.has(uid)) byUser.set(uid, []);
+      byUser.get(uid).push({ ref: d.ref, name: name || 'Contato', count, lastMessageAt: c.lastMessageAt });
+    }
+  });
+
+  const summary = { users: 0, sent: 0, skipped: 0 };
+  const transporter = dryRun ? null : reminderTransport();
+  for (const [uid, list] of byUser) {
+    const profile = (await db.collection('users').doc(uid).get()).data() || {};
+    const authUser = await auth.getUser(uid).catch(() => null);
+    if (profile.emailChatNotifications === false || !authUser?.email || !authUser.emailVerified || authUser.disabled) {
+      summary.skipped += 1;
+      continue;
+    }
+    summary.users += 1;
+    if (dryRun) continue;
+    const total = list.reduce((s, x) => s + x.count, 0);
+    const first = (profile.name || '').split(' ')[0];
+    const rows = list.map((x) => `<li style="margin:6px 0;">${escapeHtml(x.name)} — ${x.count} ${x.count === 1 ? 'mensagem' : 'mensagens'}</li>`).join('');
+    try {
+      await transporter.sendMail({
+        from: `"Pets App" <${process.env.GMAIL_EMAIL || 'no-reply@pet-app-fccae.web.app'}>`,
+        to: authUser.email,
+        subject: total === 1 ? 'Você tem 1 mensagem não lida no Pets' : `Você tem ${total} mensagens não lidas no Pets`,
+        html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1c1c1e;">
+  <p style="font-size:16px;">${first ? `Olá, <strong>${escapeHtml(first)}</strong>!` : 'Olá!'} Você tem mensagens esperando no chat:</p>
+  <ul style="font-size:15px;padding-left:18px;">${rows}</ul>
+  <p><a href="${APP_URL}/chat" style="display:inline-block;background:#0a84ff;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600;">Abrir o chat</a></p>
+  <p style="font-size:12px;color:#8e8e93;">Em caso de emergência, não espere a resposta pelo chat: procure uma clínica veterinária.<br>
+  Para não receber estes avisos: <a href="${APP_URL}/settings" style="color:#8e8e93;">Configurações → Sistema → Avisos de mensagens por e-mail</a>.</p>
+</div>`,
+      });
+    } catch (err) {
+      logger.error('chat e-mail: falha', { uid, err: err.message });
+      continue; // sem marcar: tenta na próxima rodada
+    }
+    await Promise.all(list.map((x) => x.ref.update({ [`emailNotifiedAt.${uid}`]: x.lastMessageAt })));
+    summary.sent += 1;
+  }
+  logger.info('chat e-mail: rodada', summary);
+  return summary;
+}
+
+exports.sendChatEmailDigest = onSchedule(
+  {
+    schedule: 'every 15 minutes',
+    timeZone: SP_TZ,
+    region: 'southamerica-east1',
+    secrets: [gmailEmailSecret, gmailPasswordSecret],
+    retryCount: 0,
+  },
+  async () => { await runChatEmailDigest({ now: new Date() }); }
+);
+
+/* adminRunChatDigest — dispara a rodada agora (admin; usado também nos testes). */
+exports.adminRunChatDigest = onCall(
+  { region: 'southamerica-east1', secrets: [gmailEmailSecret, gmailPasswordSecret] },
+  async (request) => {
+    await requireAdmin(request);
+    // Testes: adianta o relógio (até 2h) para não esperar os 15 min de atraso.
+    const advance = Math.max(0, Math.min(Number(request.data?.advanceMinutes || 0), 120));
+    return runChatEmailDigest({ now: new Date(Date.now() + advance * 60000) });
   }
 );

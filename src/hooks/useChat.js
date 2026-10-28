@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  collection, doc, addDoc, updateDoc, getDocs, onSnapshot,
+  collection, doc, addDoc, setDoc, updateDoc, getDocs, onSnapshot,
   orderBy, query, where, limit, startAfter, serverTimestamp,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../config/firebase';
+import { ref, uploadBytes } from 'firebase/storage';
+import imageCompression from 'browser-image-compression';
+import { db, functions, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+
+// Mesmos limites da storage.rules e da firestore.rules.
+export const ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const ATTACHMENT_MAX = 10 * 1024 * 1024;
 
 const openConversationFn = httpsCallable(functions, 'openConversation', { timeout: 20000 });
 
@@ -141,7 +147,48 @@ export function useChat() {
     }
   }, [activeConversaId, uid]);
 
+  // Anexo (foto ou PDF): sobe o arquivo em chat/{conversa}/{mensagem}/… e só
+  // então grava a mensagem apontando para ele (a rule confere o caminho).
+  const sendAttachment = useCallback(async (file, caption = '') => {
+    if (!activeConversaId || !file || !uid) return;
+    setSending(true);
+    setError(null);
+    try {
+      let blob = file;
+      let contentType = file.type;
+      let name = file.name || 'arquivo';
+      if (/^image\/(jpeg|png|webp)$/.test(contentType)) {
+        // Recomprimir corta o maior custo do chat (download de fotos) e tira o
+        // EXIF (pode ter o GPS da casa do tutor). Sem web worker: a CSP do site
+        // não libera o script que a biblioteca buscaria em CDN.
+        blob = await imageCompression(file, { maxWidthOrHeight: 1600, initialQuality: 0.8, fileType: 'image/jpeg', useWebWorker: false });
+        contentType = 'image/jpeg';
+        name = name.replace(/\.[^.]+$/, '') + '.jpg';
+      }
+      if (!ATTACHMENT_TYPES.includes(contentType)) throw Object.assign(new Error('Tipo de arquivo não aceito. Envie foto (JPG, PNG, WebP) ou PDF.'), { code: 'chat/type' });
+      if (blob.size > ATTACHMENT_MAX) throw Object.assign(new Error('Arquivo maior que 10 MB.'), { code: 'chat/size' });
+
+      const msgRef = doc(collection(db, 'conversas', activeConversaId, 'mensagens'));
+      const safe = name.normalize('NFD').replace(/[^\w.-]+/g, '_').slice(-80) || 'arquivo';
+      const path = `chat/${activeConversaId}/${msgRef.id}/${safe}`;
+      await uploadBytes(ref(storage, path), blob, { contentType });
+      await setDoc(msgRef, {
+        senderId: uid,
+        tipo: 'anexo',
+        texto: (caption || '').trim().slice(0, 4000),
+        anexo: { path, name: name.slice(0, 200), contentType, size: blob.size },
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      setError(err);
+      throw err;
+    } finally {
+      setSending(false);
+    }
+  }, [activeConversaId, uid]);
+
   return {
+    sendAttachment,
     conversations,
     activeConversaId,
     activeConversation: active,

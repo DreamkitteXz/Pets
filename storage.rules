@@ -29,6 +29,26 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // Anexos do chat — `chat/{vetId}_{tutorId}/{msgId}/{arquivo}`.
+    //
+    // A conversa tem id `{vetId}_{tutorId}` (uids não têm "_"), então o próprio
+    // caminho diz quem participa: sem consultar o Firestore (que custaria uma
+    // leitura por acesso). Só os dois leem e enviam; fotos JPEG/PNG/WebP e PDF
+    // até 10 MB. Anexo é prontuário (CFMV): ninguém sobrescreve nem apaga.
+    match /chat/{conversaId}/{msgId}/{fileName} {
+      function participant() {
+        return request.auth != null
+          && conversaId.matches('^[A-Za-z0-9]+_[A-Za-z0-9]+$')
+          && request.auth.uid in conversaId.split('_');
+      }
+      allow read: if participant();
+      allow create: if participant()
+        && resource == null // nunca reescreve um anexo existente
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      allow update, delete: if false;
+    }
+
     // APKs de release — distribuicao fora da Play Store.
     //
     // LEITURA PUBLICA (`if true`, sem exigir auth): o download acontece depois

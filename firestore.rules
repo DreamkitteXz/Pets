@@ -61,6 +61,16 @@ service cloud.firestore {
       match /notifications/{notificationId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      // Aparelhos que recebem push (token do FCM). Só o dono grava os seus;
+      // a CF onChatMessage lê com Admin SDK e apaga os inválidos.
+      match /fcmTokens/{tokenId} {
+        allow read, delete: if request.auth != null && request.auth.uid == userId;
+        allow create, update: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['token', 'createdAt', 'userAgent'])
+          && request.resource.data.token is string
+          && request.resource.data.token.size() < 4096;
+      }
     }
 
     // Pets — readable by owner or any assigned veterinarian.
@@ -317,15 +327,29 @@ service cloud.firestore {
         function conversa() { return get(/databases/$(database)/documents/conversas/$(conversaId)).data; }
 
         allow read: if isParticipant(conversa());
+        // Anexo: o arquivo já está no Storage em chat/{conversa}/{esta mensagem}/…
+        // (a storage.rules confere quem envia); aqui só se aceita apontar para ele.
+        function anexoOk(d) {
+          return d.anexo is map
+            && d.anexo.keys().hasOnly(['path', 'name', 'contentType', 'size'])
+            && d.anexo.path is string
+            && d.anexo.path.matches('^chat/' + conversaId + '/' + msgId + '/[^/]+$')
+            && d.anexo.contentType in ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+            && d.anexo.size is int && d.anexo.size > 0 && d.anexo.size <= 10 * 1024 * 1024
+            && d.anexo.name is string && d.anexo.name.size() <= 200;
+        }
+
         allow create: if isParticipant(conversa())
           && conversa().get('status', 'active') == 'active'
-          && request.resource.data.keys().hasOnly(['senderId', 'texto', 'tipo', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['senderId', 'texto', 'tipo', 'createdAt', 'anexo'])
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.createdAt == request.time
-          && request.resource.data.tipo == 'texto'
           && request.resource.data.texto is string
-          && request.resource.data.texto.size() > 0
-          && request.resource.data.texto.size() <= 4000;
+          && request.resource.data.texto.size() <= 4000
+          && ((request.resource.data.tipo == 'texto'
+                && request.resource.data.texto.size() > 0
+                && !('anexo' in request.resource.data))
+              || (request.resource.data.tipo == 'anexo' && anexoOk(request.resource.data)));
         // Exclusão lógica: só o autor, só marcando deletedAt/deletedBy.
         allow update: if request.auth != null
           && resource.data.senderId == request.auth.uid

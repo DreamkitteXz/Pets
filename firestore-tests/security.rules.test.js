@@ -220,6 +220,25 @@ describe('conversas e mensagens', () => {
     await seed('conversas', C, { vetId: VET, tutorId: TUTOR, status: 'closed' });
     await assertFails(addDoc(collection(asUser(TUTOR), 'conversas', C, 'mensagens'), msg()));
   });
+  it('anexo: aponta só para o próprio caminho, com tipo e tamanho aceitos', async () => {
+    const id = 'mA';
+    const ref = doc(asUser(TUTOR), 'conversas', C, 'mensagens', id);
+    const anexo = (o = {}) => ({ path: `chat/${C}/${id}/foto.jpg`, name: 'foto.jpg', contentType: 'image/jpeg', size: 120000, ...o });
+    const m = (o = {}) => msg({ tipo: 'anexo', texto: '', anexo: anexo(), ...o });
+    await assertFails(setDoc(ref, m({ anexo: anexo({ path: `chat/${C}/outra/foto.jpg` }) })));       // caminho de outra mensagem
+    await assertFails(setDoc(ref, m({ anexo: anexo({ path: `chat/outra_conversa/${id}/foto.jpg` }) })));
+    await assertFails(setDoc(ref, m({ anexo: anexo({ contentType: 'application/zip' }) })));
+    await assertFails(setDoc(ref, m({ anexo: anexo({ size: 11 * 1024 * 1024 }) })));
+    await assertFails(setDoc(ref, m({ anexo: { ...anexo(), url: 'https://x' } })));                 // campo extra
+    await assertFails(setDoc(ref, msg({ tipo: 'anexo', texto: '' })));                               // anexo sem arquivo
+    await assertFails(setDoc(ref, msg({ texto: 'oi', anexo: anexo() })));                            // texto com anexo escondido
+    await assertSucceeds(setDoc(ref, m({ texto: 'Exame de sangue' })));
+  });
+  it('aparelhos de push: cada um só registra os seus', async () => {
+    await assertSucceeds(setDoc(doc(asUser(TUTOR), 'users', TUTOR, 'fcmTokens', 'tok1'), { token: 'tok1', createdAt: serverTimestamp(), userAgent: 'x' }));
+    await assertFails(setDoc(doc(asUser(OTHER), 'users', TUTOR, 'fcmTokens', 'tok2'), { token: 'tok2' }));
+    await assertFails(setDoc(doc(asUser(TUTOR), 'users', TUTOR, 'fcmTokens', 'tok3'), { token: 'tok3', admin: true }));
+  });
   it('só o autor faz exclusão lógica; ninguém edita o texto', async () => {
     const ref = (u) => doc(asUser(u), 'conversas', C, 'mensagens', 'm1');
     await assertFails(updateDoc(ref(TUTOR), { deletedAt: serverTimestamp(), deletedBy: TUTOR }));

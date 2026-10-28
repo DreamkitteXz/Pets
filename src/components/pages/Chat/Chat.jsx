@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MessageSquare, ChevronLeft, AlertTriangle } from 'lucide-react';
+import { MessageSquare, ChevronLeft, AlertTriangle, Bell } from 'lucide-react';
+import { pushAvailable, pushPermission, enablePush } from '../../../services/pushService';
 import { useMediaQuery, DESKTOP_QUERY } from '../../../hooks/useMediaQuery';
 import { useAuth } from '../../../context/AuthContext';
 import { useChat } from '../../../hooks/useChat';
@@ -26,8 +27,31 @@ const ChatPage = () => {
   const isTutor = userProfile?.role === 'tutor';
   const {
     conversations, activeConversaId, activeConversation, messages, hasMore, loadOlder, loadingOlder,
-    loadingConversations, loadingMessages, sending, error, selectConversation, sendMessage,
+    loadingConversations, loadingMessages, sending, error, selectConversation, sendMessage, sendAttachment,
   } = useChat();
+  const [pushState, setPushState] = useState('hidden'); // hidden | offer | busy | on | denied
+  useEffect(() => {
+    let alive = true;
+    pushAvailable().then((ok) => {
+      if (!alive || !ok) return;
+      const p = pushPermission();
+      setPushState(p === 'granted' ? 'on' : p === 'denied' ? 'denied' : 'offer');
+    });
+    return () => { alive = false; };
+  }, []);
+  // Permissão já concedida: renova o token deste aparelho a cada visita (sem perguntar).
+  useEffect(() => {
+    if (pushState === 'on' && user?.uid) enablePush(user.uid).catch(() => {});
+  }, [pushState, user?.uid]);
+  const turnOnPush = async () => {
+    setPushState('busy');
+    try {
+      const r = await enablePush(user.uid);
+      setPushState(r.ok ? 'on' : r.reason === 'denied' ? 'denied' : 'offer');
+    } catch {
+      setPushState('offer');
+    }
+  };
   const [termsAccepted, setTermsAccepted] = useState(false);
   const needsTerms = !termsAccepted && (userProfile?.chatTermsVersion || 0) < CHAT_TERMS_VERSION;
 
@@ -62,6 +86,18 @@ const ChatPage = () => {
           </p>
         </div>
       </div>
+
+      {showList && pushState === 'offer' && (
+        <div className="mb-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-[14px] px-4 py-3"
+          style={{ background: 'rgba(0,122,255,0.08)', fontSize: '13px', color: 'var(--text-primary)' }}>
+          <span className="flex items-center gap-2 flex-1"><Bell size={15} style={{ color: 'var(--apple-blue)' }} />
+            Receba um aviso neste aparelho quando chegar mensagem nova.</span>
+          <button type="button" onClick={turnOnPush} className="self-start sm:self-auto px-3 py-1.5 rounded-[9px] font-semibold"
+            style={{ fontSize: '13px', color: '#fff', background: 'var(--apple-blue)' }}>
+            Ativar notificações
+          </button>
+        </div>
+      )}
 
       {/* ── Two-panel layout ─────────────────────────────────────────────── */}
       <div
@@ -138,10 +174,13 @@ const ChatPage = () => {
               />
               {error && (
                 <p className="px-4 py-1.5" style={{ fontSize: '12px', color: 'var(--apple-red)' }}>
-                  {error.code === 'permission-denied' ? 'Você não tem acesso a esta conversa.' : 'Não foi possível enviar. Tente de novo.'}
+                  {String(error.code || '').startsWith('chat/') ? error.message
+                    : error.code === 'permission-denied' || error.code === 'storage/unauthorized' ? 'Você não tem acesso a esta conversa.'
+                    : 'Não foi possível enviar. Tente de novo.'}
                 </p>
               )}
-              <MessageInput onSend={sendMessage} disabled={sending || needsTerms || activeConversation?.status === 'closed'} />
+              <MessageInput onSend={sendMessage} onSendAttachment={sendAttachment}
+                disabled={sending || needsTerms || activeConversation?.status === 'closed'} />
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 px-8 text-center">

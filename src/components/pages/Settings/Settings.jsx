@@ -98,7 +98,7 @@ const Settings = () => {
     name: '', email: '', phone: '', cpf: '',
     street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '',
     crmv: '', specialties: [], yearsOfExperience: 0,
-    notifications: false, emailReminders: true, language: 'pt-BR', twoFactorAuth: false,
+    notifications: false, emailReminders: true, emailChatNotifications: true, language: 'pt-BR', twoFactorAuth: false,
   });
 
   useEffect(() => {
@@ -113,6 +113,8 @@ const Settings = () => {
         notifications: userData.notifications || false,
         // Ligado por padrão: só `false` explícito desliga (CF sendDueReminders).
         emailReminders: userData.emailReminders !== false,
+        // Ligado por padrão: só `false` explícito desliga (CF sendChatEmailDigest).
+        emailChatNotifications: userData.emailChatNotifications !== false,
         language: userData.language || 'pt-BR', twoFactorAuth: userData.twoFactorAuth || false,
       });
     }
@@ -363,6 +365,7 @@ const Settings = () => {
                   {role === 'tutor' && (
                     <ToggleRow label="Lembretes por e-mail" sublabel="Aviso quando uma vacina ou vermífugo dos seus pets estiver para vencer" name="emailReminders" checked={formData.emailReminders} onChange={handleChange} />
                   )}
+                  <ToggleRow label="Avisos de mensagens por e-mail" sublabel="E-mail quando houver mensagem não lida no chat há mais de 15 minutos" name="emailChatNotifications" checked={formData.emailChatNotifications} onChange={handleChange} />
                   <ToggleRow label="Modo Escuro" sublabel="Aparência escura para a interface" name="darkMode" checked={isDark} onChange={handleChange} />
                   <ToggleRow label="Autenticação em 2 Fatores" sublabel="Segurança adicional no login" name="twoFactorAuth" checked={formData.twoFactorAuth} onChange={handleChange} isLast />
                 </div>

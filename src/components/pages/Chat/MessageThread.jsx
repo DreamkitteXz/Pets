@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { toDate, toMillis } from '../../../utils/dates';
+import Attachment from './Attachment';
 
 const formatTime = (ts) => {
   const d = toDate(ts);
@@ -66,16 +67,23 @@ export default function MessageThread({ messages, loading, conversation, uid, ha
                 opacity: hidden ? 0.6 : 1,
               }}
             >
-              <p style={{
-                fontSize: '15px',
-                color: isMine ? '#fff' : 'var(--text-primary)',
-                lineHeight: '1.4',
-                wordBreak: 'break-word',
-                whiteSpace: 'pre-wrap',
-                fontStyle: hidden ? 'italic' : 'normal',
-              }}>
-                {hidden ? 'Mensagem ocultada pelo autor' : msg.texto}
-              </p>
+              {!hidden && msg.tipo === 'anexo' && msg.anexo && (
+                <div className={msg.texto ? 'mb-1.5' : ''}>
+                  <Attachment anexo={msg.anexo} isMine={isMine} />
+                </div>
+              )}
+              {(hidden || msg.texto) && (
+                <p style={{
+                  fontSize: '15px',
+                  color: isMine ? '#fff' : 'var(--text-primary)',
+                  lineHeight: '1.4',
+                  wordBreak: 'break-word',
+                  whiteSpace: 'pre-wrap',
+                  fontStyle: hidden ? 'italic' : 'normal',
+                }}>
+                  {hidden ? 'Mensagem ocultada pelo autor' : msg.texto}
+                </p>
+              )}
               <p className="mt-1 text-right" style={{
                 fontSize: '11px',
                 color: isMine ? 'rgba(255,255,255,0.55)' : 'var(--text-tertiary)',
