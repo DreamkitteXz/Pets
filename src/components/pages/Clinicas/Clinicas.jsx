@@ -3,6 +3,7 @@ import { Search, Building2, MapPin, Phone, Users, Stethoscope, Heart, Plus } fro
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../../config/firebase';
 import AddClinicModal from './AddClinicModal';
+import ClinicsMap from './ClinicsMap';
 import { useClinics } from '../../../hooks/useClinics';
 import { usePets } from '../../../hooks/usePets';
 import { useAuth } from '../../../context/AuthContext';
@@ -53,6 +54,7 @@ const ClinicasPage = () => {
   const { clinics, loading, error, refresh } = useClinics();
   const [showAdd, setShowAdd] = useState(false);
   const [leavingId, setLeavingId] = useState(null);
+  const [hoverId, setHoverId] = useState(null); // linha sob o mouse → destaque no mapa
 
   const leave = async (clinic) => {
     if (!window.confirm(`Sair de ${clinic.name}? Você pode entrar de novo depois.`)) return;
@@ -126,6 +128,13 @@ const ClinicasPage = () => {
             <KpiCard label="Total de pacientes" value={totalPatients} accentColor="var(--apple-green)" icon={Heart} delay={200} />
           </div>
 
+          {/* ── Mapa ─────────────────────────────────────────────────────── */}
+          {clinics.length > 0 && (
+            <div className="mb-4 fade-in-up" style={{ animationDelay: '220ms' }}>
+              <ClinicsMap clinics={clinics} highlightId={hoverId} />
+            </div>
+          )}
+
           {/* ── Search bar ───────────────────────────────────────────────── */}
           <div
             className="fade-in-up flex flex-wrap items-center gap-3 mb-4 p-4 rounded-[16px]"
@@ -162,7 +171,7 @@ const ClinicasPage = () => {
                   {clinics.length === 0 ? 'Nenhuma clínica associada' : 'Nenhum resultado'}
                 </p>
                 <p style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>
-                  {clinics.length === 0 ? 'Busque sua clínica no Google ou cadastre manualmente em “Adicionar clínica”.' : 'Tente outros termos de busca.'}
+                  {clinics.length === 0 ? 'Cadastre sua clínica em “Adicionar clínica”.' : 'Tente outros termos de busca.'}
                 </p>
               </div>
             ) : (
@@ -187,8 +196,8 @@ const ClinicasPage = () => {
                           key={clinic.id}
                           className="fade-in-up transition-colors duration-100"
                           style={{ borderBottom: isLast ? 'none' : '1px solid var(--separator)', animationDelay: `${300 + i * 25}ms` }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(116,116,128,0.04)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(116,116,128,0.04)'; setHoverId(clinic.id); }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; setHoverId(null); }}
                         >
                           {/* Clínica */}
                           <td style={{ padding: '14px 20px', border: 'none' }}>

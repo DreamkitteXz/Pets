@@ -191,6 +191,9 @@ describe('clinics — escrita restrita', () => {
   it('NÃO se coloca na clínica pelo cliente', async () => {
     await assertFails(updateDoc(doc(asUser(TUTOR), 'clinics', 'c1'), { veterinarians: [VET, OTHER, TUTOR] }));
   });
+  it('membro NÃO mexe na coordenada do mapa', async () => {
+    await assertFails(updateDoc(doc(asUser(VET), 'clinics', 'c1'), { location: { lat: 0, lng: 0 } }));
+  });
   it('NÃO apaga clínica', async () => {
     await assertFails(deleteDoc(doc(asUser(VET), 'clinics', 'c1')));
   });

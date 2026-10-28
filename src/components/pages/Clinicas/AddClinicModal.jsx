@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { httpsCallable } from 'firebase/functions';
-import { X, Search, MapPin, Phone, Globe, AlertCircle, Check } from 'lucide-react';
+import { X, AlertCircle, Check } from 'lucide-react';
 import { functions } from '../../../config/firebase';
-import { useAuth } from '../../../context/AuthContext';
 import { lookupCEP } from '../../../services/addressService';
 import { formatCEP, formatCNPJ, formatPhoneBR, validateCNPJ } from '../../../utils/validation';
 
-// Tudo passa pelo servidor: a busca no Google (chave secreta, só vet aprovado)
-// e a gravação (o cliente não cria clínica direto — ver firestore.rules).
-const searchFn  = httpsCallable(functions, 'searchClinicsOnMaps', { timeout: 20000 });
-const addGoogle = httpsCallable(functions, 'addClinicFromGoogle', { timeout: 20000 });
+// Cadastro manual, gravado pelo servidor (o cliente não cria clínica direto —
+// ver firestore.rules). O endereço vira ponto no mapa pela CF geocodeClinic.
 const addManual = httpsCallable(functions, 'createClinicManual', { timeout: 20000 });
 const joinFn    = httpsCallable(functions, 'joinClinic', { timeout: 20000 });
 
@@ -23,107 +20,6 @@ const Label = ({ children, required }) => (
     {children}{required && <span style={{ color: 'var(--apple-red)' }}> *</span>}
   </span>
 );
-
-function GoogleTab({ onAdded }) {
-  const { userProfile } = useAuth();
-  const [query, setQuery] = useState('');
-  const [city, setCity] = useState(userProfile?.address?.city || '');
-  const [results, setResults] = useState(null);
-  const [searching, setSearching] = useState(false);
-  const [busyId, setBusyId] = useState(null);
-  const [error, setError] = useState('');
-
-  const search = async (e) => {
-    e.preventDefault();
-    if (query.trim().length < 2) return;
-    setSearching(true);
-    setError('');
-    try {
-      const res = await searchFn({ query: query.trim(), city: city.trim() });
-      setResults(res.data.results);
-    } catch (err) {
-      // Função ainda não publicada (chave do Google pendente) → orienta o manual.
-      const offline = ['functions/not-found', 'functions/internal'].includes(err?.code);
-      setError(offline
-        ? 'A busca no Google está indisponível no momento. Use “Cadastrar manualmente”.'
-        : err?.message || 'A busca falhou.');
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const add = async (r) => {
-    setBusyId(r.googlePlaceId);
-    setError('');
-    try {
-      if (r.clinicId) await joinFn({ clinicId: r.clinicId });
-      else await addGoogle({ placeId: r.googlePlaceId });
-      onAdded(r.name);
-    } catch (err) {
-      setError(err?.message || 'Não foi possível adicionar.');
-      setBusyId(null);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-4">
-      <form onSubmit={search} className="flex flex-col md:flex-row gap-2">
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome da clínica ou bairro"
-          aria-label="Nome da clínica ou bairro" style={inputStyle} maxLength={80} autoFocus />
-        <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Cidade"
-          aria-label="Cidade" style={{ ...inputStyle }} className="md:max-w-[180px]" maxLength={60} />
-        <button type="submit" disabled={searching || query.trim().length < 2}
-          className="px-4 py-2.5 rounded-[12px] font-semibold flex items-center justify-center gap-1.5 flex-shrink-0"
-          style={{ fontSize: '15px', color: '#fff', background: 'var(--apple-blue)', opacity: searching || query.trim().length < 2 ? 0.5 : 1 }}>
-          <Search size={15} /> {searching ? 'Buscando…' : 'Buscar'}
-        </button>
-      </form>
-
-      {error && (
-        <p className="flex items-start gap-1.5" style={{ fontSize: '13px', color: 'var(--apple-red)' }}>
-          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} /> {error}
-        </p>
-      )}
-
-      {results && results.length === 0 && (
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-          Nenhuma clínica veterinária encontrada no Google. Tente outro nome ou use “Cadastrar manualmente”.
-        </p>
-      )}
-
-      {results?.length > 0 && (
-        <ul className="flex flex-col gap-2">
-          {results.map((r) => (
-            <li key={r.googlePlaceId} className="rounded-[14px] p-3.5 flex flex-col md:flex-row md:items-center gap-3"
-              style={{ background: 'var(--surface-secondary)' }}>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>{r.name}</p>
-                <p className="flex items-start gap-1" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  <MapPin size={13} style={{ flexShrink: 0, marginTop: '3px' }} /> {r.formattedAddress || '—'}
-                </p>
-                <p className="flex flex-wrap gap-x-3" style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
-                  {r.phone && <span className="inline-flex items-center gap-1"><Phone size={12} /> {r.phone}</span>}
-                  {r.website && <span className="inline-flex items-center gap-1 truncate"><Globe size={12} /> {r.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>}
-                </p>
-              </div>
-              {r.isMember ? (
-                <span className="inline-flex items-center gap-1 font-semibold flex-shrink-0" style={{ fontSize: '14px', color: 'var(--apple-green)' }}>
-                  <Check size={15} /> Você já faz parte
-                </span>
-              ) : (
-                <button type="button" onClick={() => add(r)} disabled={!!busyId}
-                  className="px-3.5 py-2 rounded-[10px] font-semibold flex-shrink-0"
-                  style={{ fontSize: '14px', color: '#fff', background: 'var(--apple-blue)', opacity: busyId ? 0.5 : 1 }}>
-                  {busyId === r.googlePlaceId ? 'Adicionando…' : r.clinicId ? 'Entrar nesta clínica' : 'Adicionar'}
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 const EMPTY = { name: '', cnpj: '', phone: '', email: '', address: { zipCode: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '' } };
 
@@ -235,7 +131,6 @@ function ManualTab({ onAdded }) {
 }
 
 export default function AddClinicModal({ onClose, onAdded }) {
-  const [tab, setTab] = useState('google');
   const [done, setDone] = useState('');
 
   const handleAdded = (name) => {
@@ -268,24 +163,7 @@ export default function AddClinicModal({ onClose, onAdded }) {
                 style={{ fontSize: '15px', color: '#fff', background: 'var(--apple-blue)' }}>Concluir</button>
             </div>
           ) : (
-            <>
-              <div role="tablist" className="flex gap-1 p-1 rounded-[12px] w-full md:w-auto md:self-start" style={{ background: 'var(--surface-secondary)' }}>
-                {[['google', 'Buscar no Google', 'No Google'], ['manual', 'Cadastrar manualmente', 'Manual']].map(([id, label, short]) => (
-                  <button key={id} type="button" role="tab" aria-selected={tab === id} aria-label={label} onClick={() => setTab(id)}
-                    className="flex-1 md:flex-none px-3.5 py-2 rounded-[9px] font-semibold whitespace-nowrap"
-                    style={{
-                      fontSize: '14px',
-                      background: tab === id ? 'var(--surface-grouped-secondary)' : 'transparent',
-                      color: tab === id ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      boxShadow: tab === id ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-                    }}>
-                    <span className="hidden md:inline">{label}</span>
-                    <span className="md:hidden">{short}</span>
-                  </button>
-                ))}
-              </div>
-              {tab === 'google' ? <GoogleTab onAdded={handleAdded} /> : <ManualTab onAdded={handleAdded} />}
-            </>
+            <ManualTab onAdded={handleAdded} />
           )}
         </div>
       </div>

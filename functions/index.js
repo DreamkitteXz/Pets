@@ -1058,162 +1058,67 @@ exports.adminRunReminders = onCall(
 
 /* ── Clínicas: veterinário cadastra e entra em clínicas ─────────────────────
  *
- * O cliente nunca cria clínica direto (rule). Tudo passa por aqui e exige
- * veterinário com CRMV APROVADO (`requireActiveVet`).
+ * O cliente nunca cria clínica direto (rule). Cadastro, entrar e sair passam
+ * por aqui e exigem veterinário com CRMV APROVADO (`requireActiveVet`).
  *
- *  • Busca no Google: Places API (New), chamada SÓ do servidor. A chave fica
- *    em segredo (`PLACES_API_KEY`), nunca vai ao navegador; cada vet tem
- *    limite de buscas por hora.
- *  • "Adicionar do Google" recebe só o placeId e busca os dados de novo no
- *    Google — o cliente não consegue forjar nome/endereço "vindos do Google".
- *    O doc tem id determinístico (`gplace_<placeId>`): a mesma clínica nunca
- *    é cadastrada duas vezes, nem com cliques simultâneos.
  *  • Manual: campos validados (CNPJ com dígito verificador); com CNPJ, o id é
- *    `cnpj_<dígitos>` pelo mesmo motivo.
- *  • Já cadastrada: o vet entra nela (`joinClinic`) em vez de duplicar.
+ *    `cnpj_<dígitos>` — a mesma clínica nunca é cadastrada duas vezes, e quem
+ *    tentar recebe a oferta de entrar nela (`joinClinic`).
+ *  • Mapa: o endereço vira coordenada no SERVIDOR (`geocodeClinic`), uma vez
+ *    por endereço, pelo Nominatim (OpenStreetMap, gratuito). A coordenada
+ *    (`location`) é só do servidor — a rule impede o cliente de mexer.
  */
-const placesApiKeySecret = defineSecret('PLACES_API_KEY');
-// No emulador os testes apontam para um Google falso local; em produção, sempre o real.
-const PLACES_BASE = (process.env.FUNCTIONS_EMULATOR === 'true' && process.env.PLACES_FAKE_URL)
-  || 'https://places.googleapis.com/v1';
-const PLACE_FIELDS = ['id', 'displayName', 'formattedAddress', 'addressComponents',
-  'nationalPhoneNumber', 'websiteUri', 'location', 'businessStatus'];
-const SEARCHES_PER_HOUR = 30;
+// Nominatim: gratuito, mas exige identificação e no máximo 1 requisição/s
+// (https://operations.osmfoundation.org/policies/nominatim/). Só roda quando um
+// endereço de clínica muda — volume mínimo. No emulador, aponta para um falso local.
+const GEOCODER_BASE = (process.env.FUNCTIONS_EMULATOR === 'true' && process.env.GEOCODER_FAKE_URL)
+  || 'https://nominatim.openstreetmap.org';
+const GEOCODER_UA = 'PetsApp/1.0 (https://pet-app-fccae.web.app)';
+const ADDRESS_KEYS = ['street', 'number', 'neighborhood', 'city', 'state', 'zipCode'];
+const addressKey = (a = {}) => ADDRESS_KEYS.map((k) => String(a[k] || '').trim().toLowerCase()).join('|');
 
-async function rateLimit(uid, bucket, max, windowS) {
-  const ref = db.collection('rate_limits').doc(`${bucket}_${uid}`);
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const now = Date.now();
-    const hits = (snap.exists ? snap.data().hits || [] : []).filter((t) => t > now - windowS * 1000);
-    if (hits.length >= max) {
-      throw new HttpsError('resource-exhausted', 'Muitas buscas em pouco tempo. Tente de novo em alguns minutos.');
-    }
-    tx.set(ref, { hits: [...hits, now] });
-  });
-}
-
-function placeToClinic(p) {
-  const comp = (type, short = false) => {
-    const c = (p.addressComponents || []).find((x) => (x.types || []).includes(type));
-    return c ? (short ? c.shortText : c.longText) || '' : '';
-  };
-  return {
-    googlePlaceId: p.id,
-    name: p.displayName?.text || '',
-    phone: p.nationalPhoneNumber || '',
-    website: p.websiteUri || '',
-    formattedAddress: p.formattedAddress || '',
-    address: {
-      street:       comp('route'),
-      number:       comp('street_number'),
-      complement:   '',
-      neighborhood: comp('sublocality_level_1') || comp('sublocality'),
-      city:         comp('administrative_area_level_2') || comp('locality'),
-      state:        comp('administrative_area_level_1', true),
-      zipCode:      comp('postal_code'),
-    },
-    location: p.location ? { lat: p.location.latitude, lng: p.location.longitude } : null,
-    businessStatus: p.businessStatus || '',
-  };
-}
-
-async function placesRequest(path, { method = 'GET', body, fieldMask }) {
-  const key = process.env.PLACES_API_KEY;
-  if (!key) throw new HttpsError('failed-precondition', 'Busca no Google ainda não configurada.');
-  const res = await fetch(`${PLACES_BASE}${path}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': fieldMask },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (res.status === 404) throw new HttpsError('not-found', 'Clínica não encontrada no Google.');
-  if (!res.ok) {
-    logger.error('places: erro', { status: res.status, body: (await res.text()).slice(0, 300) });
-    throw new HttpsError('unavailable', 'A busca no Google falhou. Tente de novo ou cadastre manualmente.');
+async function geocodeAddress(a) {
+  const tries = [
+    // 1º endereço completo; 2º sem número (Nominatim nem sempre conhece a numeração); 3º só o CEP.
+    { street: [a.number, a.street].filter(Boolean).join(' '), city: a.city, state: a.state, postalcode: a.zipCode },
+    { street: a.street, city: a.city, state: a.state },
+    a.zipCode ? { postalcode: a.zipCode } : null,
+  ].filter(Boolean);
+  for (let i = 0; i < tries.length; i++) {
+    if (i) await new Promise((r) => setTimeout(r, 1100)); // respeita 1 req/s entre tentativas
+    const params = new URLSearchParams({ format: 'jsonv2', limit: '1', countrycodes: 'br' });
+    Object.entries(tries[i]).forEach(([k, v]) => { if (v) params.set(k, String(v)); });
+    const res = await fetch(`${GEOCODER_BASE}/search?${params}`, { headers: { 'User-Agent': GEOCODER_UA, 'Accept-Language': 'pt-BR' } });
+    if (!res.ok) throw new Error(`geocoder ${res.status}`);
+    const [hit] = await res.json();
+    if (hit) return { lat: Number(hit.lat), lng: Number(hit.lon), precision: ['endereco', 'rua', 'cep'][i] };
   }
-  return res.json();
+  return null;
 }
 
-const clinicIdForPlace = (placeId) => `gplace_${placeId}`;
-const PLACE_ID_RE = /^[A-Za-z0-9_-]{10,300}$/;
+/* geocodeClinic — endereço vira coordenada para o mapa, uma vez por endereço. */
+exports.geocodeClinic = onDocumentWritten(
+  { document: 'clinics/{clinicId}', region: 'southamerica-east1' },
+  async (event) => {
+    const after = event.data?.after?.data();
+    if (!after?.address?.city) return;
+    const key = addressKey(after.address);
+    // Já geocodificado para ESTE endereço: nada a fazer (inclui a própria escrita abaixo).
+    if (after.location?.addressKey === key) return;
 
-/* searchClinicsOnMaps — { query, city? } → { results: [...] } */
-exports.searchClinicsOnMaps = onCall(
-  { region: 'southamerica-east1', secrets: [placesApiKeySecret] },
-  async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Autenticação necessária.');
-    await requireActiveVet(request.auth.uid);
-    const query = String(request.data?.query || '').trim().slice(0, 80);
-    const city  = String(request.data?.city || '').trim().slice(0, 60);
-    if (query.length < 2) throw new HttpsError('invalid-argument', 'Digite o nome da clínica ou o bairro.');
-    await rateLimit(request.auth.uid, 'places', SEARCHES_PER_HOUR, 3600);
-
-    const data = await placesRequest('/places:searchText', {
-      method: 'POST',
-      fieldMask: PLACE_FIELDS.map((f) => `places.${f}`).join(','),
-      body: {
-        textQuery: city ? `${query} ${city}` : query,
-        languageCode: 'pt-BR',
-        regionCode: 'BR',
-        includedType: 'veterinary_care',
-        strictTypeFiltering: true,
-        maxResultCount: 10,
-      },
-    });
-    const results = (data.places || []).map(placeToClinic).filter((c) => c.businessStatus !== 'CLOSED_PERMANENTLY');
-
-    // Marca as que já estão no Pets (e se o vet já faz parte).
-    const refs = results.map((c) => db.collection('clinics').doc(clinicIdForPlace(c.googlePlaceId)));
-    const existing = refs.length ? await db.getAll(...refs) : [];
-    return {
-      results: results.map((c, i) => ({
-        ...c,
-        clinicId: existing[i].exists ? existing[i].id : null,
-        isMember:  existing[i].exists && (existing[i].data().veterinarians || []).includes(request.auth.uid),
-      })),
-    };
-  }
-);
-
-/* addClinicFromGoogle — { placeId } → { clinicId, created } */
-exports.addClinicFromGoogle = onCall(
-  { region: 'southamerica-east1', secrets: [placesApiKeySecret] },
-  async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Autenticação necessária.');
-    const uid = request.auth.uid;
-    await requireActiveVet(uid);
-    const placeId = String(request.data?.placeId || '');
-    if (!PLACE_ID_RE.test(placeId)) throw new HttpsError('invalid-argument', 'Clínica inválida.');
-
-    const ref = db.collection('clinics').doc(clinicIdForPlace(placeId));
-    const snap = await ref.get();
-    if (snap.exists) {
-      await ref.update({ veterinarians: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() });
-      return { clinicId: ref.id, created: false };
-    }
-
-    // Dados oficiais buscados de novo no Google — nada do cliente além do id.
-    const place = placeToClinic(await placesRequest(`/places/${encodeURIComponent(placeId)}?languageCode=pt-BR&regionCode=BR`, {
-      fieldMask: PLACE_FIELDS.join(','),
-    }));
-    if (!place.name) throw new HttpsError('not-found', 'Clínica não encontrada no Google.');
-    const now = FieldValue.serverTimestamp();
+    let point = null;
     try {
-      await ref.create({
-        name: place.name, phone: place.phone, email: '', website: place.website, cnpj: '',
-        address: place.address, formattedAddress: place.formattedAddress, location: place.location,
-        googlePlaceId: placeId, source: 'google', status: 'active',
-        veterinarians: [uid], createdBy: uid, createdAt: now, updatedAt: now,
-      });
-      return { clinicId: ref.id, created: true };
+      point = await geocodeAddress(after.address);
     } catch (err) {
-      // Outro vet cadastrou no mesmo instante: só entra nela.
-      if (err.code === 6 /* ALREADY_EXISTS */) {
-        await ref.update({ veterinarians: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() });
-        return { clinicId: ref.id, created: false };
-      }
-      throw err;
+      logger.warn('geocodeClinic: falha', { clinicId: event.params.clinicId, err: err.message });
+      return; // tenta de novo na próxima edição do endereço
     }
+    await event.data.after.ref.update({
+      location: point
+        ? { lat: point.lat, lng: point.lng, precision: point.precision, source: 'osm', addressKey: key }
+        : { lat: null, lng: null, precision: 'nao_encontrado', source: 'osm', addressKey: key },
+    });
+    logger.info('geocodeClinic', { clinicId: event.params.clinicId, found: !!point });
   }
 );
 
@@ -1276,7 +1181,7 @@ exports.createClinicManual = onCall(
     const now = FieldValue.serverTimestamp();
     try {
       await ref.create({
-        ...clinic, website: '', googlePlaceId: '', source: 'manual', status: 'active',
+        ...clinic, website: '', source: 'manual', status: 'active',
         veterinarians: [uid], createdBy: uid, createdAt: now, updatedAt: now,
       });
     } catch (err) {
