@@ -15,6 +15,22 @@
         { "fieldPath": "veterinarianId", "order": "ASCENDING" },
         { "fieldPath": "nextDueDate", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "conversas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "vetId", "order": "ASCENDING" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "conversas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tutorId", "order": "ASCENDING" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

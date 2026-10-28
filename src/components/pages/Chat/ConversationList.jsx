@@ -1,6 +1,7 @@
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
 import { toDate } from '../../../utils/dates';
+import { otherParty } from './Chat';
 
 const formatTime = (ts) => {
   const d = toDate(ts);
@@ -13,7 +14,7 @@ const formatTime = (ts) => {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
 
-export default function ConversationList({ conversations, activeId, onSelect, loading }) {
+export default function ConversationList({ conversations, activeId, onSelect, loading, isTutor, uid }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-40">
@@ -34,7 +35,7 @@ export default function ConversationList({ conversations, activeId, onSelect, lo
           Nenhuma conversa
         </p>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-          Inicie uma conversa a partir da tela de um paciente.
+          {isTutor ? 'Comece pela tela do seu pet, ao lado do veterinário.' : 'Comece pela tela do paciente.'}
         </p>
       </div>
     );
@@ -44,7 +45,12 @@ export default function ConversationList({ conversations, activeId, onSelect, lo
     <div className="overflow-y-auto flex-1">
       {conversations.map((c) => {
         const isActive = c.id === activeId;
-        const initials = c.tutorName?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+        const { name, detail } = otherParty(c, isTutor);
+        const unread = c.unread?.[uid] || 0;
+        const initials = name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+        const preview = c.lastMessage
+          ? `${c.lastSenderId === uid ? 'Você: ' : ''}${c.lastMessage}`
+          : 'Nenhuma mensagem ainda';
         return (
           <button
             key={c.id}
@@ -65,29 +71,28 @@ export default function ConversationList({ conversations, activeId, onSelect, lo
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium truncate" style={{ fontSize: '14px', color: isActive ? 'var(--apple-blue)' : 'var(--text-primary)' }}>
-                    {c.tutorName || 'Tutor'}
+                    {name}
                   </span>
                   <span className="flex-shrink-0" style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                     {formatTime(c.lastMessageAt)}
                   </span>
                 </div>
-                {c.petName && (
+                {detail && (
                   <div className="truncate" style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '1px' }}>
-                    {c.petName}
+                    {detail}
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-2">
-                  {c.lastMessage && (
-                    <div className="truncate mt-0.5" style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                      {c.lastMessage}
-                    </div>
-                  )}
-                  {c.unread > 0 && (
+                  <div className="truncate mt-0.5" style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: unread ? 600 : 400 }}>
+                    {preview}
+                  </div>
+                  {unread > 0 && (
                     <span
                       className="flex-shrink-0 inline-flex items-center justify-center rounded-full font-semibold"
+                      aria-label={`${unread} não lidas`}
                       style={{ minWidth: '18px', height: '18px', padding: '0 5px', fontSize: '11px', background: 'var(--apple-blue)', color: '#fff' }}
                     >
-                      {c.unread}
+                      {unread}
                     </span>
                   )}
                 </div>

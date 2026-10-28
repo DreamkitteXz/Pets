@@ -79,7 +79,6 @@ const App = () => {
                   <Route path="/vermifugos" element={<Vaccines key="deworming" kind="deworming" />} />
                   <Route path="/vencimentos" element={<Vencimentos />} />
                   <Route path="/clinicas" element={<Clinicas />} />
-                  <Route path="/chat" element={<Chat />} />
                 </Route>
 
                 {/* Tutor-only routes */}
@@ -97,6 +96,8 @@ const App = () => {
                 {/* Any authenticated, onboarded user */}
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
+                {/* Chat: vet e tutor (a CF openConversation e as rules definem quem fala com quem) */}
+                <Route path="/chat" element={<Chat />} />
                 <Route path="/support" element={<Support />} />
 
                 {/* Administração — claim `admin` (as CFs conferem de novo) */}

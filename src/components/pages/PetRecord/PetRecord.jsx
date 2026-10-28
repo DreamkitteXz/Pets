@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Stethoscope, Syringe, Bug, Scale, Pencil,
-  CheckCircle, Clock, XCircle, CalendarClock, Weight, FileText,
+  CheckCircle, Clock, XCircle, CalendarClock, Weight, FileText, MessageSquare,
 } from 'lucide-react';
+import { openConversation } from '../../../hooks/useChat';
 import { usePetRecord } from '../../../hooks/usePetRecord';
 import { normalizeStatus } from '../../../utils/vaccineStatus';
 import { useAuth } from '../../../context/AuthContext';
@@ -89,6 +90,21 @@ const PetRecord = () => {
   const [modalType, setModalType] = useState(null); // 'consulta' | 'peso' | null
   const [newApp, setNewApp] = useState(null); // null | 'vacina' | 'vermifugo'
   const [editOpen, setEditOpen] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
+  const [chatError, setChatError] = useState('');
+
+  // Vet abre (ou reaproveita) a conversa com o dono deste pet — a CF confere o vínculo.
+  const chatWithTutor = async () => {
+    setChatBusy(true);
+    setChatError('');
+    try {
+      const conversaId = await openConversation({ petId });
+      navigate('/chat', { state: { conversaId } });
+    } catch (err) {
+      setChatError(err?.message || 'Não foi possível abrir a conversa.');
+      setChatBusy(false);
+    }
+  };
 
   // Tutors view the record read-only; vets can add records.
   const isTutor = userProfile?.role === 'tutor';
@@ -129,12 +145,22 @@ const PetRecord = () => {
           onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
           <ArrowLeft size={16} strokeWidth={2} /> {isTutor ? 'Meus Pets' : 'Pacientes'}
         </button>
-        <button onClick={() => navigate(`${backTo}/${petId}/carteira`)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] font-medium transition-colors duration-150"
-          style={{ fontSize: '14px', color: 'var(--apple-blue)', background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-          <FileText size={15} strokeWidth={1.75} /> Carteira
-        </button>
+        <div className="flex items-center gap-2">
+          {!isTutor && (
+            <button onClick={chatWithTutor} disabled={chatBusy}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] font-medium transition-colors duration-150"
+              style={{ fontSize: '14px', color: 'var(--apple-blue)', background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', opacity: chatBusy ? 0.5 : 1 }}>
+              <MessageSquare size={15} strokeWidth={1.75} /> <span className="hidden sm:inline">Conversar com o tutor</span><span className="sm:hidden">Conversar</span>
+            </button>
+          )}
+          <button onClick={() => navigate(`${backTo}/${petId}/carteira`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] font-medium transition-colors duration-150"
+            style={{ fontSize: '14px', color: 'var(--apple-blue)', background: 'var(--surface-grouped-secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+            <FileText size={15} strokeWidth={1.75} /> Carteira
+          </button>
+        </div>
       </div>
+      {chatError && <p className="mb-3" style={{ fontSize: '13px', color: 'var(--apple-red)' }}>{chatError}</p>}
 
       {/* ── Summary card ─────────────────────────────────────────────────── */}
       <div className="fade-in-up rounded-[20px] p-6 mb-5" style={{ ...card, animationDelay: '40ms' }}>

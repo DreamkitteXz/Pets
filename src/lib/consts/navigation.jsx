@@ -73,6 +73,12 @@ export const TUTOR_SIDEBAR_LINKS = [
 		path: '/meus-vermifugos',
 		icon: <Bug size={20} strokeWidth={1.5} />,
 	},
+	{
+		key: 'tutor-chat',
+		label: 'Chat',
+		path: '/chat',
+		icon: <MessageSquare size={20} strokeWidth={1.5} />,
+	},
 ]
 
 export const DASHBOARD_SIDEBAR_BOTTOM_LINKS = [

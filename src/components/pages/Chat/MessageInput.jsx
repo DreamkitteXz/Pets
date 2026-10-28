@@ -4,10 +4,14 @@ import { Send } from 'lucide-react';
 export default function MessageInput({ onSend, disabled }) {
   const [text, setText] = useState('');
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!text.trim() || disabled) return;
-    onSend(text);
-    setText('');
+    try {
+      await onSend(text);
+      setText('');
+    } catch {
+      // Mantém o texto para tentar de novo (o erro aparece acima do campo).
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -32,6 +36,8 @@ export default function MessageInput({ onSend, disabled }) {
           onChange={e => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Mensagem..."
+          maxLength={4000}
+          aria-label="Mensagem"
           disabled={disabled}
           className="w-full bg-transparent border-none outline-none resize-none"
           style={{

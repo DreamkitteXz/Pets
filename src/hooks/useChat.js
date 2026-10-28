@@ -1,136 +1,159 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  collection, doc, getDocs, addDoc, setDoc, updateDoc,
-  orderBy, query, where, serverTimestamp, getDoc,
+  collection, doc, addDoc, updateDoc, getDocs, onSnapshot,
+  orderBy, query, where, limit, startAfter, serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
-import { toMillis } from '../utils/dates';
 
-const POLL_MS = 5000;
+const openConversationFn = httpsCallable(functions, 'openConversation', { timeout: 20000 });
 
-export function useChat() {
+// Paginação é o que controla o custo do chat: cada documento entregue a um
+// listener é uma leitura. A lista escuta só as 20 conversas mais recentes e a
+// conversa aberta só as últimas 30 mensagens; as antigas vêm sob demanda.
+const CONVERSATIONS_LIMIT = 20;
+const PAGE = 30;
+// Sem isto, a mensagem recém-enviada aparece sem horário até o servidor confirmar.
+const SNAP = { serverTimestamps: 'estimate' };
+
+const toMsg = (d) => ({ id: d.id, ...d.data(SNAP) });
+
+/** Abre (ou reaproveita) a conversa — só o servidor cria, conferindo o vínculo. */
+export async function openConversation({ petId, vetId }) {
+  const { data } = await openConversationFn({ petId, ...(vetId ? { vetId } : {}) });
+  return data.conversaId;
+}
+
+/** Lista de conversas do usuário (vet ou tutor), ao vivo. */
+function useConversationList() {
   const { user, userProfile } = useAuth();
   const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const field = userProfile?.role === 'tutor' ? 'tutorId' : 'vetId';
+
+  useEffect(() => {
+    if (!user?.uid || !userProfile?.role) return undefined;
+    const q = query(
+      collection(db, 'conversas'),
+      where(field, '==', user.uid),
+      orderBy('lastMessageAt', 'desc'),
+      limit(CONVERSATIONS_LIMIT),
+    );
+    return onSnapshot(q, (snap) => {
+      setConversations(snap.docs.map((d) => ({ id: d.id, ...d.data(SNAP) })));
+      setLoading(false);
+    }, (err) => { setError(err); setLoading(false); });
+  }, [user?.uid, userProfile?.role, field]);
+
+  return { conversations, loading, error };
+}
+
+/** Total de conversas com mensagens não lidas (badge do cabeçalho). */
+export function useChatUnread() {
+  const { user } = useAuth();
+  const { conversations } = useConversationList();
+  return conversations.filter((c) => (c.unread?.[user?.uid] || 0) > 0).length;
+}
+
+export function useChat() {
+  const { user } = useAuth();
+  const uid = user?.uid;
+  const { conversations, loading: loadingConversations, error: listError } = useConversationList();
   const [activeConversaId, setActiveConversaId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [recent, setRecent] = useState([]);   // últimas PAGE, ao vivo
+  const [older, setOlder] = useState([]);     // páginas anteriores, sob demanda
+  const [hasMore, setHasMore] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
-  const pollRef = useRef(null);
+  const oldestRef = useRef(null);
 
-  // ── Fetch conversation list for this vet ──────────────────────────────────
-  const fetchConversations = useCallback(async () => {
-    if (!user) return;
+  const active = conversations.find((c) => c.id === activeConversaId) || null;
+
+  // Mensagens da conversa aberta: listener só nas últimas PAGE.
+  useEffect(() => {
+    setRecent([]);
+    setOlder([]);
+    setHasMore(false);
+    oldestRef.current = null;
+    if (!activeConversaId) return undefined;
+    setLoadingMessages(true);
+    const q = query(collection(db, 'conversas', activeConversaId, 'mensagens'), orderBy('createdAt', 'desc'), limit(PAGE));
+    return onSnapshot(q, (snap) => {
+      setRecent(snap.docs.map(toMsg).reverse());
+      if (!oldestRef.current) {
+        oldestRef.current = snap.docs[snap.docs.length - 1] || null;
+        setHasMore(snap.docs.length === PAGE);
+      }
+      setLoadingMessages(false);
+    }, (err) => { setError(err); setLoadingMessages(false); });
+  }, [activeConversaId]);
+
+  const loadOlder = useCallback(async () => {
+    if (!activeConversaId || !oldestRef.current || loadingOlder) return;
+    setLoadingOlder(true);
     try {
-      // Query scoped to the vet so it complies with the security rules
-      // (rules are not filters — querying the whole collection would fail).
-      // Sorted client-side to avoid requiring a composite index.
-      const snap = await getDocs(
-        query(collection(db, 'conversas'), where('vetId', '==', user.uid))
-      );
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      all.sort((a, b) => toMillis(b.lastMessageAt) - toMillis(a.lastMessageAt));
-      setConversations(all);
+      const snap = await getDocs(query(
+        collection(db, 'conversas', activeConversaId, 'mensagens'),
+        orderBy('createdAt', 'desc'), startAfter(oldestRef.current), limit(PAGE),
+      ));
+      oldestRef.current = snap.docs[snap.docs.length - 1] || oldestRef.current;
+      setOlder((prev) => [...snap.docs.map(toMsg).reverse(), ...prev]);
+      setHasMore(snap.docs.length === PAGE);
     } catch (err) {
       setError(err);
     } finally {
-      setLoadingConversations(false);
+      setLoadingOlder(false);
     }
-  }, [user]);
+  }, [activeConversaId, loadingOlder]);
 
+  // Marca como lida só quando há não lidas para mim — uma gravação por leitura,
+  // não por mensagem (o "visto" do outro lado usa lastReadAt).
+  const myUnread = active?.unread?.[uid] || 0;
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    if (!activeConversaId || !uid || myUnread === 0) return;
+    updateDoc(doc(db, 'conversas', activeConversaId), {
+      [`lastReadAt.${uid}`]: serverTimestamp(),
+      [`unread.${uid}`]: 0,
+    }).catch(() => {});
+  }, [activeConversaId, uid, myUnread]);
 
-  // ── Fetch messages for active conversation (polling) ──────────────────────
-  const fetchMessages = useCallback(async (conversaId) => {
-    if (!conversaId) return;
-    try {
-      const snap = await getDocs(
-        query(collection(db, 'conversas', conversaId, 'mensagens'), orderBy('timestamp', 'asc'))
-      );
-      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      setError(err);
-    }
-  }, []);
-
-  const selectConversation = useCallback((conversaId) => {
-    clearInterval(pollRef.current);
-    setActiveConversaId(conversaId);
-    setMessages([]);
-    setLoadingMessages(true);
-
-    fetchMessages(conversaId).then(() => setLoadingMessages(false));
-
-    pollRef.current = setInterval(() => fetchMessages(conversaId), POLL_MS);
-  }, [fetchMessages]);
-
-  useEffect(() => {
-    return () => clearInterval(pollRef.current);
-  }, []);
-
-  // ── Send message ──────────────────────────────────────────────────────────
   const sendMessage = useCallback(async (texto) => {
-    if (!activeConversaId || !texto.trim() || !user) return;
+    const clean = (texto || '').trim();
+    if (!activeConversaId || !clean || !uid) return;
     setSending(true);
+    setError(null);
     try {
       await addDoc(collection(db, 'conversas', activeConversaId, 'mensagens'), {
-        remetente: user.uid,
-        texto: texto.trim(),
-        timestamp: serverTimestamp(),
-        lida: false,
+        senderId: uid,
+        texto: clean.slice(0, 4000),
+        tipo: 'texto',
+        createdAt: serverTimestamp(),
       });
-      await updateDoc(doc(db, 'conversas', activeConversaId), {
-        lastMessage: texto.trim(),
-        lastMessageAt: serverTimestamp(),
-      });
-      await fetchMessages(activeConversaId);
-      await fetchConversations();
     } catch (err) {
       setError(err);
+      throw err;
     } finally {
       setSending(false);
     }
-  }, [activeConversaId, user, fetchMessages, fetchConversations]);
-
-  // ── Start a new conversation with a tutor ────────────────────────────────
-  const startConversation = useCallback(async (tutorId, tutorName, petId, petName) => {
-    if (!user || !userProfile) return null;
-    const conversaId = `${user.uid}_${tutorId}`;
-    const ref = doc(db, 'conversas', conversaId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      await setDoc(ref, {
-        vetId: user.uid,
-        tutorId,
-        petId: petId || null,
-        petName: petName || '',
-        vetName: userProfile.name || '',
-        tutorName: tutorName || '',
-        lastMessage: '',
-        lastMessageAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-      });
-    }
-    await fetchConversations();
-    selectConversation(conversaId);
-    return conversaId;
-  }, [user, userProfile, fetchConversations, selectConversation]);
+  }, [activeConversaId, uid]);
 
   return {
     conversations,
     activeConversaId,
-    messages,
+    activeConversation: active,
+    messages: [...older, ...recent],
+    hasMore,
+    loadOlder,
+    loadingOlder,
     loadingConversations,
     loadingMessages,
     sending,
-    error,
-    selectConversation,
+    error: error || listError,
+    selectConversation: setActiveConversaId,
     sendMessage,
-    startConversation,
-    refresh: fetchConversations,
   };
 }

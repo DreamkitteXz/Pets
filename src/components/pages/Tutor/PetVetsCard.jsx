@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
-import { Stethoscope, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Stethoscope, Plus, MessageSquare } from 'lucide-react';
 import { db } from '../../../config/firebase';
 import { useVetDirectory } from '../../../hooks/useVetDirectory';
+import { openConversation } from '../../../hooks/useChat';
 import LinkVetModal from './LinkVetModal';
 
 /**
@@ -17,6 +19,8 @@ export default function PetVetsCard({ pet, onChanged }) {
   const [confirmId, setConfirmId] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
+  const [chatBusy, setChatBusy] = useState(null);
+  const navigate = useNavigate();
 
   const linkedIds = Array.isArray(pet.veterinarians) ? pet.veterinarians : [];
   const byId = Object.fromEntries(vets.map((v) => [v.uid, v]));
@@ -26,6 +30,19 @@ export default function PetVetsCard({ pet, onChanged }) {
   const link = async (uid) => {
     await updateDoc(petRef, { veterinarians: arrayUnion(uid), updatedAt: serverTimestamp() });
     await onChanged?.();
+  };
+
+  // Abre (ou reaproveita) a conversa com este vet e vai para o chat.
+  const chat = async (vetId) => {
+    setChatBusy(vetId);
+    setError('');
+    try {
+      const conversaId = await openConversation({ petId: pet.id, vetId });
+      navigate('/chat', { state: { conversaId } });
+    } catch (err) {
+      setError(err?.message || 'Não foi possível abrir a conversa.');
+      setChatBusy(null);
+    }
   };
 
   const unlink = async (uid) => {
@@ -94,10 +111,19 @@ export default function PetVetsCard({ pet, onChanged }) {
                   </button>
                 </div>
               ) : (
-                <button onClick={() => setConfirmId(uid)}
-                  className="font-medium flex-shrink-0" style={{ fontSize: '14px', color: 'var(--apple-red)' }}>
-                  Remover
-                </button>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {/* Só vet do diretório (CRMV aprovado) conversa — a CF confere de novo. */}
+                  {v && (
+                    <button onClick={() => chat(uid)} disabled={chatBusy === uid}
+                      className="inline-flex items-center gap-1 font-medium" style={{ fontSize: '14px', color: 'var(--apple-blue)', opacity: chatBusy === uid ? 0.5 : 1 }}>
+                      <MessageSquare size={14} strokeWidth={2} /> {chatBusy === uid ? 'Abrindo…' : 'Conversar'}
+                    </button>
+                  )}
+                  <button onClick={() => setConfirmId(uid)}
+                    className="font-medium" style={{ fontSize: '14px', color: 'var(--apple-red)' }}>
+                    Remover
+                  </button>
+                </div>
               )}
             </div>
           );

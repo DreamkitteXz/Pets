@@ -6,7 +6,7 @@ import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import LogoutModal from "../LogoutModal/LogoutModal";
 import { useNotifications } from "../../../hooks/useNotifications";
-import { useChatUnread } from "../../../hooks/useChatMock";
+import { useChatUnread } from "../../../hooks/useChat";
 import { toDate } from "../../../utils/dates";
 
 export default function Header({ onMenuClick }) {

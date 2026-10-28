@@ -298,7 +298,11 @@ service cloud.firestore {
     //    texto de 1 a 4000 caracteres e campos fechados; conversa encerrada
     //    não recebe mensagem.
     match /conversas/{conversaId} {
-      function isParticipant(c) { return request.auth != null && request.auth.uid in [c.vetId, c.tutorId]; }
+      // Comparação campo a campo (não `in [..]`): é o formato que o Firestore
+      // consegue provar para a CONSULTA da lista (where vetId/tutorId == uid).
+      function isParticipant(c) {
+        return request.auth != null && (c.vetId == request.auth.uid || c.tutorId == request.auth.uid);
+      }
 
       allow read: if isParticipant(resource.data);
       allow create, delete: if false;
